@@ -59,8 +59,16 @@
 
   <!-- 런타임 디렉토리 (서비스 리로드, 동적 로더) -->
   <ItemGroup>
-    <Content Include="..\Process\**\*" Link="Process\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Process\**\*" Exclude="..\Process\ACS.*.dll;..\Process\ACS.*.pdb" Link="Process\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\reload\**\*" Link="reload\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- 빌드 후: ACS.*.dll을 Process/ 출력 디렉토리에 동기화 (동적 로딩용) -->
+  <Target Name="SyncProcessDlls" AfterTargets="Build">
+    <ItemGroup>
+      <_AcsDlls Include="$(OutputPath)ACS.*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AcsDlls)" DestinationFolder="$(OutputPath)Process\" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
