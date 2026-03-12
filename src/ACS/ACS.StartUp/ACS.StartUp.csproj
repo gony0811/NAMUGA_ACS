@@ -52,6 +52,11 @@
     <Content Include="..\spring-objects.xml" Link="spring-objects.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Library DLL을 빌드 출력에 복사 (패치된 Spring.Core.dll 포함) -->
+  <ItemGroup>
+    <Content Include="..\Library\*.dll" Link="%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- 런타임 디렉토리 (서비스 리로드, 동적 로더) -->
   <ItemGroup>
     <Content Include="..\Process\**\*" Link="Process\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

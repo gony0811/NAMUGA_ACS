@@ -7,4 +7,11 @@
     <!-- 중간 빌드 파일은 프로젝트별 obj/ 로 분리 -->
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
   </PropertyGroup>
+
+  <!-- Library/ 참조 DLL은 항상 출력 디렉토리에 복사 -->
+  <ItemGroup>
+    <Reference Update="Spring.Core">
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
 </Project>
