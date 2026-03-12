@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
@@ -8,9 +9,38 @@ using System.Threading;
 using ACS.Application;
 using System.Diagnostics;
 using System.Reflection;
+using Spring.Threading;
 
 namespace ACS.StartUp
 {
+    /// <summary>
+    /// AsyncLocal 기반 IThreadStorage 구현.
+    /// .NET 8에서 제거된 CallContext를 대체하여 Spring.NET의 스레드 저장소로 사용.
+    /// </summary>
+    internal class AsyncLocalThreadStorage : IThreadStorage
+    {
+        private static readonly ConcurrentDictionary<string, AsyncLocal<object>> _store
+            = new ConcurrentDictionary<string, AsyncLocal<object>>();
+
+        public object GetData(string name)
+        {
+            return _store.TryGetValue(name, out var slot) ? slot.Value : null;
+        }
+
+        public void SetData(string name, object value)
+        {
+            _store.GetOrAdd(name, _ => new AsyncLocal<object>()).Value = value;
+        }
+
+        public void FreeNamedDataSlot(string name)
+        {
+            if (_store.TryRemove(name, out var slot))
+            {
+                slot.Value = null;
+            }
+        }
+    }
+
     static class ServerApplication
     {
         /// <summary>
@@ -19,20 +49,26 @@ namespace ACS.StartUp
         static void Main()
         {
             Console.WriteLine("[ACS] Starting ACS Server...");
-            
-            // .NET 8 compatibility: resolve types removed from mscorlib (e.g., CallContext)
+
+            // .NET 8 호환: Spring.NET의 CallContextStorage를 AsyncLocal 기반으로 교체
+            LogicalThreadContext.SetStorage(new AsyncLocalThreadStorage());
+            Console.WriteLine("[ACS] ThreadStorage initialized (AsyncLocal)");
+
+            // .NET 8 호환: mscorlib에서 제거된 타입 해결 (Remoting, CallContext 등)
             var compatAssembly = typeof(System.Runtime.Remoting.Messaging.CallContext).Assembly;
             Console.WriteLine($"[ACS] Compat assembly loaded: {compatAssembly.FullName}");
             AppDomain.CurrentDomain.TypeResolve += (sender, args) =>
             {
-                if (args.Name != null && args.Name.Contains("CallContext"))
+                if (args.Name != null && (
+                    args.Name.Contains("CallContext") ||
+                    args.Name.Contains("System.Runtime.Remoting")))
                 {
                     return compatAssembly;
                 }
                 return null;
             };
 
-            // .NET 8: resolve assemblies from app base directory (Spring.NET loads types dynamically)
+            // .NET 8: 앱 기본 디렉토리에서 어셈블리 해결 (Spring.NET 동적 타입 로딩)
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
@@ -40,13 +76,12 @@ namespace ACS.StartUp
                 var dllPath = System.IO.Path.Combine(appDir, asmName.Name + ".dll");
                 if (System.IO.File.Exists(dllPath))
                 {
-                    Console.WriteLine($"[ACS] AssemblyResolve: {asmName.Name} -> {dllPath}");
                     return Assembly.LoadFrom(dllPath);
                 }
                 return null;
             };
 
-            // On .NET 8+, process name is 'dotnet' when run via dotnet CLI, so skip duplicate check
+            // .NET 8+에서 dotnet CLI로 실행 시 프로세스 이름이 'dotnet'이므로 중복 검사 스킵
             var currentProcess = Process.GetCurrentProcess();
             var processName = currentProcess.ProcessName;
             Console.WriteLine($"[ACS] Process: {processName} (PID: {currentProcess.Id})");
