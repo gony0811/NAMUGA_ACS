@@ -8,15 +8,15 @@ namespace ACS.Framework.Application
 {
     public class Settings
     {
-        public static string SYSTEM_DATABASE_TYPE = "sdc.acs.database.type";
+        public static string SYSTEM_DATABASE_TYPE = "acs.database.type";
         public static string SYSTEM_PROPERTY_SECTION_NAME = "application_properties";
         public static string SYSTEM_PROPERTY_PROCESS_ID = "process.id";
-        public static string SYSTEM_STARTUP_PATH = "sdc.acs.startup.path";
-        public static string SYSTEM_PROPERTY_KEY_CONFIG = "sdc.acs.process.config.key";
-        public static string SYSTEM_PROPERTY_KEY_SITE_VALUE = "sdc.acs.site.name";
-        public static string SYSTEM_PROPERTY_KEY_ID_VALUE = "sdc.acs.application.name";
-        public static string SYSTEM_ENV_KEY_HARDWARE_TYPE = "sdc.acs.hardware.type";
-        public static string SYSTEM_ENV_OPERATION_SYSTEM = "sdc.acs.operation.system";
+        public static string SYSTEM_STARTUP_PATH = "acs.startup.path";
+        public static string SYSTEM_PROPERTY_KEY_CONFIG = "acs.process.config.key";
+        public static string SYSTEM_PROPERTY_KEY_SITE_VALUE = "acs.site.name";
+        public static string SYSTEM_PROPERTY_KEY_ID_VALUE = "acs.application.name";
+        public static string SYSTEM_ENV_KEY_HARDWARE_TYPE = "acs.hardware.type";
+        public static string SYSTEM_ENV_OPERATION_SYSTEM = "acs.operation.system";
         public static string DEFAULT_CONFIGURATION_FILE = "config/@{site}/startup/startup.xml";
         public static string DEFAULT_LOGPROPERTY_FILE = "config/@{site}/startup/log-template.xml";
         public static string DEFAULT_DATABASEPROPERTY_FILE = "config/@{site}/startup/database.xml";
