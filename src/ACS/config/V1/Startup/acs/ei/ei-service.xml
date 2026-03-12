@@ -32,7 +32,7 @@
     <property name="RequestManagerExImplement" ref="RequestManager"/>
   </object>
 
-  <object id="AbstractService" abstract="true" type="ACS.Extension.Framework.Base.AbstractServiceEx, ACS.Extension.Framework.Base">
+  <object id="AbstractService" abstract="true" type="ACS.Framework.Base.AbstractServiceEx, ACS.Framework.Base">
     <property name="ApplicationManager" ref="ApplicationManager" />
     <property name="MessageManager" ref="MessageManager" />
     <property name="HistoryManager" ref="HistoryManager" />

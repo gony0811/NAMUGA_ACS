@@ -22,7 +22,7 @@ using System.Threading;
 using ACS.Framework.Message;
 using System.Xml;
 using log4net;
-using ACS.Extension.Framework.Base;
+using ACS.Framework.Base;
 
 namespace ACS.Service
 {

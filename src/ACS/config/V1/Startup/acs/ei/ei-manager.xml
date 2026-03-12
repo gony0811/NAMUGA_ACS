@@ -26,14 +26,14 @@
     <property name="HistoryManager" ref="HistoryManager"/>
   </object>
 
-  <object id="HistoryManager" parent="AbstractManager" type="ACS.Extension.Manager.HistoryManagerExsImplement, ACS.Extension.Manager" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="HistoryManager" parent="AbstractManager" type="ACS.Manager.HistoryManagerExsImplement, ACS.Manager" lazy-init="default" autowire="default" dependency-check="default">
   </object>
 
-  <object id="CacheManager" parent="AbstractManager" type="ACS.Extension.Manager.CacheManagerExImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="CacheManager" parent="AbstractManager" type="ACS.Manager.CacheManagerExImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="ResourceManager" ref="ResourceManager"/>
   </object>
 
-  <object id="PathManager" parent="AbstractManager" type="ACS.Extension.Manager.PathManagerExsImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="PathManager" parent="AbstractManager" type="ACS.Manager.PathManagerExsImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="TransferManager" ref="TransferManager"/>
     <property name="AlarmManager" ref="AlarmManager"/>
     <property name="MaxHoppingCount">
@@ -50,12 +50,12 @@
     </property>
     <property name="Comparator">
       <object
-        type="ACS.Extension.Framework.Path.Comparator.WeightComparator, ACS.Extension.Framework"
+        type="ACS.Framework.Path.Comparator.WeightComparator, ACS.Framework"
          lazy-init="default" autowire="default" dependency-check="default"/>
     </property>
     <property name="NodeCheckTimeComparator" >
       <object
-        type="ACS.Extension.Framework.Path.Comparator.NodeCheckTimeComparator, ACS.Extension.Framework"
+        type="ACS.Framework.Path.Comparator.NodeCheckTimeComparator, ACS.Framework"
         lazy-init="default" autowire="default" dependency-check="default"/>
     </property>
   </object>
@@ -69,7 +69,7 @@
    
   <object id="DuplicateChecker" type="ACS.Communication.Socket.Checker.DuplicatedCheckerImpl, ACS.Communication" lazy-init="default" autowire="default" dependency-check="default"/>
 
-  <object id="MessageManager" parent="AbstractManager" type="ACS.Extension.Manager.MessageManagerExsImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="MessageManager" parent="AbstractManager" type="ACS.Manager.MessageManagerExsImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="MessageTemplatePath">
       <value>Config/@{site}/StartUp/Message/Nanotrans-message-template.xml</value>
     </property>
@@ -78,7 +78,7 @@
     <property name="TsAgent" ref="TransAgentSender"/>
   </object>
 
-  <object id="ResourceManager" parent="AbstractManager" type="ACS.Extension.Manager.ResourceManagerExsImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="ResourceManager" parent="AbstractManager" type="ACS.Manager.ResourceManagerExsImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="ApplicationManager" ref="ApplicationManager"/>
     <property name="MaterialManager" ref="MaterialManager"/>
   </object>

@@ -1,0 +1,725 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\message\\abstractmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\abstractmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\interface\\ipersistentdao.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\interface\\icomparator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\msb\\convert\\impl\\abstractmsbconverter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\msb\\rabbitmq\\hostnamechanneldestination.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\msb\\rabbitmq\\genericworkflowrabbitmqlistenerqcs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\msb\\rabbitmq\\genericworkflowrabbitmqlistener.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\msb\\rabbitmq\\marker\\controllistener.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE214CAA-F3A4-469C-9CDC-BEC25B054419}|StartUp{AE214CAA-F3A4-469C-9CDC-BEC25B054419}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\startup.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\http\\httpcommserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\http\\controllers\\stringsrestcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5B593B37-9519-47C6-840D-17818693FE2C}|StartUp{5B593B37-9519-47C6-840D-17818693FE2C}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V2\\Startup\\startup.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{71094C42-2DCE-4FD3-8A7E-32403CAD7822}|StartUp{71094C42-2DCE-4FD3-8A7E-32403CAD7822}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\startup.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1AD3B21C-5DFF-4426-AEFC-C20A0A4244A5}|SDC.ACS.Application\\SDC.ACS.Application.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.application\\aftercontextinitialized.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|trans{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-control.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|trans{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-interface.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C3235438-C2AA-442B-A5E6-B1C4BB5CCFBD}|SDC.ACS.Database\\SDC.ACS.Database.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.database\\hibernatedaoimpl.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|trans{2BE5CB7F-5F68-4B93-8947-5B99FCF1E827}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-database.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1AD3B21C-5DFF-4426-AEFC-C20A0A4244A5}|SDC.ACS.Application\\SDC.ACS.Application.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.application\\executor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C794A5C7-37AB-4479-8EC9-098BAB0332D6}|SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.startup\\acscontrolserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\timedentity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\namedentity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\application\\model\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\socket\\model\\nio.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\logging\\model\\logmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\logging\\model\\largelogmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\host\\ihostmessagemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A99EF30F-DE2B-4D73-A48A-0A72BDFA0CD0}|SDC.ACS.Biz\\SDC.ACS.Biz.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.biz\\host\\movecmd.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\base\\partitionedentity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1E9C9ABB-7185-4702-87A5-E9A1B11803BA}|SDC.ACS.Extension\\SDC.ACS.Extension.Framework\\SDC.ACS.Extension.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.extension\\sdc.acs.extension.framework\\alarm\\model\\alarmexs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\alarm\\model\\currentalarm.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\alarm\\model\\alarmspec.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\alarm\\model\\alarm.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\alarm\\model\\alarmex.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\alarm\\model\\alarmreport.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{30B49BD4-6780-4694-9E70-57B13EF7099E}|SDC.ACS.Framework\\SDC.ACS.Framework.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.framework\\message\\model\\server\\alarmsmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C794A5C7-37AB-4479-8EC9-098BAB0332D6}|SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.startup\\serverapplication.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C794A5C7-37AB-4479-8EC9-098BAB0332D6}|SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.startup\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C794A5C7-37AB-4479-8EC9-098BAB0332D6}|SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.startup\\acscontrolserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{00000000-0000-0000-0000-000000000000}|\u003CSolution\u003E|SDC.ACS.StartUp||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A8E0FFA5-E1E8-4C41-8902-10D1C3CD30D3}|control{A8E0FFA5-E1E8-4C41-8902-10D1C3CD30D3}|\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\acs\\control\\control-interface.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\socket\\clientiohandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}|SDC.ACS.Communication\\SDC.ACS.Communication.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.communication\\socket\\clientioconnector.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C794A5C7-37AB-4479-8EC9-098BAB0332D6}|SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj|\\\\eggplantnas\\project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\amr\uAC1C\uBC1C\\acs_origin\\acs_server\\sdc.acs.startup\\||{B270807C-D8C6-49EB-8EBE-8E8D566637A1}|5e9a8ac2-4f34-4521-858f-4c248ba31532"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AbstractMessage.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Message\\AbstractMessage.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Message\\AbstractMessage.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Message\\AbstractMessage.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Message\\AbstractMessage.cs",
+              "ViewState": "AgIAAAUAAADQ//////8XwBoAAABJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:55:32.208Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "AbstractManager.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\AbstractManager.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\AbstractManager.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\AbstractManager.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\AbstractManager.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:54:15.749Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "IPersistentDao.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\Interface\\IPersistentDao.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\Interface\\IPersistentDao.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\Interface\\IPersistentDao.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\Interface\\IPersistentDao.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:54:13.05Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "IComparator.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\Interface\\IComparator.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\Interface\\IComparator.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\Interface\\IComparator.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\Interface\\IComparator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:53:41.052Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "AbstractMsbConverter.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\Convert\\Impl\\AbstractMsbConverter.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Msb\\Convert\\Impl\\AbstractMsbConverter.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\Convert\\Impl\\AbstractMsbConverter.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Msb\\Convert\\Impl\\AbstractMsbConverter.cs",
+              "ViewState": "AgIAAMUBAAAAAAAAAAAYwMkBAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:51:56.836Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "HostNameChannelDestination.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\HostNameChannelDestination.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Msb\\RabbitMQ\\HostNameChannelDestination.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\HostNameChannelDestination.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Msb\\RabbitMQ\\HostNameChannelDestination.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:49:13.652Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "GenericWorkflowRabbitMQListenerQcs.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListenerQcs.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListenerQcs.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListenerQcs.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListenerQcs.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:49:11.819Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "GenericWorkflowRabbitMQListener.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListener.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListener.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListener.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Msb\\RabbitMQ\\GenericWorkflowRabbitMQListener.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:49:10.26Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "ControlListener.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\Marker\\ControlListener.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Msb\\RabbitMQ\\Marker\\ControlListener.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Msb\\RabbitMQ\\Marker\\ControlListener.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Msb\\RabbitMQ\\Marker\\ControlListener.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAABCAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:49:03.093Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "HttpCommServer.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Http\\HttpCommServer.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Http\\HttpCommServer.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Http\\HttpCommServer.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Http\\HttpCommServer.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:43:34.583Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "AfterContextInitialized.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Application\\AfterContextInitialized.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Application\\AfterContextInitialized.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Application\\AfterContextInitialized.cs",
+              "RelativeToolTip": "SDC.ACS.Application\\AfterContextInitialized.cs",
+              "ViewState": "AgIAALMAAAAAAAAAAAAqwMkAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T04:42:32.585Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "trans-control.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-control.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-control.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-control.xml",
+              "RelativeToolTip": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-control.xml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T07:59:29.725Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "trans-interface.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-interface.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-interface.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-interface.xml",
+              "RelativeToolTip": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-interface.xml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAALAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T07:55:58.23Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "startup.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\startup.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\V1\\Startup\\startup.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\startup.xml",
+              "RelativeToolTip": "Bin\\Config\\V1\\Startup\\startup.xml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T07:55:39.579Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "HibernateDaoImpl.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Database\\HibernateDaoImpl.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Database\\HibernateDaoImpl.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Database\\HibernateDaoImpl.cs",
+              "RelativeToolTip": "SDC.ACS.Database\\HibernateDaoImpl.cs",
+              "ViewState": "AgIAAOYAAAAAAAAAAAAowAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T07:14:24.712Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "trans-database.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-database.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-database.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V1\\Startup\\acs\\trans\\trans-database.xml",
+              "RelativeToolTip": "Bin\\Config\\V1\\Startup\\acs\\trans\\trans-database.xml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAKAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T06:53:02.265Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "startup.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\startup.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\SSM1D1F\\Startup\\startup.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\startup.xml*",
+              "RelativeToolTip": "Bin\\Config\\SSM1D1F\\Startup\\startup.xml*",
+              "ViewState": "AgIAALQAAAAAAAAAAAAAABcBAABNAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T01:16:59.795Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "startup.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V2\\Startup\\startup.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\V2\\Startup\\startup.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\V2\\Startup\\startup.xml",
+              "RelativeToolTip": "Bin\\Config\\V2\\Startup\\startup.xml",
+              "ViewState": "AgIAANUBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T01:16:41.284Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "StringsRestController.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Http\\Controllers\\StringsRestController.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Http\\Controllers\\StringsRestController.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Http\\Controllers\\StringsRestController.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Http\\Controllers\\StringsRestController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:16:18.064Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "Executor.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Application\\Executor.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Application\\Executor.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Application\\Executor.cs",
+              "RelativeToolTip": "SDC.ACS.Application\\Executor.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAAAACMAAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T06:51:09.779Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "ACSControlServer.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ACSControlServer.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.StartUp\\ACSControlServer.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ACSControlServer.cs",
+              "RelativeToolTip": "SDC.ACS.StartUp\\ACSControlServer.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T06:49:36.383Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "LogMessage.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Logging\\Model\\LogMessage.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Logging\\Model\\LogMessage.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Logging\\Model\\LogMessage.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Logging\\Model\\LogMessage.cs",
+              "ViewState": "AgIAAB0AAAAAAAAAAAAAADAAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:51:02.256Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "LargeLogMessage.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Logging\\Model\\LargeLogMessage.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Logging\\Model\\LargeLogMessage.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Logging\\Model\\LargeLogMessage.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Logging\\Model\\LargeLogMessage.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:50:53.661Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "MOVECMD.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Biz\\Host\\MOVECMD.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Biz\\Host\\MOVECMD.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Biz\\Host\\MOVECMD.cs",
+              "RelativeToolTip": "SDC.ACS.Biz\\Host\\MOVECMD.cs",
+              "ViewState": "AgIAADYAAAAAAAAAAAAcwDIAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:49:26.488Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "IHostMessageManager.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Host\\IHostMessageManager.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Host\\IHostMessageManager.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Host\\IHostMessageManager.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Host\\IHostMessageManager.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:49:16.027Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "PartitionedEntity.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\PartitionedEntity.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\PartitionedEntity.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\PartitionedEntity.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\PartitionedEntity.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:46:31.838Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "TimedEntity.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\TimedEntity.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\TimedEntity.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\TimedEntity.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\TimedEntity.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:44:30.952Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "NamedEntity.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\NamedEntity.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Base\\NamedEntity.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Base\\NamedEntity.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Base\\NamedEntity.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAgAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:45:18.271Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "AlarmExs.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Extension\\SDC.ACS.Extension.Framework\\Alarm\\Model\\AlarmExs.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Extension\\SDC.ACS.Extension.Framework\\Alarm\\Model\\AlarmExs.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Extension\\SDC.ACS.Extension.Framework\\Alarm\\Model\\AlarmExs.cs",
+              "RelativeToolTip": "SDC.ACS.Extension\\SDC.ACS.Extension.Framework\\Alarm\\Model\\AlarmExs.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:41:29.073Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "Application.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Application\\Model\\Application.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Application\\Model\\Application.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Application\\Model\\Application.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Application\\Model\\Application.cs",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAgwAkAAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:40:45.106Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "Nio.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\Model\\Nio.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Socket\\Model\\Nio.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\Model\\Nio.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Socket\\Model\\Nio.cs",
+              "ViewState": "AgIAADoAAAAAAAAAAAAcwBcAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:07:59.006Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "CurrentAlarm.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\CurrentAlarm.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Alarm\\Model\\CurrentAlarm.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\CurrentAlarm.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Alarm\\Model\\CurrentAlarm.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:40:31.217Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "AlarmSpec.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmSpec.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Alarm\\Model\\AlarmSpec.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmSpec.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Alarm\\Model\\AlarmSpec.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAAAB4AAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:40:15.706Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 36,
+              "Title": "AlarmsMessage.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Message\\Model\\Server\\AlarmsMessage.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Message\\Model\\Server\\AlarmsMessage.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Message\\Model\\Server\\AlarmsMessage.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Message\\Model\\Server\\AlarmsMessage.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:40:04.763Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 35,
+              "Title": "AlarmReport.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmReport.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Alarm\\Model\\AlarmReport.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmReport.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Alarm\\Model\\AlarmReport.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:39:39.182Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 34,
+              "Title": "AlarmEx.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmEx.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Alarm\\Model\\AlarmEx.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\AlarmEx.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Alarm\\Model\\AlarmEx.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAAABYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:28:05.961Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "Alarm.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\Alarm.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Framework\\Alarm\\Model\\Alarm.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Framework\\Alarm\\Model\\Alarm.cs",
+              "RelativeToolTip": "SDC.ACS.Framework\\Alarm\\Model\\Alarm.cs",
+              "ViewState": "AgIAACEAAAAAAAAAAAAowDYAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T05:23:57.98Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
+              "Title": "App.config",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\App.config",
+              "RelativeDocumentMoniker": "SDC.ACS.StartUp\\App.config",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\App.config",
+              "RelativeToolTip": "SDC.ACS.StartUp\\App.config",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000601|",
+              "WhenOpened": "2026-03-10T01:25:15.473Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 40,
+              "Title": "SDC.ACS.StartUp",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj",
+              "RelativeDocumentMoniker": "SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj",
+              "RelativeToolTip": "SDC.ACS.StartUp\\SDC.ACS.StartUp.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-03-10T01:25:07.883Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 39,
+              "Title": "ACSControlServer.cs [\uB514\uC790\uC778]",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ACSControlServer.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.StartUp\\ACSControlServer.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ACSControlServer.cs [\uB514\uC790\uC778]",
+              "RelativeToolTip": "SDC.ACS.StartUp\\ACSControlServer.cs [\uB514\uC790\uC778]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:24:36.282Z",
+              "EditorCaption": " [\uB514\uC790\uC778]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 41,
+              "Title": "control-interface.xml",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\acs\\control\\control-interface.xml",
+              "RelativeDocumentMoniker": "Bin\\Config\\SSM1D1F\\Startup\\acs\\control\\control-interface.xml",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\Bin\\Config\\SSM1D1F\\Startup\\acs\\control\\control-interface.xml",
+              "RelativeToolTip": "Bin\\Config\\SSM1D1F\\Startup\\acs\\control\\control-interface.xml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003576|",
+              "WhenOpened": "2026-03-10T01:17:35.41Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 42,
+              "Title": "ClientIoHandler.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\ClientIoHandler.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Socket\\ClientIoHandler.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\ClientIoHandler.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Socket\\ClientIoHandler.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:13:16.606Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 37,
+              "Title": "ServerApplication.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ServerApplication.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.StartUp\\ServerApplication.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.StartUp\\ServerApplication.cs",
+              "RelativeToolTip": "SDC.ACS.StartUp\\ServerApplication.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAgwBsAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-26T08:37:37.354Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 43,
+              "Title": "ClientIoConnector.cs",
+              "DocumentMoniker": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\ClientIoConnector.cs",
+              "RelativeDocumentMoniker": "SDC.ACS.Communication\\Socket\\ClientIoConnector.cs",
+              "ToolTip": "\\\\EGGPLANTNAS\\Project\\\uC5F0\uAD6C\uAC1C\uBC1C\uACFC\uC81C\\AMR\uAC1C\uBC1C\\acs_origin\\ACS_SERVER\\SDC.ACS.Communication\\Socket\\ClientIoConnector.cs",
+              "RelativeToolTip": "SDC.ACS.Communication\\Socket\\ClientIoConnector.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:13:13.475Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

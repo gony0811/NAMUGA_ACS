@@ -22,8 +22,8 @@ using System.Xml.XPath;
 using log4net;
 using System.Net.NetworkInformation;
 using System.Configuration;
-using ACS.Extension.Framework.Base;
-using ACS.Extension.Manager;
+using ACS.Framework.Base;
+using ACS.Manager;
 
 namespace ACS.Service
 {

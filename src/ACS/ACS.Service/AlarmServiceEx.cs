@@ -9,8 +9,8 @@ using ACS.Framework.Message.Model;
 using ACS.Framework.Resource.Model;
 using System.Collections;
 using log4net;
-using ACS.Extension.Framework.Base;
-using ACS.Extension.Framework.History.Model;
+using ACS.Framework.Base;
+using ACS.Framework.History.Model;
 using ACS.Framework.Path.Model;
 
 namespace ACS.Service

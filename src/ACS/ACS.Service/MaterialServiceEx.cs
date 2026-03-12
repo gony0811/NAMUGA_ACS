@@ -11,7 +11,7 @@ using ACS.Framework.Resource.Model;
 using ACS.Framework.Transfer.Model;
 using ACS.Framework.Material.Model;
 using log4net;
-using ACS.Extension.Framework.Base;
+using ACS.Framework.Base;
 
 namespace ACS.Service
 {

@@ -19,13 +19,13 @@ using ACS.Utility;
 using System.Collections;
 using log4net;
 using ACS.Communication.Socket.Model;
-using ACS.Extension.Framework.Resource.Model;
-using ACS.Extension.Framework.Path.Model;
-using ACS.Extension.Manager;
-using ACS.Extension.Framework.Resource;
-using ACS.Extension.Framework.Base;
-using ACS.Extension.Framework.History;
-using ACS.Extension.Framework.History.Model;
+using ACS.Framework.Resource.Model;
+using ACS.Framework.Path.Model;
+using ACS.Manager;
+using ACS.Framework.Resource;
+using ACS.Framework.Base;
+using ACS.Framework.History;
+using ACS.Framework.History.Model;
 
 namespace ACS.Service
 {

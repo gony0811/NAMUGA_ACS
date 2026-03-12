@@ -36,8 +36,6 @@
     <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
-    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Manager\ACS.Extension.Manager.csproj" />
-    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj" />
   </ItemGroup>
 
   <ItemGroup>

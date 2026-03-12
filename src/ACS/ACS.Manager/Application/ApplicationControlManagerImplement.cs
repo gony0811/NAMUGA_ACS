@@ -18,7 +18,7 @@ using ACS.Workflow;
 using ACS.Utility;
 using Spring.Context;
 using Spring.Context.Support;
-using ACS.Extension.Framework.Cache;
+using ACS.Framework.Cache;
 
 namespace ACS.Manager.Application
 {

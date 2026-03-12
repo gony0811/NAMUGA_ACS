@@ -39,11 +39,6 @@ namespace ACS.Application
 
                 application = CreateOrUpdateApplication(applicationContext, executor);
 
-                if(executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
-
                 logger.Fatal("succeeded in starting TS server");
 
                 InvokeStartWorkflow(applicationContext, application, MESSAGENAME_COMMON_START_TS);
@@ -67,11 +62,6 @@ namespace ACS.Application
                 StartMsb(applicationContext, executor);
 
                 application = CreateOrUpdateApplication(applicationContext, executor);
-
-                if(executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
 
                 //logger.well("succeeded in starting server", true);
                 logger.Fatal("succeeded in starting ES server");

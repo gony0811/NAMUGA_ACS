@@ -31,9 +31,6 @@ namespace ACS.Application
         public string Type { get; set; }
         public string HardwareType { get; set; }
         public string Msb { get; set; }
-        public string Memory { get; set; }
-        public string Jmx { get; set; }
-        public bool UseManagedBean { get; set; }
         public string BaseClass { get; set; }
         public string ServicePath { get; set; }
         public bool UseService { get; set; }
@@ -68,12 +65,6 @@ namespace ACS.Application
                 {
                     string exe = Process.GetCurrentProcess().MainModule.FileName;
                     StartUpPath = Path.GetDirectoryName(exe);
-                    //using (ManagementObject wmiService = new ManagementObject("Win32_Service.Name='" + Id + "'"))
-                    //{
-                    //    wmiService.Get();
-                    //    string currentServiceExePath = wmiService["PathName"].ToString();
-                    //    logger.Info(wmiService["PathName"].ToString());
-                    //}
                 }
 
                 
@@ -187,9 +178,6 @@ namespace ACS.Application
             XmlElement idElement = applicationElement["id"];
             this.Msb = idElement.GetAttribute("msb");
             this.BaseClass = idElement.GetAttribute("base");
-            this.Memory = idElement.GetAttribute("memory");
-            this.Jmx = idElement.GetAttribute("jmx");
-            this.UseManagedBean = idElement.GetAttribute("useManagedBean").Equals("true");
             this.ServicePath = idElement.GetAttribute("servicepath");
                      
             if (!string.IsNullOrEmpty(ServicePath))

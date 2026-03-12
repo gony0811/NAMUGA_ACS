@@ -16,7 +16,7 @@ using ACS.Framework.Transfer;
 using NHibernate.Mapping;
 using NHibernate.Criterion;
 using ACS.Utility;
-using ACS.Extension.Framework.Transfer.Model;
+using ACS.Framework.Transfer.Model;
 
 namespace ACS.Manager.Transfer
 {

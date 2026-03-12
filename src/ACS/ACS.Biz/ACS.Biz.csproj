@@ -26,7 +26,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
-    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj" />
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
     <ProjectReference Include="..\ACS.Service\ACS.Service.csproj" />
     <ProjectReference Include="..\ACS.Utility\ACS.Utility.csproj" />

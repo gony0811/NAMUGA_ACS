@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,7 @@ using ACS.Framework.Path.Model;
 
 namespace ACS.Framework.Path.Comparator
 {
-    public class WeightComparator : IComparator
+    public class WeightComparator : IComparer
     {
         public int Compare(object object1, object object2)
         {

@@ -14,7 +14,7 @@ using System.Collections;
 using System.Xml;
 using System.Xml.XPath;
 using log4net;
-using ACS.Extension.Framework.Base;
+using ACS.Framework.Base;
 
 namespace ACS.Service
 {

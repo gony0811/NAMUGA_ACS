@@ -41,7 +41,7 @@
 
   <!--//200622 Change NIO Logic About ES.exe does not restart-->
   <!--<object id="ResourceManager" parent="AbstractManager" type="ACS.Manager.Resource.ResourceManagerExImplement, ACS.Manager" lazy-init="default" autowire="default" dependency-check="default">-->
-  <object id="ResourceManager" parent="AbstractManager" type="ACS.Extension.Manager.ResourceManagerExsImplement, ACS.Extension.Manager" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="ResourceManager" parent="AbstractManager" type="ACS.Manager.ResourceManagerExsImplement, ACS.Manager" lazy-init="default" autowire="default" dependency-check="default">
     <property name="ApplicationManager" ref ="ApplicationManager" />
     <property name="MaterialManager"  ref ="MaterialManager" />
   </object>
@@ -63,7 +63,7 @@
   </object>
 
   <!--//200630 REFRESHCACHE-->
-  <object id="CacheManager" parent="AbstractManager" type="ACS.Extension.Manager.CacheManagerExImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="CacheManager" parent="AbstractManager" type="ACS.Manager.CacheManagerExImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="ResourceManager" ref="ResourceManager"/>
   </object>
 

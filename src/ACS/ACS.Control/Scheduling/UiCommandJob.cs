@@ -14,8 +14,8 @@ using System.Xml;
 using ACS.Workflow;
 using ACS.Communication.Socket;
 using ACS.Framework.Message.Model.Control;
-using ACS.Extension.Framework.Transfer.Model;
-using ACS.Extension.Framework.Transfer;
+using ACS.Framework.Transfer.Model;
+using ACS.Framework.Transfer;
 
 //200622 Change NIO Logic About ES.exe does not restart
 namespace ACS.Control.Scheduling

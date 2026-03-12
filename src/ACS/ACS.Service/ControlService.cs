@@ -12,7 +12,7 @@ using ACS.Communication.Msb;
 using ACS.Control;
 using ACS.Application;
 using System.Configuration;
-using ACS.Extension.Framework.Base;
+using ACS.Framework.Base;
 
 namespace ACS.Service
 {

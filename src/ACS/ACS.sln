@@ -6,8 +6,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Utility", "ACS.Utility\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Framework", "ACS.Framework\ACS.Framework.csproj", "{30B49BD4-6780-4694-9E70-57B13EF7099E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Extension.Framework", "ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj", "{00000000-0000-0000-0000-000000000000}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Workflow", "ACS.Workflow\ACS.Workflow.csproj", "{2DE3F687-1419-4F7E-904F-5154F926A6A3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Communication", "ACS.Communication\ACS.Communication.csproj", "{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}"
@@ -27,8 +25,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Service", "ACS.Service\ACS.Service.csproj", "{7D114800-6DDA-4E02-A337-E9C6CCC6F644}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Biz", "ACS.Biz\ACS.Biz.csproj", "{A99EF30F-DE2B-4D73-A48A-0A72BDFA0CD0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Extension.Manager", "ACS.Extension\ACS.Extension.Manager\ACS.Extension.Manager.csproj", "{00000000-0000-0000-0000-000000000000}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.StartUp", "ACS.StartUp\ACS.StartUp.csproj", "{C794A5C7-37AB-4479-8EC9-098BAB0332D6}"
 EndProject

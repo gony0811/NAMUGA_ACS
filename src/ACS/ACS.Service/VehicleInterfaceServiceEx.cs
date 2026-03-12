@@ -19,8 +19,8 @@ using ACS.Communication.Socket;
 using System.Collections;
 using System.Threading;
 using log4net;
-using ACS.Extension.Framework.Base;
-using ACS.Extension.Framework.Message.Model;
+using ACS.Framework.Base;
+using ACS.Framework.Message.Model;
 
 namespace ACS.Service
 {

@@ -2,7 +2,7 @@
 <objects xmlns="http://www.springframework.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.net http://www.springframework.net/xsd/spring-objects.xsd">
 
-  <object id="AstractService" abstract="true" type="ACS.Extension.Framework.Base.AbstractServiceEx, ACS.Extension.Framework.Base">
+  <object id="AstractService" abstract="true" type="ACS.Framework.Base.AbstractServiceEx, ACS.Framework.Base">
     <property name="ApplicationManager" ref="ApplicationManager" />
     <property name="MessageManager" ref="MessageManager" />
     <property name="HistoryManager" ref="HistoryManager" />

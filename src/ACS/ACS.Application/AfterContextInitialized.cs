@@ -24,7 +24,7 @@ using log4net;
 using log4net.Config;
 using log4net.Repository;
 using ACS.Framework.Base;
-using ACS.Extension.Framework.Cache;
+using ACS.Framework.Cache;
 
 [assembly: log4net.Config.XmlConfigurator(Watch = true)]
 namespace ACS.Application
@@ -81,11 +81,6 @@ namespace ACS.Application
                 CreateSingleNodes(applicationContext);
 
                 CreateTripleNodes(applicationContext);
-
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
                 
                 DisplayDataSource(applicationContext);
 
@@ -108,12 +103,6 @@ namespace ACS.Application
                 application = CreateOrUpdateApplication(applicationContext, executor);
 
                 SynchronizeCache(applicationContext);
-
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
-
                 DisplayDataSource(applicationContext);
 
                 logger.Info("successed in starting server");
@@ -135,12 +124,6 @@ namespace ACS.Application
 
                 SynchronizeCache(applicationContext);
 
-
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
-
                 DisplayDataSource(applicationContext);
 
                 //InvokeStartWorkflow(applicationContext, application, "COMMON-START-DAEMON");
@@ -159,11 +142,6 @@ namespace ACS.Application
                 application = CreateOrUpdateApplication(applicationContext, executor);
 
                 SynchronizeCache(applicationContext);
-
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
 
                 DisplayDataSource(applicationContext);
 
@@ -188,11 +166,6 @@ namespace ACS.Application
 
                 //ScheduleServerTimeSync(applicationContext);
 
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
-
                 DisplayDataSource(applicationContext);
 
                 InvokeStartWorkflow(applicationContext, application, "COMMON-START-CONTROL");
@@ -213,11 +186,6 @@ namespace ACS.Application
                 application = CreateOrUpdateApplication(applicationContext, executor);
 
                 SynchronizeCache(applicationContext);
-
-                if (executor.UseManagedBean)
-                {
-                    RegisterManageBean(applicationContext, executor);
-                }
 
                 DisplayDataSource(applicationContext);
 
@@ -415,8 +383,6 @@ namespace ACS.Application
                     
 
                     application.Msb = executor.Msb;
-                    application.Memory = executor.Memory;
-                    application.Jmx = executor.Jmx;
 
                     application.Editor = "admin";
                     application.EditTime = date;
@@ -456,8 +422,6 @@ namespace ACS.Application
                     DateTime date = DateTime.Now;
 
                     application.Msb = executor.Msb;
-                    application.Memory = executor.Memory;
-                    application.Jmx = executor.Jmx;
                     application.Editor = "admin";
                     application.EditTime = date;
                     application.StartTime = date;
@@ -792,51 +756,5 @@ namespace ACS.Application
             }
 
         }
-
-        protected void RegisterManageBean(IApplicationContext applicationContext, Executor executor)
-        {
-            int servicePort = int.Parse(executor.Jmx);
-            int rmiPort = this.RmiPort + servicePort;
-            String serviceUrl = "service:jmx:rmi://localhost:" + servicePort + "/jndi/rmi://localhost:" + rmiPort + "/jmxrmi";
-            try
-            {
-                //  MBeanServerFactoryBean mBeanServerFactoryBean = new MBeanServerFactoryBean();
-                //  mBeanServerFactoryBean.setLocateExistingServerIfPossible(true);
-                //  mBeanServerFactoryBean.setDefaultDomain("nanotrans:" + executor.getType());
-                //  mBeanServerFactoryBean.afterPropertiesSet();
-                //  MBeanServer mBeanServer = (MBeanServer)mBeanServerFactoryBean.getObject();
-
-                //  RmiRegistryFactoryBean rmiRegistryFactoryBean = new RmiRegistryFactoryBean();
-                //  rmiRegistryFactoryBean.setAlwaysCreate(true);
-                //  rmiRegistryFactoryBean.setPort(rmiPort);
-                //  rmiRegistryFactoryBean.afterPropertiesSet();
-
-                //  ConnectorServerFactoryBean connectorServerFactoryBean = new ConnectorServerFactoryBean();
-                //  connectorServerFactoryBean.setObjectName("connector:name=rmi");
-                //  connectorServerFactoryBean.setServiceUrl(serviceUrl);
-                //  connectorServerFactoryBean.setServer(mBeanServer);
-                //  connectorServerFactoryBean.setRegistrationBehavior(2);
-                //  connectorServerFactoryBean.afterPropertiesSet();
-
-                //  ManagedBeanInfo managedBeanInfo = getManagedBeanInfo(applicationContext);
-
-                //  MBeanExporter mBeanExporter = new MBeanExporter();
-                //  mBeanExporter.setServer(mBeanServer);
-                //  mBeanExporter.setBeans(managedBeanInfo.getManagedBeans());
-                //  mBeanExporter.setAssembler(managedBeanInfo.getManagedBeanInfoAssembler());
-                //  mBeanExporter.setRegistrationBehavior(2);
-                //  mBeanExporter.setBeanFactory(applicationContext);
-                //  mBeanExporter.afterPropertiesSet();
-
-                //  logger.info("succeeded in starting mBeanServer{" + executor.getId() + ", serviceUrl{" + serviceUrl + "}");
-
-                //  String time = TimeUtils.getTimeToMilliPrettyFormat();
-                //  //System.out.println("[" + time + "] " + "succeeded in starting mBeanServer{" + executor.getId() + ", serviceUrl{" + serviceUrl + "}");
-            }
-            catch (Exception e)
-            {
-                //logger.info("failed to start mBeanServer{" + executor.getId() + ", servicePort{" + servicePort + ", rmiPort{" + rmiPort + "}", e);
-            }
-        }       
     }
 }

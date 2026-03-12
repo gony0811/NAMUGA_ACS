@@ -19,14 +19,14 @@
   <!-- mcs server manager -->
   <object id="ApplicationManager" parent="AbstractManager" type="ACS.Application.ApplicationManagerImplement, ACS.Application" lazy-init="default" autowire="default" dependency-check="default">
   </object>
-  <object id="MessageManager" parent="AbstractManager" type="ACS.Extension.Manager.MessageManagerExsImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="MessageManager" parent="AbstractManager" type="ACS.Manager.MessageManagerExsImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="MessageTemplatePath">
       <value>config/@{site}/startup/message/nanotrans-message-template.xml</value>
     </property>
     <property name="UiAgent" ref="CsSenderToUi" />
   </object>
 
-  <object id="HistoryManager" parent="AbstractManager" type="ACS.Extension.Manager.HistoryManagerExsImplement, ACS.Extension.Manager" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="HistoryManager" parent="AbstractManager" type="ACS.Manager.HistoryManagerExsImplement, ACS.Manager" lazy-init="default" autowire="default" dependency-check="default">
   </object>
 
   <object id="ApplicationControlManager" type="ACS.Manager.Application.ApplicationControlManagerImplement, ACS.Manager" lazy-init="default" autowire="default" dependency-check="default">
@@ -167,7 +167,7 @@
 
   <!--//200622 Change NIO Logic About ES.exe does not restart-->
   <!--<object id="TransferManager" parent="AbstractManager" type="ACS.Manager.Transfer.TransferManagerExImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">-->
-  <object id="TransferManager" parent="AbstractManager" type="ACS.Extension.Manager.TransferManagerExsImplement, ACS.Extension.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
+  <object id="TransferManager" parent="AbstractManager" type="ACS.Manager.TransferManagerExsImplement, ACS.Manager" init-method="Init" lazy-init="default" autowire="default" dependency-check="default">
     <property name="ResourceManager" ref="ResourceManager"/>
     <property name="ApplicationManager" ref="ApplicationManager"/>
     <property name="MaterialManager" ref="MaterialManager"/>
