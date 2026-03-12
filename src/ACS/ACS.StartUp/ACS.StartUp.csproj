@@ -46,25 +46,44 @@
     <Compile Include="**\*.Designer.cs" />
   </ItemGroup>
 
-  <!-- 설정 파일을 빌드 출력(bin/)에 복사 -->
-  <ItemGroup>
-    <Content Include="..\config\**\*" Link="config\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\spring-objects.xml" Link="spring-objects.xml" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+  <!-- 빌드 후: 설정 파일, Library DLL, 런타임 디렉토리를 출력 폴더에 복사 -->
+  <Target Name="CopyRuntimeAssets" AfterTargets="Build">
+    <!-- config/ -->
+    <ItemGroup>
+      <_ConfigFiles Include="$(MSBuildThisFileDirectory)..\config\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ConfigFiles)"
+          DestinationFiles="@(_ConfigFiles->'$(OutputPath)config\%(RecursiveDir)%(FileName)%(Extension)')"
+          SkipUnchangedFiles="true" />
 
-  <!-- Library DLL을 빌드 출력에 복사 (패치된 Spring.Core.dll 포함) -->
-  <ItemGroup>
-    <Content Include="..\Library\*.dll" Link="%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+    <!-- spring-objects.xml -->
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\spring-objects.xml"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true" />
 
-  <!-- 런타임 디렉토리 (서비스 리로드, 동적 로더) -->
-  <ItemGroup>
-    <Content Include="..\Process\**\*" Exclude="..\Process\ACS.*.dll;..\Process\ACS.*.pdb" Link="Process\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\reload\**\*" Link="reload\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+    <!-- Library DLL (패치된 Spring.Core.dll 포함) -->
+    <ItemGroup>
+      <_LibDlls Include="$(MSBuildThisFileDirectory)..\Library\*.dll" Exclude="$(MSBuildThisFileDirectory)..\Library\*.orig;$(MSBuildThisFileDirectory)..\Library\*.patched.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LibDlls)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
 
-  <!-- 빌드 후: ACS.*.dll을 Process/ 출력 디렉토리에 동기화 (동적 로딩용) -->
-  <Target Name="SyncProcessDlls" AfterTargets="Build">
+    <!-- Process/ (3rd-party DLL, 설정 등 - ACS.*.dll은 아래 SyncProcessDlls에서 처리) -->
+    <ItemGroup>
+      <_ProcessFiles Include="$(MSBuildThisFileDirectory)..\Process\**\*" Exclude="$(MSBuildThisFileDirectory)..\Process\ACS.*.dll;$(MSBuildThisFileDirectory)..\Process\ACS.*.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ProcessFiles)"
+          DestinationFiles="@(_ProcessFiles->'$(OutputPath)Process\%(RecursiveDir)%(FileName)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <!-- reload/ -->
+    <ItemGroup>
+      <_ReloadFiles Include="$(MSBuildThisFileDirectory)..\reload\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ReloadFiles)"
+          DestinationFiles="@(_ReloadFiles->'$(OutputPath)reload\%(RecursiveDir)%(FileName)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <!-- ACS.*.dll → Process/ 동기화 (BizFileRepository 동적 로딩용) -->
     <ItemGroup>
       <_AcsDlls Include="$(OutputPath)ACS.*.dll" />
     </ItemGroup>
