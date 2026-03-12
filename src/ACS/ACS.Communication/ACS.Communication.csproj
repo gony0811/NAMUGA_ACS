@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>ACS.Communication</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0618;CS0612;CS0108;CS0114;CS0162;CS0168;CS0219;CS0649;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767;SYSLIB0011;SYSLIB0050;SYSLIB0051</NoWarn>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="6.4.0" />
+  
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Iesi.Collections">
+      <HintPath>..\Library/Iesi.Collections.dll</HintPath>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>..\Library/log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="Mina.NET">
+      <HintPath>..\Library/Mina.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\Library/Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="NHibernate">
+      <HintPath>..\Library/NHibernate.dll</HintPath>
+    </Reference>
+    <Reference Include="Spring.Core">
+      <HintPath>..\Library/Spring.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="TIBCO.Rendezvous">
+      <HintPath>..\Library/TIBCO.Rendezvous.dll</HintPath>
+    </Reference>
+    <Reference Include="transceiverxnet">
+      <HintPath>..\Library/transceiverxnet.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
+    <ProjectReference Include="..\ACS.Utility\ACS.Utility.csproj" />
+    <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="*.bak" />
+    <Compile Remove="**\*.Designer.cs" Condition="'$(EnableDefaultCompileItems)' == 'true'" />
+    <Compile Include="**\*.Designer.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Extension.Framework" namespace = "ACS.Extension.Framework.History.Model">
+  <!--.cs 위치-->
+  
+    <class
+    	name="VehicleSearchPathHistory"
+        table="NA_H_VEHICLESEARCHPATH"
+        dynamic-update="true"
+        dynamic-insert="true"
+    >
+
+        <id
+            name="Id"
+            column="id"
+            type="System.String"
+            length="64"
+            unsaved-value="null"
+        >
+            <generator class="assigned">
+              <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Alarm.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              --> 
+            </generator>
+        </id>
+
+        <property
+            name="BayId"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="BAYID"
+            length="64"
+        />
+
+        <property
+            name="VehicleId"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="vehicleId"
+            length="64"
+        />
+        
+        <property
+            name="CurrentNodeId"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="CURRENTNODEID"
+            length="64"
+        />
+        
+        <property
+            name="Path"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="PATH"
+            length="2000"
+        />
+        
+        <property
+            name="PartitionId"
+            type="int"
+            update="true"
+            insert="true"
+        >
+            <column
+                name="PARTITIONID" 
+                index="VEHICLESEACHPATHHISTORY_PTID"
+                not-null="true"
+            />
+        </property>
+
+        <property
+            name="Time"
+            type="System.DateTime"
+            update="true"
+            insert="true"
+            column="time"
+        />
+    </class>
+</hibernate-mapping>

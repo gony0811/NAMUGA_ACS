@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2"
+                   assembly = "ACS.Framework" namespace = "ACS.Framework.Application.Model">
+
+  <class name="UiApplicationManager" table="NA_X_APPLICATION_MANAGER" dynamic-update="true" dynamic-insert="true">
+    <id name="ID" column="ID" type="System.String" length="64" unsaved-value="null">
+      <generator class="assigned"/>
+    </id>
+    <!-- TYPE 종류 : daemon,ei, trans -->
+    <property name="TYPE" type="System.String" column="TYPE" update="true" insert="true" length="20" />
+    
+    <!-- COMMAND 종류 : START / STOP / RELOAD / KILL -->
+    <property name="COMMAND" type="System.String" column="COMMAND" update="true" insert="true" length="20" />
+
+    <!-- ACS 서버에서 수행 가능 상태를 결과로 리턴 : ACK / NAK -->
+    <property name="REPLY" type="System.String" column="REPLY" update="true" insert="true" length="20" />
+
+    <!-- 서버에서 완료 여부 회신 : REQUEST / COMPLETE / FAIL -->
+    <property name="STATE" type="System.String" column="STATE" update="true" insert="true" length="20" />
+
+    <!-- 서버 이벤트 시각(2회) -->
+    <property name="EVENTTIME" type="System.DateTime" column="EVENTTIME" update="true" insert="true"/>
+
+    <!-- 요청자 ID -->
+    <property name="USERID" type="System.String" column="USERID" update="true" insert="true" length="20" />
+
+    <!-- 접속 IP -->
+    <property name="IPADDRESS" type="System.String" column="IPADDRESS" update="true" insert="true" length="20" />
+
+    <!-- UI 요청 시각 -->
+    <property name="REQUESTTIME" type="System.DateTime" column="REQUESTTIME" update="true" insert="true"/>
+  </class>
+</hibernate-mapping>

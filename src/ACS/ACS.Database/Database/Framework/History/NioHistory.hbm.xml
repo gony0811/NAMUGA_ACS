@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Extension.Framework" namespace = "ACS.Extension.Framework.History.Model">
+  <!--.cs 위치-->
+  
+    <class
+    	name="NioHistory"
+        table="NA_H_NIOHISTORY"
+        dynamic-update="true"
+        dynamic-insert="true"
+    >
+
+        <id
+            name="Id"
+            column="id"
+            type="System.String"
+            length="64"
+            unsaved-value="null"
+        >
+            <generator class="assigned">
+              <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Alarm.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              --> 
+            </generator>
+        </id>
+
+        <property
+            name="Name"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="NAME"
+            length="20"
+        />
+
+        <property
+            name="State"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="STATE"
+            length="20"
+        />
+        
+        <property
+            name="MachineName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="MACHINENAME"
+            length="64"
+        />
+        
+        <property
+            name="RemoteIp"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="REMOTEIP"
+            length="20"
+        />
+
+        <property
+            name="Port"
+            type="int"
+            update="true"
+            insert="true"
+            column="port"
+        />
+
+        <property
+            name="ApplicationName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="APPLICATIONNAME"
+            length="45"
+        />
+      
+        <property
+            name="Location"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="LOCATION"
+            length="20"
+          />
+
+
+      <property
+            name="PartitionId"
+            type="int"
+            update="true"
+            insert="true"
+        >
+            <column
+                name="PARTITIONID" 
+                index="NIOHISTORY_PTID"
+                not-null="true"
+            />
+        </property>
+
+      <property
+            name="Time"
+            type="Timestamp"
+            update="true"
+            insert="true"
+            column="time"
+        />
+    </class>
+</hibernate-mapping>

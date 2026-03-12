@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Extension.Framework" namespace = "ACS.Extension.Framework.Resource.Model">
+
+  <class
+      name="BayGroupCharegeEx"
+      table="NA_R_BAY_GROUP_CHARGE"
+      dynamic-update="true"
+      dynamic-insert="true"
+      discriminator-value="bay"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Carrier.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="Bays"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="bays"
+		length ="200"
+        />
+  </class>
+
+</hibernate-mapping>

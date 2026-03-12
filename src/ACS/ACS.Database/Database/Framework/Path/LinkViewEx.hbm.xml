@@ -1,0 +1,158 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Framework" namespace = "ACS.Framework.Path.Model">
+  <!--.cs 위치-->
+
+  <class
+      name="LinkViewEx"
+      table="NA_R_LINK_VW"
+      dynamic-update="true"
+      dynamic-insert="true"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Carrier.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="ZoneId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="zoneId"
+        length="64"
+        />
+
+    <property
+        name="TransferFlag"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="transferFlag"
+        length="1"
+        />
+
+    <property
+        name="BayId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="bayId"
+        length="64"
+        />
+    
+    <property
+        name="FromNodeId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="fromNodeId"
+        length="64"
+        />
+
+    <property
+        name="From_xpos"
+        type="int"
+        update="true"
+        insert="true"
+        column="from_xpos"
+        />
+
+    <property
+        name="From_ypos"
+        type="int"
+        update="true"
+        insert="true"
+        column="from_ypos"
+        />
+
+    <property
+        name="ToNodeId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="toNodeId"
+        length="64"
+        />
+
+    <property
+        name="To_xpos"
+        type="int"
+        update="true"
+        insert="true"
+        column="to_xpos"
+        />
+
+    <property
+        name="To_ypos"
+        type="int"
+        update="true"
+        insert="true"
+        column="to_ypos"
+        />
+
+    <property
+        name="Length"
+        type="int"
+        update="true"
+        insert="true"
+        column="length"
+        />
+
+    <property
+        name="Speed"
+        type="int"
+        update="true"
+        insert="true"
+        column="speed"
+        />
+
+    <property
+        name="LeftBranch"
+        type="int"
+        update="true"
+        insert="true"
+        column="leftBranch"
+        />
+
+    <property
+        name="Availability"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="availability"
+        length="2"
+        />
+
+    <property
+        name="Load"
+        type="int"
+        update="true"
+        insert="true"
+        column="load"
+        />
+
+    <property
+        name="Loading"
+        type="int"
+        update="true"
+        insert="true"
+        column="loading"
+        />
+    
+  </class>
+
+</hibernate-mapping>

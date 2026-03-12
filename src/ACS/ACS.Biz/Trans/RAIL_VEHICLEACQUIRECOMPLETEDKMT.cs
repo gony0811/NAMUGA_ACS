@@ -1,0 +1,161 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Reflection;
+using Spring.Context;
+using ACS.Framework.Base;
+using ACS.Service;
+using ACS.Framework.Message.Model;
+using ACS.Framework.Message.Model.Ui;
+using ACS.Workflow;
+using log4net;
+using System.Xml;
+
+
+using ACS.Framework.Resource;
+using ACS.Framework.Resource.Model;
+
+namespace ACS.Biz.Trans
+{
+    class RAIL_VEHICLEACQUIRECOMPLETEDKMT : BaseBizJob
+    {
+        protected static ILog logger = LogManager.GetLogger(typeof(RAIL_VEHICLEACQUIRECOMPLETEDKMT));
+        public InterfaceServiceEx InterfaceService;
+        public ResourceServiceEx ResourceService;
+        public MaterialServiceEx MaterialService;
+        public TransferServiceEx TransferService;
+        public AlarmServiceEx AlarmService;
+        private IWorkflowManager WorkflowManager;
+        private IResourceManagerEx ResourceManager;
+        public Dictionary<string, Tuple<Type, object>> commandJobList;
+
+        public Dictionary<string, Tuple<Type, object>> CommandJobList
+        {
+            get { return commandJobList; }
+            set { commandJobList = value; }
+        }
+
+        public override int ExecuteJob(object[] args)
+        {
+            logger.Debug("TS RAIL_VEHICLEACQUIRECOMPLETEDKMT START=====================================");
+            XmlDocument rail_vehicleacquirecompletedkmt = (XmlDocument)args[0];
+            TransferMessageEx transferMessage = new TransferMessageEx();
+            
+            VehicleMessageEx vehicleMsg;
+            Boolean iConnectionState;
+            int temp = 1;
+
+            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
+            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
+            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
+            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
+            AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
+            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            ResourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
+
+            vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_vehicleacquirecompletedkmt);
+
+            //동일 Vehicle로 생성된 Job이 있으면 DB에서 삭제. (Cancel 보고는 하지 않음)
+            TransferService.DeleteTransportCommandsameVehicleID(vehicleMsg);
+
+
+            LocationEx sourceLocation = ResourceManager.GetLocationByStationId(vehicleMsg.NodeId);
+            string[] port = sourceLocation.PortId.Split(':');
+            string createTCMD = string.Format("K-MAT_{0}_{1}_D", vehicleMsg.Vehicle.Id, DateTime.Now.ToString("yyyyMMddHHmmssfffff"));
+            vehicleMsg.TransportCommandId = createTCMD;
+
+            //Create Transfer cmd
+            {
+                transferMessage.MessageName = "MOVECMD";
+                transferMessage.TransportCommandId = createTCMD;
+                transferMessage.CarrierId = createTCMD;
+                transferMessage.CarrierType = "TRAY";
+                transferMessage.Description = "";
+                transferMessage.BayId = "KIT-MAT";
+                transferMessage.SourceMachine = port[0];
+                transferMessage.SourceUnit = port[1];
+                transferMessage.DestMachine = "";
+                transferMessage.DestUnit = "";
+                transferMessage.VehicleId = vehicleMsg.VehicleId;
+                transferMessage.Time = DateTime.Now.ToString();
+                 int.TryParse(vehicleMsg.Priority, out temp );
+                transferMessage.Priority = temp;
+                TransferService.CreateTransportCommandAndVehicleAssign(transferMessage);
+                
+                logger.Debug("RAIL_VEHICLEACQUIRECOMPLETEDKMT Normal Sequence Step.1 Create Transfercommand success");
+            }
+
+            //20190930 KSB - update NA_R_VEHICLE [processingState] = RUN 
+            ResourceService.ChangeVehicleProcessStateToRun(vehicleMsg);
+            Logger.Debug(">>>>update NA_R_VEHICLE [processingState] = RUN ");
+
+            //ResourceService.ChangeVehicleTransferStateToAssigned(vehicleMsg);
+            //20190911 KSB - ChangeVehicleTransferStateToAcquireComplete 
+            ResourceService.ChangeVehicleTransferStateToAcquireComplete(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [TransferState] ='ACQUIRE_COMPLETE'");
+            logger.Debug(">>>>update NA_H_VEHICLEHISTORY");
+
+            ResourceService.UpdateVehicleEventTime(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [TransferState] = ASSIGNED in KIT-MAT area");
+
+            //ResourceService.ChangeVehicleTransportCommandId(vehicleMsg);
+            TransferService.UpdateVehicleTransportCommand(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [TransportcommandId] in KIT-MAT area");
+
+            TransferService.UpdateTransportCommandVehicleEvent(vehicleMsg);
+            logger.Debug(">>>>update NA_T_TRANSPORTCMD [VehicleEvent]= RAIL-RAIL_VEHICLEACQUIRECOMPLETEDKMT");
+
+            iConnectionState = ResourceService.ChangeVehicleConnectionStateToConnect(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [ConnectionState] = CONNECT");
+            logger.Debug(">>>>add NA_H_VEHICLEHISTORY += RAIL-VEHICLEACQUIRECOMPLETED");
+
+            ResourceService.UpdateVehicleEventTime(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE  [EventTime] = $EventTime");
+
+            if (AlarmService.CheckVehicleHaveAlarm(vehicleMsg))
+            {
+                InterfaceService.ReportAlarmClearReport(vehicleMsg);
+                logger.Debug("RAIL_VEHICLEACQUIRECOMPLETEDKMT Normal Sequence Step.2 ReportAlarmClearReport finish");
+
+                //AlarmService.DeleteAlarmByVehicle(vehicleMsg);
+
+                //ResourceService.UpdateVehicleAlarmStateToNoAlarm(vehicleMsg);
+                AlarmService.ClearAlarmAndSetAlarmTimeHistory(vehicleMsg);
+                logger.Debug(">>>>update NA_R_VEHICLE [AlarmState] = NOALARM");
+                logger.Debug(">>>>add NA_H_VEHICLEHISTORY += RAIL-VEHICLEACQUIRECOMPLETED");
+
+                ResourceService.DeleteUIInform(vehicleMsg);
+            }
+            //logger.Debug("RAIL_VEHICLEACQUIRECOMPLETEDKMT Normal Sequence Step.3 MOVE TO VEHICLE_ACQUIRECOMPLETEDKMT");
+            //this.WorkflowManager.Execute("VEHICLE_ACQUIRECOMPLETED", vehicleMsg);
+
+            TransferService.UpdateVehicleAcsDestNodeIdEmpty(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [AcsDestNodeId] =''");
+            logger.Debug(">>>>update NA_H_VEHICLEHISTORY");
+
+            ResourceService.ChangeVehicleTransferStateToAcquireComplete(vehicleMsg);
+            logger.Debug(">>>>update NA_R_VEHICLE [TransferState] ='ACQUIRE_COMPLETE'");
+            logger.Debug(">>>>update NA_H_VEHICLEHISTORY");
+
+            TransferService.ChangeTransportCommandStateToTransferingDest(vehicleMsg);
+            logger.Debug(">>>>update NA_T_TRANSPORTCMD [State] ='TRANSFERRING_DEST'");
+            logger.Debug(">>>>update NA_T_TRANSPORTCMD [LoadedTime] ='LoadedTime'");
+
+
+            if (InterfaceService.CheckTransferCommand(vehicleMsg))
+            {
+                logger.Debug("VEHICLEACQUIRECOMPLETED Normal Sequence Step.2 CheckTransferCommand finish(True)");
+
+                InterfaceService.ReportAGVloadComplete(vehicleMsg);
+                logger.Debug("VEHICLEACQUIRECOMPLETED Normal Sequence Step.3 ReportAGVloadComplete(PICKUP) to HOST finish");
+            }
+
+
+                logger.Debug("TS RAIL_VEHICLEACQUIRECOMPLETEDKMT End=====================================");
+            return 0;
+        }
+    }
+}

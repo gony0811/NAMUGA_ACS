@@ -1,0 +1,328 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Framework" namespace = "ACS.Framework.History.Model">
+  <!--.cs 위치-->
+  
+  <class
+      name="TransportCommandHistoryEx"
+      table="NA_H_TRANSPORTCMDHISTORY"
+      dynamic-update="true"
+      dynamic-insert="true"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Carrier.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="JobId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="jobId"
+        length="64"
+        />
+
+    <property
+        name="Priority"
+        type="int"
+        update="true"
+        insert="true"
+        column="priority"
+        />
+
+    <property
+        name="State"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="state"
+        length="20"
+        />
+
+    <property
+        name="VehicleId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="vehicleId"
+        length="64"
+        />
+
+    <property
+            name="VehicleEvent"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="vehicleEvent"
+            length="16"
+        />
+
+    <property
+        name="CarrierId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="carrierId"
+        length="64"
+        />
+
+    <property
+        name="Source"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="source"
+        length="64"
+        />
+
+    <property
+        name="Dest"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="dest"
+        length="64"
+        />
+
+    <property
+        name="Path"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="path"
+        length="2000"
+        />
+
+    <property
+        name="AdditionalInfo"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="additionalInfo"
+        length="1000"
+        />
+
+    <property
+        name="CreateTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="createdTime"
+        />
+
+    <property
+        name="QueuedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="queuedTime"
+        />
+
+    <property
+        name="AssignedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="assignedTime"
+        />
+
+    <property
+        name="StartedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="startedTime"
+        />
+
+    <property
+            name="LoadArrivedTime"
+            type="System.DateTime"
+            update="true"
+            insert="true"
+            column="loadArrivedTime"
+        />
+
+    <property
+        name="LoadedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="loadedTime"
+        />
+
+    <property
+        name="UnloadArrivedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="unloadArrivedTime"
+        />
+
+    <property
+        name="UnloadedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="unloadedTime"
+        />
+
+    <property
+        name="CompletedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="completedTime"
+        />
+
+    <property
+        name="UnloadingTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="unloadingTime"
+        />
+
+    <property
+        name="LoadingTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="loadingTime"
+        />
+
+    <property
+        name="EqpId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="eqpId"
+        length="64"
+        />
+
+    <property
+        name="PortId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="portId"
+        length="64"
+        />
+
+    <property
+        name="AgvName"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="agvName"
+        length="64"
+        />
+
+    <property
+        name="JobType"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="jobType"
+        length="64"
+        />
+
+    <property
+        name="MidLoc"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="midLoc"
+        length="64"
+        />
+
+    <property
+        name="MidPortId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="midPortId"
+        length="64"
+        />
+
+    <property
+        name="OriginLoc"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="originLoc"
+        length="64"
+        />
+
+    <property
+        name="Description"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="description"
+        length="256"
+        />
+
+    <property
+        name="PartitionId"
+        type="int"
+        update="true"
+        insert="true"
+        >
+      <column
+          name="PARTITIONID"
+          index="TRANSPORTCOMMANDHISTORY_PTID"
+          not-null="true"
+            />
+    </property>
+
+    <property
+        name="Time"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="time"
+        />
+
+    <property
+        name="BayId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="bayId"
+        length="64"
+        />
+
+    <property
+        name="Reason"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="reason"
+        length="255"
+        />
+
+    <property
+        name="Code"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="code"
+        length="20"
+        />
+  </class>
+
+</hibernate-mapping>

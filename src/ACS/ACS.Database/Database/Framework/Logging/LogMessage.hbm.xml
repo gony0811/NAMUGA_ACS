@@ -1,0 +1,167 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Framework" namespace = "ACS.Framework.Logging.Model">
+  <!--.cs 위치-->
+
+  <class
+        name="LogMessage"
+        table="NA_L_LOGMESSAGE"
+    >
+
+        <id
+            name="Id"
+            column="id"
+            type="System.String"
+            length="64"
+            unsaved-value="null"
+        >
+          <!--
+            <generator class="assigned">
+               
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-LogMessage.xml 
+                  containing the additional parameters and place it in your merge dir. 
+               
+            </generator>
+            -->
+        </id>
+
+        <property
+            name="TransactionId"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="transactionId"
+            length="64"
+        />
+
+        <property
+            name="ThreadName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="threadName"
+            length="64"
+        />
+
+        <property
+            name="OperationName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="operationName"
+            length="255"
+        />
+
+        <property
+            name="CommunicationMessageName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="communicationMessageName"
+            length="64"
+        />
+
+        <property
+            name="TransportCommandId"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="transportCommandId"
+            length="64"
+        />
+
+        <property
+            name="CarrierName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="carrierName"
+            length="64"
+        />
+
+        <property
+            name="ProcessName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="processName"
+            length="64"
+        />
+
+        <property
+            name="MessageName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="messageName"
+            length="64"
+        />
+
+        <property
+            name="MachineName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="machineName"
+            length="64"
+        />
+
+        <property
+            name="UnitName"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="unitName"
+            length="64"
+        />
+
+        <property
+            name="Text"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="text"
+            length="4000"
+        />
+
+        <property
+            name="LogLevel"
+            type="System.String"
+            update="true"
+            insert="true"
+            column="logLevel"
+            length="6"
+        />
+
+        <property
+            name="PartitionId"
+            type="int"
+            update="true"
+            insert="true"
+        >
+            <column
+                name="PARTITIONID" 
+                index="LOGMESSAGE_PTID"
+                not-null="true"
+            />
+        </property>
+
+        <property
+            name="Time"
+            type="System.DateTime"
+            update="true"
+            insert="true"
+            column="time"
+        />
+
+        <!--
+            To add non XDoclet property mappings, create a file named
+                hibernate-properties-LogMessage.xml
+            containing the additional properties and place it in your merge dir.
+        -->
+
+    </class>
+
+</hibernate-mapping>

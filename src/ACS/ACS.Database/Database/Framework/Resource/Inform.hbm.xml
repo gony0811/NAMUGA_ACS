@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Framework" namespace = "ACS.Framework.Resource.Model">
+  <!--.cs 위치-->
+
+  <class
+      name="Inform"
+      table="NA_U_INFORM"
+      dynamic-update="true"
+      dynamic-insert="true"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-User.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="Time"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="time"
+        />
+
+    <property
+        name="Type"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="type"
+        length="20"
+        />
+
+    <property
+        name="Message"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="message"
+        length="1000"
+        />
+
+    <property
+        name="Source"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="source"
+        length="64"
+        />
+
+    <property
+        name="Description"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="description"
+        length="1000"
+        />
+
+    <!--
+            To add non XDoclet property mappings, create a file named
+                hibernate-properties-User.xml
+            containing the additional properties and place it in your merge dir.
+        -->
+
+  </class>
+
+</hibernate-mapping>

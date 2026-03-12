@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Extension.Framework" namespace = "ACS.Extension.Framework.Path.Model">
+  <!--.cs 위치-->
+
+  <class
+      name="CurrentInterSectionInfoEx"
+      table="NA_T_CURRENTINTERSECTION"
+      dynamic-update="true"
+      dynamic-insert="true"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Carrier.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="CurrentDirectionNode"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="curr_direction_node"
+        length="64"
+        />
+
+    <property
+        name="State"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="state"
+        length="10"
+        />
+
+    <property
+        name="ChangedTime"
+        type="System.DateTime"
+        update="true"
+        insert="true"
+        column="changedTime"
+        />
+
+        <!--
+            To add non XDoclet property mappings, create a file named
+                hibernate-properties-HeartBeatFailHistory.xml
+            containing the additional properties and place it in your merge dir.
+        -->
+
+  </class>
+
+</hibernate-mapping>

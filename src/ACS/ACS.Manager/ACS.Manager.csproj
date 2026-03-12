@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>ACS.Manager</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0618;CS0612;CS0108;CS0114;CS0162;CS0168;CS0219;CS0649;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767</NoWarn>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <Reference Include="Antlr3.Runtime">
+      <HintPath>..\Library/Antlr3.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Iesi.Collections">
+      <HintPath>..\Library/Iesi.Collections.dll</HintPath>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>..\Library/log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="NHibernate">
+      <HintPath>..\Library/NHibernate.dll</HintPath>
+    </Reference>
+    <Reference Include="Spring.Core">
+      <HintPath>..\Library/Spring.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ACS.Application\ACS.Application.csproj" />
+    <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
+    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj" />
+    <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
+    <ProjectReference Include="..\ACS.Utility\ACS.Utility.csproj" />
+    <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="*.bak" />
+    <Compile Remove="**\*.Designer.cs" Condition="'$(EnableDefaultCompileItems)' == 'true'" />
+    <Compile Include="**\*.Designer.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<hibernate-mapping xmlns = "urn:nhibernate-mapping-2.2"
+   assembly = "ACS.Extension.Framework" namespace = "ACS.Extension.Framework.Path.Model">
+  <!--.cs 위치-->
+
+  <class
+      name="InterSectionControlEx"
+      table="NA_T_INTERSECTION"
+      dynamic-update="true"
+      dynamic-insert="true"
+    >
+
+    <id
+        name="Id"
+        column="id"
+        type="System.String"
+        length="64"
+        unsaved-value="null"
+        >
+      <generator class="assigned">
+        <!--  
+                  To add non XDoclet generator parameters, create a file named 
+                  hibernate-generator-params-Carrier.xml 
+                  containing the additional parameters and place it in your merge dir. 
+              -->
+      </generator>
+    </id>
+
+    <property
+        name="InterSectionId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="interSectionId"
+        length="64"
+        />
+
+    <property
+        name="StartNodeId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="startNodeId"
+        length="64"
+        />
+
+    <property
+        name="EndNodeId"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="endNodeId"
+        length="64"
+        />
+
+    <property
+        name="Interval"
+        type="int"
+        update="true"
+        insert="true"
+        column="interval"
+        />
+
+    <property
+        name="Sequence"
+        type="int"
+        update="true"
+        insert="true"
+        column="sequence"
+        />
+
+    <property
+        name="CheckPreviousNode"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="checkPreviousNode"
+        length="2"
+        />
+
+    <property
+        name="PreviousNodeIds"
+        type="System.String"
+        update="true"
+        insert="true"
+        column="previousNodeIds"
+        length="1024"
+        />
+
+    <property
+        name="CheckNodeIds"
+        type="String"
+        update="true"
+        insert="true"
+        column="checkNodeIds"
+        length="1024"
+        />
+        <!--
+            To add non XDoclet property mappings, create a file named
+                hibernate-properties-HeartBeatFailHistory.xml
+            containing the additional properties and place it in your merge dir.
+        -->
+
+  </class>
+
+</hibernate-mapping>

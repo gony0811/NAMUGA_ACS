@@ -1,0 +1,74 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Utility", "ACS.Utility\ACS.Utility.csproj", "{ADCA6047-C22F-4272-A0A3-2755F8CCFC14}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Framework", "ACS.Framework\ACS.Framework.csproj", "{30B49BD4-6780-4694-9E70-57B13EF7099E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Extension.Framework", "ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj", "{00000000-0000-0000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Workflow", "ACS.Workflow\ACS.Workflow.csproj", "{2DE3F687-1419-4F7E-904F-5154F926A6A3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Communication", "ACS.Communication\ACS.Communication.csproj", "{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Database", "ACS.Database\ACS.Database.csproj", "{C3235438-C2AA-442B-A5E6-B1C4BB5CCFBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Control", "ACS.Control\ACS.Control.csproj", "{FF25AAA3-A65B-44F5-A1F7-1ACB938B3940}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Application", "ACS.Application\ACS.Application.csproj", "{1AD3B21C-5DFF-4426-AEFC-C20A0A4244A5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Manager", "ACS.Manager\ACS.Manager.csproj", "{8A7EADFE-7234-4730-A2BA-E0FADD8D8B47}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.EI", "ACS.EI\ACS.EI.csproj", "{734C16DE-370E-4E14-9570-DAC20B854358}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Scheduling", "ACS.Scheduling\ACS.Scheduling.csproj", "{70C1A8CF-B20A-465D-9A46-920E44D19197}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Service", "ACS.Service\ACS.Service.csproj", "{7D114800-6DDA-4E02-A337-E9C6CCC6F644}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Biz", "ACS.Biz\ACS.Biz.csproj", "{A99EF30F-DE2B-4D73-A48A-0A72BDFA0CD0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Extension.Manager", "ACS.Extension\ACS.Extension.Manager\ACS.Extension.Manager.csproj", "{00000000-0000-0000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.StartUp", "ACS.StartUp\ACS.StartUp.csproj", "{C794A5C7-37AB-4479-8EC9-098BAB0332D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Compat", "ACS.Compat\ACS.Compat.csproj", "{D8951383-689D-4C04-94E2-2D9F6B1E192A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ADCA6047-C22F-4272-A0A3-2755F8CCFC14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ADCA6047-C22F-4272-A0A3-2755F8CCFC14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30B49BD4-6780-4694-9E70-57B13EF7099E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30B49BD4-6780-4694-9E70-57B13EF7099E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DE3F687-1419-4F7E-904F-5154F926A6A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DE3F687-1419-4F7E-904F-5154F926A6A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7BB53FD-3FDD-493B-ABAB-7EDB43A29B42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3235438-C2AA-442B-A5E6-B1C4BB5CCFBD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3235438-C2AA-442B-A5E6-B1C4BB5CCFBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF25AAA3-A65B-44F5-A1F7-1ACB938B3940}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF25AAA3-A65B-44F5-A1F7-1ACB938B3940}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AD3B21C-5DFF-4426-AEFC-C20A0A4244A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AD3B21C-5DFF-4426-AEFC-C20A0A4244A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A7EADFE-7234-4730-A2BA-E0FADD8D8B47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A7EADFE-7234-4730-A2BA-E0FADD8D8B47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{734C16DE-370E-4E14-9570-DAC20B854358}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{734C16DE-370E-4E14-9570-DAC20B854358}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70C1A8CF-B20A-465D-9A46-920E44D19197}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70C1A8CF-B20A-465D-9A46-920E44D19197}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D114800-6DDA-4E02-A337-E9C6CCC6F644}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D114800-6DDA-4E02-A337-E9C6CCC6F644}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A99EF30F-DE2B-4D73-A48A-0A72BDFA0CD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A99EF30F-DE2B-4D73-A48A-0A72BDFA0CD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C794A5C7-37AB-4479-8EC9-098BAB0332D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C794A5C7-37AB-4479-8EC9-098BAB0332D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8951383-689D-4C04-94E2-2D9F6B1E192A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8951383-689D-4C04-94E2-2D9F6B1E192A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8951383-689D-4C04-94E2-2D9F6B1E192A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8951383-689D-4C04-94E2-2D9F6B1E192A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

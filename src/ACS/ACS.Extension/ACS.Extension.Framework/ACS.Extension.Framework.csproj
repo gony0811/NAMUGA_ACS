@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>ACS.Framework</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0618;CS0612;CS0108;CS0114;CS0162;CS0168;CS0219;CS0649;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767</NoWarn>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ACS.Framework\ACS.Framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="*.bak" />
+    <Compile Remove="**\*.Designer.cs" Condition="'$(EnableDefaultCompileItems)' == 'true'" />
+    <Compile Include="**\*.Designer.cs" />
+  </ItemGroup>
+
+</Project>

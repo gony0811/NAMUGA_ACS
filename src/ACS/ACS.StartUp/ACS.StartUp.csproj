@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ES01_P</AssemblyName>
+    <RootNamespace>ACS.StartUp</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0618;CS0612;CS0108;CS0114;CS0162;CS0168;CS0219;CS0649;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767</NoWarn>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <Reference Include="Spring.Core">
+      <HintPath>..\Library/Spring.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ACS.Application\ACS.Application.csproj" />
+    <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
+    <ProjectReference Include="..\ACS.Compat\ACS.Compat.csproj" />
+    <ProjectReference Include="..\ACS.Manager\ACS.Manager.csproj" />
+    <ProjectReference Include="..\ACS.Biz\ACS.Biz.csproj" />
+    <ProjectReference Include="..\ACS.Database\ACS.Database.csproj" />
+    <ProjectReference Include="..\ACS.EI\ACS.EI.csproj" />
+    <ProjectReference Include="..\ACS.Scheduling\ACS.Scheduling.csproj" />
+    <ProjectReference Include="..\ACS.Service\ACS.Service.csproj" />
+    <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
+    <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
+    <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
+    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Manager\ACS.Extension.Manager.csproj" />
+    <ProjectReference Include="..\ACS.Extension\ACS.Extension.Framework\ACS.Extension.Framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="*.bak" />
+    <Compile Remove="**\*.Designer.cs" Condition="'$(EnableDefaultCompileItems)' == 'true'" />
+    <Compile Include="**\*.Designer.cs" />
+  </ItemGroup>
+
+</Project>
