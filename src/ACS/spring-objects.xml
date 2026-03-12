@@ -1,0 +1,158 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<objects xmlns="http://www.springframework.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.net http://www.springframework.net/xsd/spring-objects.xsd">
+
+  <!--Trigger ref 함수 설정 및 property 설정-->
+  
+  <object name="awakeChargeTransportJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeChargeTransportJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeChargeTransportJob" />
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeQueueTransportJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeQueueTransportJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeQueueTransportJob" />
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeDeleteVehicleCrossWaitJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeDeleteVehicleCrossWaitJob" />       
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeDeleteUiInformJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeDeleteUiInformJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeDeleteUiInformJob" />
+        <!--<entry key="managerexample" value-ref="managerexample"/>-->
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeCheckCrossNodeJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeCheckCrossNodeJob" />       
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeCheckVehiclesJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeCheckVehiclesJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeCheckVehiclesJob" />       
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeDeleteLogJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeDeleteLogJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeDeleteLogJob" />
+      </dictionary>
+    </property>
+  </object>
+
+  <object name="awakeCallVehicleStopWaitJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <entry key="UserName" value="awakeCallVehicleStopWaitJob" />
+      </dictionary>
+    </property>
+  </object>
+
+  <!--Trigger ref 설정 및 주기 설정-->
+  <object id="awakeChargedTransportJobTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeChargeTransportJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/20 * * * * ?" />
+  </object>
+
+  <object id="awakeQueuedTransportJobTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeQueueTransportJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/20 * * * * ?" />
+  </object>
+
+  <object id="awakeDeleteVehicleCrossWaitTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeDeleteVehicleCrossWaitJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/20 * * * * ?" />
+  </object>
+
+  <object id="awakeDeleteUiInformTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeDeleteUiInformJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/20 * * * * ?" />
+  </object>
+
+  <object id="awakeCheckCrossNodeTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeCheckCrossNodeJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/5 * * * * ?" />
+  </object>
+
+  <object id="awakeCheckVehiclesTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeCheckVehiclesJob" />
+    <!-- run every 20 second of minute -->
+    <property name="cronExpressionString" value="0/20 * * * * ?" />
+  </object>
+
+  <object id="awakeDeleteLogTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeDeleteLogJob" />
+    <!-- run every 20 second of minute -->
+     <!--<property name="cronExpressionString" value="0/20 * * * * ?" />-->
+    <!-- run every Day 00:00 -->
+    <property name="cronExpressionString" value="0 0 0 1/1 * ?"/>
+  </object>
+
+  <object id="awakeCallVehicleStopWaitJobTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeCallVehicleStopWaitJob" />
+    <!-- run every 30 second of minute -->
+    <property name="cronExpressionString" value="16 * * * * ?" />
+  </object>
+  
+  
+  <!--Trigger 정의-->
+  
+  <object type="Spring.Scheduling.Quartz.SchedulerFactoryObject, Spring.Scheduling.Quartz">
+    <property name="triggers">
+      <list>
+        <!--<ref object="cronTrigger" />-->
+        <ref object="awakeChargedTransportJobTrigger" />
+        <ref object="awakeQueuedTransportJobTrigger" />
+        <ref object="awakeDeleteVehicleCrossWaitTrigger" />
+        <ref object="awakeDeleteUiInformTrigger" />
+        <ref object="awakeCheckCrossNodeTrigger" />
+        <ref object="awakeCheckVehiclesTrigger" />
+        <ref object="awakeDeleteLogTrigger" />
+        <ref object="awakeCallVehicleStopWaitJobTrigger" />
+      </list>
+    </property>
+  </object>
+
+</objects>

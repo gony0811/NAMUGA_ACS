@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans default-lazy-init="false" default-autowire="no" default-dependency-check="none">
+  <bean id="managedBeanRegistry" class="kr.co.samsung.sds.nanotrans.framework.application.model.ManagedBeanRegistry" lazy-init="default" autowire="default" dependency-check="default">
+    <property name="managedBeans">
+      <map>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=historyManager"><ref bean="historyManager" /></entry>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=workflowManager"><ref bean="workflowManager" /></entry>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=messageManager"><ref bean="messageManager" /></entry>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=controlServerManager"><ref bean="controlServerManager" /></entry>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=applicationManager"><ref bean="applicationManager" /></entry>
+		<entry key="kr.co.aim:name=nanotrans,Type=Manager,ServiceName=applicationControlManager"><ref bean="applicationControlManager" /></entry>
+     </map>
+    </property>
+    <property name="managedMethods">
+      <set>
+        <!-- common -->
+        <value>setName</value>
+		<value>getName</value>
+		
+		<!-- applicationControlManager -->
+		<value>getRunningBpelProcessCheckRetryCountWhenStop</value>
+		<value>setRunningBpelProcessCheckRetryCountWhenStop</value>
+		<value>getRunningBpelProcessCheckIntervalWhenStop</value>
+		<value>setRunningBpelProcessCheckIntervalWhenStop</value>
+		<value>heartBeat</value>		
+		<value>reloadWorkflow</value>		
+		<value>reloadService</value>		
+		<value>stop</value>		
+		<value>gc</value>		
+		<value>setReloadableDirectory</value>		
+		<value>getReloadableDirectory</value>		
+		<value>setReloadableBeanDefinitions</value>		
+		<value>getReloadableBeanDefinitions</value>
+		
+		<!-- workflowManager -->                                        
+		<value>getSkipWorkflowMessages</value>                                   
+		<value>setSkipWorkflowMessages</value>                                   
+		<value>addSkipWorkflowMessage</value>                                    
+		<value>removeSkipWorkflowMessage</value>                                 
+		<value>getSkipLoggingMessages</value>                                    
+		<value>setSkipLoggingMessages</value>                                    
+		<value>addSkipLoggingMessage</value>                                     
+		<value>removeSkipLoggingMessage</value>                                    
+		<value>reload</value>                                     
+		<value>getRunningBpelProcessSize</value>
+		<value>getRunningBpelProcesses</value>
+		<value>skipWorkflow</value>
+		<value>skipLogging</value>                                    
+		
+		<!-- controlServerManager -->
+		<value>start</value>                                     
+		<value>kill</value>                                     
+		<value>scheduleHeartBeats</value>                                     
+		<value>unscheduleHeartBeats</value>                                     
+		<value>rescheduleHeartBeats</value>                                     
+		<value>displayTriggers</value>                                     
+		<value>scheduleHeartBeat</value>                                     
+		<value>unscheduleHeartBeat</value>                                     
+		<value>schedulingHeartBeat</value>                                     
+		<value>pauseHeartBeat</value>                                     
+		<value>resumeHeartBeat</value>                                     
+		<value>getDestinationName</value>                                     
+		<value>getScripts</value>                                     
+		<value>setScripts</value>
+		<value>getRescheduleHeartBeatInterval</value>                                     
+		<value>setRescheduleHeartBeatInterval</value>                                     
+		<value>getRescheduleHeartBeatStartDelay</value>                                     
+		<value>setRescheduleHeartBeatStartDelay</value>                                   
+		<value>getHeartBeatInterval</value>                                     
+		<value>setHeartBeatInterval</value>                                     
+		<value>isUseHeartBeat</value>                                     
+		<value>setUseHeartBeat</value>                                     
+		<value>getHeartBeatFailWhenProcessDown</value>                                     
+		<value>setHeartBeatFailWhenProcessDown</value>                                     
+		<value>getHeartBeatFailWhenProcessHang</value>                                     
+		<value>setHeartBeatFailWhenProcessHang</value>                                     
+		<value>getHeartBeatStartDelay</value>                                     
+		<value>setHeartBeatStartDelay</value>                                     
+		<value>getHeartBeatTimeout</value>                                     
+		<value>setHeartBeatTimeout</value>                                     
+		<value>getHeartBeatRetryCount</value>                                     
+		<value>setHeartBeatRetryCount</value>                                     
+		<value>getHeartBeatRetryTimeout</value>                                     
+		<value>setHeartBeatRetryTimeout</value>
+      </set>
+    </property>   
+  </bean>
+</beans>
+

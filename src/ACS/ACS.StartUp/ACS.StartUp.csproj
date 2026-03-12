@@ -46,4 +46,16 @@
     <Compile Include="**\*.Designer.cs" />
   </ItemGroup>
 
+  <!-- 설정 파일을 빌드 출력(bin/)에 복사 -->
+  <ItemGroup>
+    <Content Include="..\config\**\*" Link="config\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\spring-objects.xml" Link="spring-objects.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 런타임 디렉토리 (서비스 리로드, 동적 로더) -->
+  <ItemGroup>
+    <Content Include="..\Process\**\*" Link="Process\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\reload\**\*" Link="reload\%(RecursiveDir)%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

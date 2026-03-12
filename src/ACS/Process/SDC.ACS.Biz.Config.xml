@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Assembly>
+  <id Name="ACS.Biz" Use="true">NORMAL</id>
+  <source>@{AppStartUp}/Process/ACS.Biz.dll</source>
+  <definitions>
+    <definition command="COMMON-START-CONTROL"                base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.COMMON_START_CONTROL</definition>
+    <definition command="COMMON-START-TS"                     base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.COMMON_START_TS</definition>
+    <definition command="ONLINECONNECTED"                     base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Ei.ONLINECONNECTED</definition>
+    <definition command="COMMON-START-EI"                     base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Ei.Common.COMMON_START_EI</definition>
+    <definition command="COMMON-START-NIO"                    base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.Common.COMMON_START_NIO</definition>
+    <definition command="COMMON_STOP_EI"                      base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Ei.Common.COMMON_STOP_EI</definition>
+    <definition command="VEHICLE-MESSAGERECEIVED"             base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.VEHICLE_MESSAGERECEIVED</definition>
+    <definition command="RAIL-CARRIERTRANSFER"                base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.Trans.RAIL_CARRIERTRANSFER</definition>
+    <definition command="RAIL-VEHICLELGOCOMMAND"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.Trans.RAIL_VEHICLELGOCOMMAND</definition>
+    <definition command="DISCONNECTED"                        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.DISCONNECTED</definition>
+    <definition command="RAIL-VEHICLEORDERCOMMAND"           base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Ei.Trans.RAIL_VEHICLEORDERCOMMAND</definition>
+    <definition command="CONTROL-START"                       base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_START</definition>
+    <definition command="CONTROL-STOP"                        base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_STOP</definition>
+    <definition command="CONTROL-KILL"                        base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_KILL</definition>
+    <!--<definition command="MOVECMD"                             base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Host.MOVECMD</definition>-->
+    <definition command="MOVECMD"                             base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Host.MOVECMD</definition>
+    <definition command="MOVECANCEL"                          base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Host.MOVECANCEL</definition>
+    <definition command="MOVEUPDATE"                          base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Host.MOVEUPDATE</definition>
+    <!--<definition command="SCHEDULE-QUEUEJOB"                   base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.Daemon.SCHEDULE_QUEUEJOB</definition>-->
+    <definition command="SCHEDULE-QUEUEJOB"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Daemon.SCHEDULE_QUEUEJOB</definition>
+    <definition command="COMMON-STOP-TRANS"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.COMMON_STOP_TRANS</definition>
+    <definition command="COMMON-STOP-CONTROL"                 base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.COMMON_STOP_CONTROL</definition>
+    <!--<definition command="COMMON_SENDPERMIT"                   base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.Common.COMMON_SENDPERMIT</definition>-->
+    <definition command="COMMON_SENDPERMIT"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.COMMON_SENDPERMIT</definition>
+
+    <definition command="RAIL-VEHICLELOCATIONCHANGED"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLELOCATIONCHANGED</definition>
+    <definition command="RAIL-VEHICLELGOCOMMANDREPLY"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLELGOCOMMANDREPLY</definition>
+    <definition command="RAIL-ALARMREPORT"                    base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_ALARMREPORT</definition>
+    <definition command="RAIL-VEHICLEINFOREPORT"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEINFOREPORT</definition>
+    <definition command="RAIL-BATTERYVOLTAGEREPLY"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_BATTERYVOLTAGEREPLY</definition>
+
+    <definition command="RAIL-VEHICLEACQUIRECOMPLETED"        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEACQUIRECOMPLETED</definition>
+    <definition command="RAIL-VEHICLEACQUIRECOMPLETEDSO"      base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEACQUIRECOMPLETEDSO</definition>
+    <!--//20190822 KSB-->
+    <definition command="RAIL-VEHICLEACQUIRECOMPLETEDKMT"     base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEACQUIRECOMPLETEDKMT</definition>
+
+    <definition command="RAIL-VEHICLEDEPOSITCOMPLETED"        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEDEPOSITCOMPLETED</definition>
+    <definition command="RAIL-VEHICLEDEPOSITCOMPLETEDSO"      base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEDEPOSITCOMPLETEDSO</definition>
+
+    <!--//20190822 KSB-->
+    <!--<definition command="RAIL-VEHICLEDEPOSITCOMPLETEDKMT"     base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.RAIL_VEHICLEDEPOSITCOMPLETEDKMT</definition>-->
+    <definition command="RAIL-VEHICLEDEPOSITCOMPLETEDKMT"     base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEDEPOSITCOMPLETEDKMT</definition>
+
+    <definition command="RAIL-CARRIERTRANSFERREPLY"           base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_CARRIERTRANSFERREPLY</definition>
+    <definition command="COMMON_SEND_TRANSFER_DEST"           base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.COMMON_SEND_TRANSFER_DEST</definition>
+    <!--<definition command="COMMON_SEND_TRANSFER_SOURCE"         base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.Common.COMMON_SEND_TRANSFER_SOURCE</definition>-->
+    <definition command="COMMON_SEND_TRANSFER_SOURCE"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.COMMON_SEND_TRANSFER_SOURCE</definition>
+    <!--<definition command="VEHICLE_DEPOSITCOMPLETED"            base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.Common.VEHICLE_DEPOSITCOMPLETED</definition>-->
+    <definition command="VEHICLE_DEPOSITCOMPLETED"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.VEHICLE_DEPOSITCOMPLETED</definition>
+    <definition command="RAIL-VEHICLEOCODESEPERATOR"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEOCODESEPERATOR</definition>
+    <definition command="RAIL-CARRIERREMOVED"                 base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_CARRIERREMOVED</definition>
+    <definition command="SCHEDULE-CHECKVEHICLES"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Daemon.SCHEDULE_CHECKVEHICLES</definition>
+    <definition command="RAIL-RESTARTNIO"                     base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Ei.Trans.RAIL_RESTARTNIO</definition>
+    <definition command="VEHICLE_ACQUIRECOMPLETED"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Common.VEHICLE_ACQUIRECOMPLETED</definition>
+    <definition command="RAIL-INFORM"                         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_INFORM</definition>
+    <definition command="RAIL-VEHICLEOCCUPIED"                base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEOCCUPIED</definition>
+    <definition command="RAIL-VEHICLEEMPTY"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEEMPTY</definition>
+    <definition command="RAIL-SOURCEPIOREQUESTERROR"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_SOURCEPIOREQUESTERROR</definition>
+    <definition command="RAIL_SOURCEEMPTY"                    base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_SOURCEEMPTY</definition>
+    <definition command="RAIL-SOURCEPIOCONNECTERROR"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_SOURCEPIOCONNECTERROR</definition>
+    <definition command="RAIL-SOURCEPIORUNERROR"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_SOURCEPIORUNERROR</definition>
+    <definition command="RAIL-SOURCEPIOPORTCHECKERROR"        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_SOURCEPIOPORTCHECKERROR</definition>
+    <definition command="RAIL-DESTPIOREQUESTERROR"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_DESTPIOREQUESTERROR</definition>
+    <!--<definition command="RAIL_DESTOCCUPIED"                   base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.RAIL_DESTOCCUPIED</definition>-->
+    <definition command="RAIL_DESTOCCUPIED"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_DESTOCCUPIED</definition>
+    <definition command="RAIL-DESTPIOCONNECTERROR"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_DESTPIOCONNECTERROR</definition>
+    <definition command="RAIL-DESTPIORUNERROR"                base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_DESTPIORUNERROR</definition>
+    <definition command="RAIL-DESTPIOPORTCHECKERROR"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_DESTPIOPORTCHECKERROR</definition>
+    <definition command="RAIL-CONVEYORLOADINGTIMEOUT"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_CONVEYORLOADINGTIMEOUT</definition>
+    <definition command="RAIL-CONVEYORUNLOADINGTIMEOUT"       base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_CONVEYORUNLOADINGTIMEOUT</definition>
+    <definition command="RAIL-CARRIERLOADED"                  base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_CARRIERLOADED</definition>
+
+    <definition command="UI-MOVEVEHICLE"                      base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.UI.UI_MOVEVEHICLE</definition>
+    <!--<definition command="UI-TRANSPORT"                        base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.UI.UI_TRANSPORT</definition>-->
+    <definition command="UI-TRANSPORT"                        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.UI.UI_TRANSPORT</definition>
+    <!--<definition command="UI-TRANSPORT_DELETE"                 base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.UI.UI_TRANSPORT_DELETE</definition>-->
+    <definition command="UI-TRANSPORT_DELETE"                 base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.UI.UI_TRANSPORT_DELETE</definition>
+    <!--//20190630 KSB-->
+    <!--<definition command="SCHEDULE-CHECKCROSSNODE"             base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.Daemon.SCHEDULE_CHECKCROSSNODE</definition>-->
+    <definition command="SCHEDULE-CHECKCROSSNODE"             base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Daemon.SCHEDULE_CHECKCROSSNODE</definition>
+    <definition command="SCHEDULE-CHARGEJOB"                  base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Daemon.SCHEDULE_CHARGEJOB</definition>
+    <definition command="RAIL-VEHICLEMAINBOARDVERSION"        base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEMAINBOARDVERSION</definition>
+    <definition command="RAIL-VEHICLEPLCVERSION"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLEPLCVERSION</definition>
+    <!--//20190830 KSB-->
+    <definition command="RAIL-VEHICLECHARGESTART"             base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLECHARGESTART</definition>
+    <!--<definition command="RAIL-VEHICLECHARGECOMPLETED"         base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.Trans.RAIL_VEHICLECHARGECOMPLETED</definition>-->
+    <definition command="RAIL-VEHICLECHARGECOMPLETED"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_VEHICLECHARGECOMPLETED</definition>
+
+    <definition command="SCHEDULE-CALLIDLEVEHICLE"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.Daemon.SCHEDULE_CALLIDLEVEHICLE</definition>
+    <!--//20200810 KKH-->
+    <definition command="RAIL-AGVCHARGINGFAIL"                base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVCHARGINGFAIL</definition>
+    <definition command="RAIL-RECOVERMISSMAGTAG"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERMISSMAGTAG</definition>
+    <definition command="RAIL-RECOVERMISSMAGTAGFAIL"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERMISSMAGTAGFAIL</definition>
+    <definition command="RAIL-RECOVERMISSMAGTAGSUCCESS"       base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERMISSMAGTAGSUCCESS</definition>
+    <definition command="RAIL-RECOVERAGVOUTRAIL"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERAGVOUTRAIL</definition>
+    <definition command="RAIL-RECOVERAGVOUTRAILFAIL"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERAGVOUTRAILFAIL</definition>
+    <definition command="RAIL-RECOVERAGVOUTRAILSUCCESS"       base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERAGVOUTRAILSUCCESS</definition>
+    <definition command="RAIL-AGVAUTOSTART"                   base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVAUTOSTART</definition>
+    <definition command="RAIL-AGVAUTOSTARTFAIL"               base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVAUTOSTARTFAIL</definition>
+    <definition command="RAIL-AGVAUTOSTARTSUCCESS"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVAUTOSTARTSUCCESS</definition>
+    <definition command="RAIL-AGVTURNPBSOFF"                  base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVTURNPBSOFF</definition>
+    <definition command="RAIL-AGVTURNPBSOFFFAIL"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVTURNPBSOFFFAIL</definition>
+    <definition command="RAIL-AGVTURNPBSOFFSUCCESS"           base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVTURNPBSOFFSUCCESS</definition>
+    <definition command="RAIL-RECOVERYAGVBACK"                base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERYAGVBACK</definition>
+    <definition command="RAIL-RECOVERYAGVBACKFAIL"            base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERYAGVBACKFAIL</definition>
+    <definition command="RAIL-RECOVERYAGVBACKSUCCESS"         base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_RECOVERYAGVBACKSUCCESS</definition>
+    <definition command="RAIL-AGVSENSORSONIC"                 base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVSENSORSONIC</definition>
+    <definition command="RAIL-AGVSENSORSONICFAIL"             base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVSENSORSONICFAIL</definition>
+    <definition command="RAIL-AGVSENSORSONICSUCCESS"          base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_AGVSENSORSONICSUCCESS</definition>
+    <definition command="RAIL-HMIVERSION"                     base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.Trans.RAIL_HMIVERSION</definition>
+
+    <!--//200622 Change NIO Logic About ES.exe does not restart-->
+    <definition command="CONTROL-STARTNIOCONTROLLABLE"      base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_STARTNIOCONTROLLABLE</definition>
+    <definition command="CONTROL-STOPNIOCONTROLLABLE"       base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_STOPNIOCONTROLLABLE</definition>
+    <definition command="CONTROL-LOADNIOCONTROLLABLE"       base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_LOADNIOCONTROLLABLE</definition>
+    <definition command="CONTROL-UNLOADNIOCONTROLLABLE"     base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_UNLOADNIOCONTROLLABLE</definition>
+
+    <!--//200630 REFRESHCACHE-->
+    <definition command="CONTROL-REFRESHCACHE"              base="ACS.Biz.IBizJob"  parallel="false">ACS.Biz.CONTROL_REFRESHCACHE</definition>
+    <definition command="CONTROL-RELOADSERVICE"              base="ACS.Biz.IBizJob"  parallel="true">ACS.Biz.CONTROL_RELOADSERVICE</definition>
+
+  </definitions>
+</Assembly>

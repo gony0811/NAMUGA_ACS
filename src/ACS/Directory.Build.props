@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- 모든 프로젝트 빌드 출력을 솔루션 레벨 bin/ 으로 통합 -->
+    <OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <!-- 중간 빌드 파일은 프로젝트별 obj/ 로 분리 -->
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
