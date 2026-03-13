@@ -5,20 +5,20 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 
 namespace ACS.Biz.Trans
 {
     class RAIL_CARRIERTRANSFERREPLY : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(RAIL_CARRIERTRANSFERREPLY));
+        protected static Logger logger = Logger.GetLogger(typeof(RAIL_CARRIERTRANSFERREPLY));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -42,10 +42,10 @@ namespace ACS.Biz.Trans
 
             bool isOCodeBay = false;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
 
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_carriertransferreply);
 

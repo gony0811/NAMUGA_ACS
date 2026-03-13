@@ -17,7 +17,6 @@ using ACS.Framework.Resource;
 using ACS.Framework.Logging;
 using System.Collections;
 using ACS.Utility;
-using log4net;
 using ACS.Framework.Base;
 using ACS.Framework.Path;
 using ACS.Framework.Resource.Model;
@@ -31,7 +30,7 @@ namespace ACS.Service
     public class TransferServiceEx : AbstractServiceEx
     {
         public Logger logger = Logger.GetLogger("EventLogger");
-        public ILog OCodeLog = log4net.LogManager.GetLogger("OCODELog");
+        public Logger OCodeLog = Logger.GetLogger("OCODELog");
         //private IPathManagerEx pathManager;
         //private IResourceManagerEx resourceManager;
         //private IRequestManagerEx requestManager;

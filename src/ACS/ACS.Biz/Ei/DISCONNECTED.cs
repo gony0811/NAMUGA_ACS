@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -33,9 +33,9 @@ namespace ACS.Biz.Ei
         {
             Nio nio = (Nio)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            HistoryService = (HistoryServiceEx)ApplicationContext.GetObject("HistoryService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            HistoryService = LifetimeScope.Resolve<HistoryServiceEx>();
 
             HistoryService.CreateNioHistory(nio);
 

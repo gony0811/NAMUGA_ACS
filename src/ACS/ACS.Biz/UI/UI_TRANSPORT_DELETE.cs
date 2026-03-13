@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -36,10 +36,10 @@ namespace ACS.Biz.UI
             TransferMessageEx transferMsg;
             int resultCode_timeOut = 99;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
 
             uiTransportDeleteMsg = InterfaceService.CreateUiTransportDeleteMessage(document);
             transferMsg = InterfaceService.CreateTransferDeleteMessage(uiTransportDeleteMsg);

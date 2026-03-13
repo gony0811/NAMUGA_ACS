@@ -4,13 +4,13 @@ using com.miracom.transceiverx.session;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
-using log4net;
+using ACS.Framework.Logging;
 
 namespace ACS.Communication.Msb.Highway101
 {
     public class PullingThread : IDisposable
     {
-        public static ILog logger = LogManager.GetLogger(typeof(PullingThread));
+        public static Logger logger = Logger.GetLogger(typeof(PullingThread));
 
         private Session session;
         private AbstractHighway101 abstractHighway101;

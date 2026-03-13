@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Autofac;
 using ACS.Framework.Message.Model.Control;
-using Spring.Context;
 
 namespace ACS.Framework.Application
 {
     public interface IApplicationControlManager
     {
-       
+
         bool Control(ControlMessage paramControlMessage);
 
         bool HeartBeat(ControlMessage paramControlMessage);
@@ -20,26 +20,6 @@ namespace ACS.Framework.Application
         bool ReloadWorkflow(ControlMessage paramControlMessage);
 
         bool InvokeReloadWorkflow();
-
-        //bool StartSecsControllable(ControlMessage paramControlMessage);
-
-        //bool InvokeStartSecsControllable(String paramString);
-
-        //bool StopSecsControllable(ControlMessage paramControlMessage);
-
-        //bool InvokeStopSecsControllable(String paramString);
-
-        //bool LoadSecsControllable(ControlMessage paramControlMessage);
-
-        //bool InvokeLoadSecsControllable(String paramString);
-
-        //bool UnloadSecsControllable(ControlMessage paramControlMessage);
-
-        //bool InvokeUnloadSecsControllable(String paramString);
-
-        //bool UpdateSecsControllable(ControlMessage paramControlMessage);
-
-        //bool InvokeUpdateSecsControllable(String paramString);
 
         bool ReloadService(ControlMessage paramControlMessage);
 
@@ -58,7 +38,7 @@ namespace ACS.Framework.Application
         bool InvokeRefreshCache();
 
 
-        IApplicationContext ApplicationContext { get; set; }
+        ILifetimeScope LifetimeScope { get; set; }
         IReloadableApplicationContextAware ReloadableApplicationContextAware { get; set; }
         string ReloadableDirectory { get; set; }
         string[] ReloadableAssemblyDefinitions { get; set; }

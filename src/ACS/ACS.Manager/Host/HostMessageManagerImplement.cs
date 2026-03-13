@@ -11,7 +11,6 @@ using ACS.Communication;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message;
 using ACS.Communication.Msb;
-using Spring.Core.IO;
 using System.IO;
 
 namespace ACS.Manager.Host
@@ -63,7 +62,7 @@ namespace ACS.Manager.Host
         {
             Object obj = message.SendingMessage;
             
-            if (!(obj is IResource))
+            if (!(obj is FileInfo))
             {
                 if ((obj is XmlDocument))
                 {
@@ -107,10 +106,10 @@ namespace ACS.Manager.Host
             {
                 try
                 {
-                    IResource resource = (IResource)obj;
-                    SelectHostAgent(message, communicationMessageName).Send(resource.File);
+                    FileInfo file = (FileInfo)obj;
+                    SelectHostAgent(message, communicationMessageName).Send(file);
 
-                    resource.File.Delete();
+                    file.Delete();
                 }
                 catch (IOException e)
                 {
@@ -122,7 +121,7 @@ namespace ACS.Manager.Host
         public void SendMessageToHost(AbstractMessage message, String dest, String communicationMessageName)
         {
             Object obj = message.SendingMessage;
-            if (!(obj is IResource))
+            if (!(obj is FileInfo))
             {
                 if ((obj is XmlDocument))
                 {
@@ -165,9 +164,9 @@ namespace ACS.Manager.Host
             {
                 try
                 {
-                    IResource resource = (IResource)obj;
-                    SelectHostAgent(message, dest, communicationMessageName).Send(resource.File, dest);
-                    resource.File.Delete();
+                    FileInfo file = (FileInfo)obj;
+                    SelectHostAgent(message, dest, communicationMessageName).Send(file, dest);
+                    file.Delete();
                 }
                 catch (IOException e)
                 {
@@ -181,7 +180,7 @@ namespace ACS.Manager.Host
         {
             Object obj = message.SendingMessage;
             Object replyObject = null;
-            if (!(obj is IResource))
+            if (!(obj is FileInfo))
             {
                 if ((obj is XmlDocument))
                 {
@@ -212,10 +211,10 @@ namespace ACS.Manager.Host
             {
                 try
                 {
-                    IResource resource = (IResource)obj;
-                    replyObject = SelectSynchronousHostAgent(message, communicationMessageName).Request(resource.File);
+                    FileInfo file = (FileInfo)obj;
+                    replyObject = SelectSynchronousHostAgent(message, communicationMessageName).Request(file);
 
-                    resource.File.Delete();
+                    file.Delete();
                 }
                 catch (IOException e)
                 {
@@ -230,7 +229,7 @@ namespace ACS.Manager.Host
         {
             Object obj = message.SendingMessage;
             Object replyObject = null;
-            if (!(obj is IResource))
+            if (!(obj is FileInfo))
             {
                 if ((obj is XmlDocument))
                 {
@@ -261,10 +260,10 @@ namespace ACS.Manager.Host
             {
                 try
                 {
-                    IResource resource = (IResource)obj;
-                    replyObject = SelectSynchronousHostAgent(message, dest, communicationMessageName).Request(resource.File, dest);
+                    FileInfo file = (FileInfo)obj;
+                    replyObject = SelectSynchronousHostAgent(message, dest, communicationMessageName).Request(file, dest);
 
-                    resource.File.Delete();
+                    file.Delete();
                 }
                 catch (IOException e)
                 {

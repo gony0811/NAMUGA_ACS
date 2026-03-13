@@ -4,7 +4,7 @@ using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using log4net;
+
 using ACS.Framework.Resource.Model.Factory.Zone;
 using ACS.Framework.Resource.Model.Factory.Machine;
 using ACS.Framework.Resource.Model.Factory.Unit;
@@ -21,7 +21,7 @@ namespace ACS.Framework.Message.Model
     public class BaseMessage : AbstractMessage
     {
 
-        protected static ILog logger = LogManager.GetLogger(typeof(BaseMessage));
+        protected static Logging.Logger logger = Logging.Logger.GetLogger(typeof(BaseMessage));
         public static string UI_MESSAGE_PREFIX = "UI";
         public static string CURRENT_TYPE_PORT = "PORT";
         public static string CURRENT_TYPE_SHELF = "SHELF";

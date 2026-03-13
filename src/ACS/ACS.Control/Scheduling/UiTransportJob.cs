@@ -2,6 +2,7 @@
 using ACS.Framework.Message;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Scheduling.Model;
+using Quartz;
 using ACS.Framework.Transfer;
 using ACS.Framework.Transfer.Model;
 using System;
@@ -22,7 +23,7 @@ namespace ACS.Control.Scheduling
         protected IMessageManagerEx messageManager;
         protected IMessageAgent messageAgent;
 
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             this.transferManager = ((ITransferManagerEx)context.MergedJobDataMap.Get("transferManager"));
             this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("messageManager"));

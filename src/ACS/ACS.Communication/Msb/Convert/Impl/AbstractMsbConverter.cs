@@ -4,23 +4,19 @@ using System.Collections;
 using System.Text;
 using System.Xml;
 using System.Diagnostics;
-using Spring.Context.Support;
 using ACS.Communication.Msb.Convert.Mapping;
 using ACS.Communication.Msb.Convert;
 using ACS.Framework.Message.Model;
 using ACS.Utility;
-using Spring.Util;
-using Spring.Objects;
 using System.Reflection;
-using log4net;
+using ACS.Framework.Logging;
 using System.Configuration;
-using NHibernate.Cfg;
 
 namespace ACS.Communication.Msb.Convert.Implement
 {
     public abstract class AbstractMsbConverter : IMsbConverter
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(AbstractMsbConverter));
+        protected static Logger logger = Logger.GetLogger(typeof(AbstractMsbConverter));
 
         protected static String PLACE_HOLDER_PROPERTY = "$";
         protected static String PLACE_HOLDER_METHOD = "#";
@@ -46,7 +42,7 @@ namespace ACS.Communication.Msb.Convert.Implement
         public IDictionary SendMessageTemplates { get; set; }
         public IMsbValueConverter MsbValueConverter { get; set; }
         public String XpathOfMessageName { get; set; }
-        public MessageSourceAccessor MessageSourceAccessor { get; set; }
+        public IDictionary<string, string> MessageSource { get; set; }
 
         public virtual void Init()
         {
@@ -379,7 +375,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             try
             {
                 Type type = Type.ReflectionOnlyGetType(className, true, true);
-                message = (AbstractMessage)ObjectUtils.InstantiateType(type);
+                message = (AbstractMessage)Activator.CreateInstance(type);
                 message.OriginatedType = "H";
             }
             catch (Exception e)
@@ -396,7 +392,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             try
             {
                 Type type = Type.ReflectionOnlyGetType(className, true, true);
-                obj = ObjectUtils.InstantiateType(type);
+                obj = Activator.CreateInstance(type);
             }
             catch (TypeLoadException e)
             {
@@ -436,7 +432,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             return value;
         }
 
-        protected string GetPropertyValue(IObjectWrapper objectWrapper, string value)
+        protected string GetPropertyValue(ObjectWrapper objectWrapper, string value)
         {
             String result = "";
             try

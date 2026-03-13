@@ -16,11 +16,7 @@ using ACS.Framework.Transfer.Model;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Resource.Model.Factory.Machine;
-using NHibernate.Mapping;
-using NHibernate.Criterion;
-using NHibernate;
 using System.Collections;
-using ACS.Framework.Application.Model;
 namespace ACS.Manager.History
 {
     public class HistoryManagerExImplement : AbstractManager, IHistoryManagerEx
@@ -611,7 +607,7 @@ namespace ACS.Manager.History
         {
             return null;
         }
-        public int GetHistoryCountByCriteria(DetachedCriteria criteria)
+        public int GetHistoryCountByCriteria(Dictionary<string, object> criteria)
         {
             return 0;
         }
@@ -653,10 +649,8 @@ namespace ACS.Manager.History
 
         public TruncateParameterEx GetTruncateParameter(String tableName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TruncateParameterEx));
-            criteria.Add(Restrictions.Eq("TableName", tableName));
-
-            IList list = PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object> { { "TableName", tableName } };
+            IList list = PersistentDao.FindByAttributes(typeof(TruncateParameterEx), attributes);
             if (list.Count > 0)
             {
                 return (TruncateParameterEx)list[0];
@@ -667,9 +661,7 @@ namespace ACS.Manager.History
 
         public IList GetTruncateParameters()
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TruncateParameterEx));
-
-            return PersistentDao.FindByCriteria(criteria);
+            return PersistentDao.FindAll(typeof(TruncateParameterEx));
         }
 
         public IList GetVehicleHistoriesByTransportCommandId(String transportCommandId)
@@ -722,7 +714,7 @@ namespace ACS.Manager.History
             return 0;
         }
 
-        public IList GetHistoriesByCriteria(DetachedCriteria paramDetachedCriteria, int paramInt1, int paramInt2)
+        public IList GetHistoriesByCriteria(Dictionary<string, object> paramCriteria, int paramInt1, int paramInt2)
         {
             return null;
         }

@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
-using NHibernate.Criterion;
 using System.Collections;
 
 namespace ACS.Framework.Base.Interface
@@ -25,7 +25,7 @@ namespace ACS.Framework.Base.Interface
 
         void UpdateAll(ICollection collection); //updateAll(Collection collection);
 
-        IList<T> Find<T>(string s); // List find(string s);
+        IList<T> Find<T>(string s) where T : class; // List find(string s);
 
         Object Find(Type class1, ISerializable serializable);
 
@@ -110,26 +110,6 @@ namespace ACS.Framework.Base.Interface
         IList FindPropertyOrderBy(Type class1, string s, string s1);
 
         IList FindPropertyOrderBy(string s, string s1, string s2);
-
-        IList FindByCriteria(DetachedCriteria detachedcriteria);
-
-        IList FindByCriteria(DetachedCriteria detachedcriteria, int i, int j);
-
-        IList FindByCriteria(DetachedCriteria detachedcriteria, bool flag);
-
-        IList FindByCriteria(DetachedCriteria detachedcriteria, int i, int j, bool flag);
-
-        int Count(DetachedCriteria detachedcriteria);
-
-        int Count(DetachedCriteria detachedcriteria, bool flag);
-
-        int Sum(DetachedCriteria detachedcriteria, string s);
-
-        int Sum(DetachedCriteria detachedcriteria, string s, bool flag);
-
-        int CountDistinct(DetachedCriteria detachedcriteria, string s);
-
-        IList Distinct(DetachedCriteria detachedcriteria, string s);
 
         IList FindPropertyByAttributes(Type class1, string s, string s1, Object obj);
 
@@ -235,9 +215,6 @@ namespace ACS.Framework.Base.Interface
 
         int DeleteByAttributes(Type class1, Dictionary<string, object> map);
 
-
-        //int DeleteByAttributes(Type class1, string s, object obj);
-
         int DeleteByAttributes(string s, Dictionary<string, object> map);
 
         int DeleteByAttributes(Type class1, Dictionary<string, object> map, bool flag);
@@ -282,15 +259,7 @@ namespace ACS.Framework.Base.Interface
 
         void DeleteAll(ICollection collection);
 
-        /**
-         * @deprecated Method findByNameWithoutException is deprecated
-         */
-
         Object FindByNameWithoutException(Type class1, Object obj);
-
-        /**
-         * @deprecated Method findByNameWithoutException is deprecated
-         */
 
         Object FindByNameWithoutException(string s, Object obj);
 
@@ -315,13 +284,5 @@ namespace ACS.Framework.Base.Interface
         void Evict(Object obj);
 
         int ExecuteUpdate(string s);
-
-        //IList executeSelect(string s);
-
-        //IList executeSelect(string s, Type class1);
-
-        // public const string OPERATOR_OR = "OR";
-
-        // public const string OPERATOR_AND = "AND";
     }
 }

@@ -23,14 +23,14 @@ using System.Threading.Tasks;
 using ACS.Communication.Http.uHttpSharp.Listeners;
 using ACS.Communication.Http.uHttpSharp.RequestProviders;
 //using ACS.Communication.Http.uHttpSharp.Logging;
-using log4net;
+using ACS.Framework.Logging;
 
 namespace ACS.Communication.Http.uHttpSharp
 {
     public sealed class HttpServer : IDisposable
     {
         //private static readonly ILog Logger = LogProvider.GetCurrentClassLogger();
-        public ILog logger = LogManager.GetLogger(typeof(HttpServer));
+        public Logger logger = Logger.GetLogger(typeof(HttpServer));
 
         private bool _isActive;
 
@@ -65,7 +65,7 @@ namespace ACS.Communication.Http.uHttpSharp
                 Task.Factory.StartNew(() => Listen(tempListener));
             }
 
-            logger.InfoFormat("Http Server started.");
+            logger.Info("Http Server started.");
         }
 
         private async void Listen(IHttpListener listener)
@@ -84,7 +84,7 @@ namespace ACS.Communication.Http.uHttpSharp
                 }
             }
 
-            logger.InfoFormat("Http Server stopped.");
+            logger.Info("Http Server stopped.");
         }
 
         public void Dispose()

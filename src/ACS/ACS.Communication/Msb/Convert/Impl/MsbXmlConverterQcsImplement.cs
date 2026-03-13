@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Spring.Objects;
+// ObjectWrapper is in ACS.Utility
 using System.Collections;
 using System.Reflection;
 using ACS.Communication.Msb.Convert.Impl;
@@ -166,11 +166,11 @@ namespace ACS.Communication.Msb.Convert.Implement
                                 String propertyValue = GetPropertyValue(beanWrapper, token[0]);
                                 if (string.IsNullOrEmpty(propertyValue))
                                 {
-                                    nodes.InnerText = this.MessageSourceAccessor.GetMessage(value.ToUpper(), "");
+                                    nodes.InnerText = (this.MessageSource != null && this.MessageSource.TryGetValue(value.ToUpper(), out var _msgVal) ? _msgVal : "");
                                 }
                                 else
                                 {
-                                    nodes.InnerText = this.MessageSourceAccessor.GetMessage(value.ToUpper() + "." + propertyValue, "");
+                                    nodes.InnerText = (this.MessageSource != null && this.MessageSource.TryGetValue(value.ToUpper() + "." + propertyValue, out var _msgVal2) ? _msgVal2 : "");
                                 }
                             }
                             else

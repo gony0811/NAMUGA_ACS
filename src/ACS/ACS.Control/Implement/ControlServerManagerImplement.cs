@@ -17,10 +17,8 @@ using ACS.Framework.Scheduling;
 using ACS.Control.Scheduling;
 using ACS.Utility;
 using Quartz;
-using Spring.Scheduling.Quartz;
 using System.Configuration;
 using System.Diagnostics;
-using log4net;
 using ACS.Framework.Transfer;
 using ACS.Workflow;
 
@@ -406,7 +404,7 @@ namespace ACS.Control
 
         public void PauseHeartBeat(string applicationName)
         {
-            Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
+            ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
 
             if(trigger != null)
             {
@@ -451,7 +449,7 @@ namespace ACS.Control
 
         public bool SchedulingHeartBeat(string applicationName)
         {
-            Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
+            ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
             if (trigger != null)
             {
                 return true;
@@ -461,7 +459,7 @@ namespace ACS.Control
 
         public void ResumeHeartBeat(string applicationName)
         {
-            Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
+            ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
 
             if(trigger != null)
             {
@@ -478,16 +476,16 @@ namespace ACS.Control
             {
                 if(this.UseHeartBeat)
                 {
-                    Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
+                    ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
 
                     if (trigger != null)
                     {
                         this.SchedulingManager.DeleteJob(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
                     }
 
-                    JobDetailObject jobDetail = CreateHeartBeatJobDetail(applicationName);
+                    IJobDetail jobDetail = CreateHeartBeatJobDetail(applicationName);
 
-                    SimpleTriggerObject simpleTrigger = CreateHeartBeatTrigger(applicationName, jobDetail);
+                    ITrigger simpleTrigger = CreateHeartBeatTrigger(applicationName, jobDetail);
 
                     //logger.info("heartBeat{" + applicationName + "} will be scheduled");
 
@@ -509,60 +507,51 @@ namespace ACS.Control
             return false;
         }
 
-        protected SimpleTriggerObject CreateHeartBeatTrigger(string applicationName, JobDetailObject jobDetail)
+        protected ITrigger CreateHeartBeatTrigger(string applicationName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
-
-            simpleTrigger.Group = HeartBeatJob.GROUP_HEARTBEAT;
-            simpleTrigger.Name = applicationName;
-            simpleTrigger.ObjectName = applicationName;
+            TimeSpan startDelay;
+            TimeSpan repeatInterval;
 
             if(this.UseSecondAsTimeUnit)
             {
-                simpleTrigger.StartDelay = TimeSpan.FromSeconds(this.HeartBeatStartDelay);
-                simpleTrigger.RepeatInterval = TimeSpan.FromSeconds(this.HeartBeatInterval);
+                startDelay = TimeSpan.FromSeconds(this.HeartBeatStartDelay);
+                repeatInterval = TimeSpan.FromSeconds(this.HeartBeatInterval);
             }
             else
             {
-                simpleTrigger.StartDelay = TimeSpan.FromMilliseconds(this.HeartBeatStartDelay);
-                simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(this.HeartBeatInterval);
-      
+                startDelay = TimeSpan.FromMilliseconds(this.HeartBeatStartDelay);
+                repeatInterval = TimeSpan.FromMilliseconds(this.HeartBeatInterval);
             }
 
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(applicationName, HeartBeatJob.GROUP_HEARTBEAT)
+                .StartAt(DateTimeOffset.UtcNow.Add(startDelay))
+                .WithSimpleSchedule(x => x
+                    .WithInterval(repeatInterval)
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
 
-            return simpleTrigger;
+            return trigger;
         }
 
-        protected JobDetailObject CreateHeartBeatJobDetail(string applicationName)
+        protected IJobDetail CreateHeartBeatJobDetail(string applicationName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = HeartBeatJob.GROUP_HEARTBEAT;
-            jobDetail.Name = applicationName;
-            jobDetail.ObjectName = applicationName;
-
-            if(HeartBeatJobType != null)
-            {
-                jobDetail.JobType = HeartBeatJobType;
-            }
-            else
-            {
-                jobDetail.JobType = this.JobType;
-            }
+            Type jobType = HeartBeatJobType ?? this.JobType;
 
             ControlMessageEx controlMessage = this.MessageManager.CreateControlMessage("CONTROL-HEARTBEAT", applicationName);
             XmlDocument document = this.MessageManager.CreateDocument(controlMessage);
 
             JobDataMap jobData = new JobDataMap();
-
             jobData.Put("ControlServerManager", this);
             jobData.Put("ApplicationName", applicationName);
             jobData.Put("Document", document);
             jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
-            jobDetail.JobDataMap = jobData;
-            jobDetail.AfterPropertiesSet();
+
+            IJobDetail jobDetail = JobBuilder.Create(jobType)
+                .WithIdentity(applicationName, HeartBeatJob.GROUP_HEARTBEAT)
+                .UsingJobData(jobData)
+                .Build();
 
             return jobDetail;
         }
@@ -610,14 +599,14 @@ namespace ACS.Control
             }
             try
             {
-                Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT);
+                ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT);
                 if (trigger != null)
                 {
                     this.SchedulingManager.DeleteJob(applicationName, RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT);
                 }
-                JobDetailObject jobDetail = CreateReschedulingHeartBeatJobDetail(applicationName);
+                IJobDetail jobDetail = CreateReschedulingHeartBeatJobDetail(applicationName);
 
-                SimpleTriggerObject simpleTrigger = CreateReschedulingHeartBeatTrigger(applicationName, jobDetail);
+                ITrigger simpleTrigger = CreateReschedulingHeartBeatTrigger(applicationName, jobDetail);
 
                 this.SchedulingManager.ScheduleJob(jobDetail, simpleTrigger);
             }
@@ -628,37 +617,30 @@ namespace ACS.Control
             return false;
         }
 
-        protected SimpleTriggerObject CreateReschedulingHeartBeatTrigger(string applicationName, JobDetailObject jobDetail)
+        protected ITrigger CreateReschedulingHeartBeatTrigger(string applicationName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(applicationName, RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT)
+                .StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromMilliseconds(this.RescheduleHeartBeatStartDelay)))
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromMilliseconds(this.RescheduleHeartBeatInterval))
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
 
-            simpleTrigger.Group = RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT;
-            simpleTrigger.Name = applicationName;
-            simpleTrigger.ObjectName = applicationName;
-
-            simpleTrigger.StartDelay = TimeSpan.FromMilliseconds(this.RescheduleHeartBeatStartDelay);
-            simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(this.RescheduleHeartBeatInterval);
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
-
-            return simpleTrigger;
+            return trigger;
         }
 
-        protected JobDetailObject CreateReschedulingHeartBeatJobDetail(string applicationName)
+        protected IJobDetail CreateReschedulingHeartBeatJobDetail(string applicationName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT;
-            jobDetail.Name = applicationName;
-            jobDetail.ObjectName = applicationName;
-
-            jobDetail.JobType = this.RescheduleHeartBeatJobType;
-
             JobDataMap jobData = new JobDataMap();
             jobData.Put("ControlServerManager", this);
 
-            jobDetail.JobDataAsMap = jobData;
-            jobDetail.AfterPropertiesSet();
+            IJobDetail jobDetail = JobBuilder.Create(this.RescheduleHeartBeatJobType)
+                .WithIdentity(applicationName, RescheduleHeartBeatJob.GROUP_RESCHEDULE_HEARTBEAT)
+                .UsingJobData(jobData)
+                .Build();
+
             return jobDetail;
         }
 
@@ -672,15 +654,15 @@ namespace ACS.Control
 
             try
             {
-                Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT);
+                ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT);
                 if (trigger != null)
                 {
                     this.SchedulingManager.DeleteJob(applicationName, SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT);
                 }
 
-                JobDetailObject jobDetail = CreateHeartSimpleHeartBeatJobDetail(applicationName);
+                IJobDetail jobDetail = CreateHeartSimpleHeartBeatJobDetail(applicationName);
 
-                SimpleTriggerObject simpleTrigger = CreateSimpleHeartBeatTrigger(applicationName, jobDetail);
+                ITrigger simpleTrigger = CreateSimpleHeartBeatTrigger(applicationName, jobDetail);
 
                 this.SchedulingManager.ScheduleJob(jobDetail, simpleTrigger);
             }
@@ -693,44 +675,37 @@ namespace ACS.Control
             return false;
         }
 
-        protected SimpleTriggerObject CreateSimpleHeartBeatTrigger(string applicationName, JobDetailObject jobDetail)
+        protected ITrigger CreateSimpleHeartBeatTrigger(string applicationName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(applicationName, SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT)
+                .StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromMilliseconds(this.SimpleHeartBeatStartDelay)))
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromMilliseconds(this.SimpleHeartBeatInterval))
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
 
-            simpleTrigger.Group = SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT;
-            simpleTrigger.Name = applicationName;
-            simpleTrigger.ObjectName = applicationName;
-
-            simpleTrigger.StartDelay = TimeSpan.FromMilliseconds(this.SimpleHeartBeatStartDelay);
-            simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(this.SimpleHeartBeatInterval);
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
-
-            return simpleTrigger;
+            return trigger;
         }
 
-        protected JobDetailObject CreateHeartSimpleHeartBeatJobDetail(string applicationName)
+        protected IJobDetail CreateHeartSimpleHeartBeatJobDetail(string applicationName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT;
-            jobDetail.Name = applicationName;
-            jobDetail.ObjectName = applicationName;
-
-            jobDetail.JobType = this.SimpleHeartBeatJobType;
-
             JobDataMap jobData = new JobDataMap();
             jobData.Put("ControlServerManager", this);
             jobData.Put("ApplicationName", applicationName);
 
-            jobDetail.JobDataAsMap = jobData;
-            jobDetail.AfterPropertiesSet();
+            IJobDetail jobDetail = JobBuilder.Create(this.SimpleHeartBeatJobType)
+                .WithIdentity(applicationName, SimpleHeartBeatJob.GROUP_SIMPLE_HEARTBEAT)
+                .UsingJobData(jobData)
+                .Build();
+
             return jobDetail;
         }
 
         public bool ShedulingHeartBeat(string applicationName)
         {
-            Trigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
+            ITrigger trigger = this.SchedulingManager.GetTrigger(applicationName, HeartBeatJob.GROUP_HEARTBEAT);
             if (trigger != null)
             {
                 return true;
@@ -940,16 +915,16 @@ namespace ACS.Control
             {
                 if (this.UseUiTransport)
                 {
-                    Trigger trigger = this.SchedulingManager.GetTrigger(UiTransportJob.TRIGGER_UITRNASPROT, UiTransportJob.GROUP_UITRANSPORT);
+                    ITrigger trigger = this.SchedulingManager.GetTrigger(UiTransportJob.TRIGGER_UITRNASPROT, UiTransportJob.GROUP_UITRANSPORT);
 
                     if (trigger != null)
                     {
                         this.SchedulingManager.DeleteJob(UiTransportJob.TRIGGER_UITRNASPROT, UiTransportJob.GROUP_UITRANSPORT);
                     }
 
-                    JobDetailObject jobDetail = CreateUiTransportJobDetail(UiTransportJob.TRIGGER_UITRNASPROT);
+                    IJobDetail jobDetail = CreateUiTransportJobDetail(UiTransportJob.TRIGGER_UITRNASPROT);
 
-                    SimpleTriggerObject simpleTrigger = CreateUiTranportTrigger(UiTransportJob.TRIGGER_UITRNASPROT, jobDetail);
+                    ITrigger simpleTrigger = CreateUiTranportTrigger(UiTransportJob.TRIGGER_UITRNASPROT, jobDetail);
 
                     //logger.info("heartBeat{" + applicationName + "} will be scheduled");
 
@@ -979,16 +954,16 @@ namespace ACS.Control
             {
                 if (this.UseUiApplicationManager)
                 {
-                    Trigger trigger = this.SchedulingManager.GetTrigger(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER, UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER);
+                    ITrigger trigger = this.SchedulingManager.GetTrigger(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER, UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER);
 
                     if (trigger != null)
                     {
                         this.SchedulingManager.DeleteJob(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER, UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER);
                     }
 
-                    JobDetailObject jobDetail = CreateUiApplicationManagerJobDetail(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER);
+                    IJobDetail jobDetail = CreateUiApplicationManagerJobDetail(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER);
 
-                    SimpleTriggerObject simpleTrigger = CreateUiApplicationManagerTrigger(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER, jobDetail);
+                    ITrigger simpleTrigger = CreateUiApplicationManagerTrigger(UiApplicationManagerJob.TRIGGER_UIAPPLICATIONMANAGER, jobDetail);
 
                     //logger.info("heartBeat{" + applicationName + "} will be scheduled");
 
@@ -1016,16 +991,16 @@ namespace ACS.Control
             {
                 if (this.UseUiCommand)
                 {
-                    Trigger trigger = this.SchedulingManager.GetTrigger(UiCommandJob.TRIGGER_UICOMMAND, UiCommandJob.GROUP_UICOMMAND);
+                    ITrigger trigger = this.SchedulingManager.GetTrigger(UiCommandJob.TRIGGER_UICOMMAND, UiCommandJob.GROUP_UICOMMAND);
 
                     if (trigger != null)
                     {
                         this.SchedulingManager.DeleteJob(UiCommandJob.TRIGGER_UICOMMAND, UiCommandJob.GROUP_UICOMMAND);
                     }
 
-                    JobDetailObject jobDetail = CreateUiCommandJobDetail(UiCommandJob.TRIGGER_UICOMMAND);
+                    IJobDetail jobDetail = CreateUiCommandJobDetail(UiCommandJob.TRIGGER_UICOMMAND);
 
-                    SimpleTriggerObject simpleTrigger = CreateUiCommandTrigger(UiCommandJob.TRIGGER_UICOMMAND, jobDetail);
+                    ITrigger simpleTrigger = CreateUiCommandTrigger(UiCommandJob.TRIGGER_UICOMMAND, jobDetail);
 
                     //logger.info("heartBeat{" + applicationName + "} will be scheduled");
 
@@ -1047,22 +1022,9 @@ namespace ACS.Control
         }
         //
 
-        protected JobDetailObject CreateUiTransportJobDetail(string TriggerName)
+        protected IJobDetail CreateUiTransportJobDetail(string TriggerName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = UiTransportJob.GROUP_UITRANSPORT;
-            jobDetail.Name = TriggerName;
-            jobDetail.ObjectName = TriggerName;
-
-            if (UiTransportJobType != null)
-            {
-                jobDetail.JobType = UiTransportJobType;
-            }
-            else
-            {
-                jobDetail.JobType = this.JobType;
-            }
+            Type jobType = UiTransportJobType ?? this.JobType;
 
             //ControlMessageEx controlMessage = this.MessageManager.CreateControlMessage("CONTROL-HEARTBEAT", applicationName);
             //XmlDocument document = this.MessageManager.CreateDocument(controlMessage);
@@ -1075,64 +1037,52 @@ namespace ACS.Control
             jobData.Put("messageAgent", MessageAgent);
             //jobData.Put("Document", document);
             //jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
-            jobDetail.JobDataMap = jobData;
-            jobDetail.AfterPropertiesSet();
+
+            IJobDetail jobDetail = JobBuilder.Create(jobType)
+                .WithIdentity(TriggerName, UiTransportJob.GROUP_UITRANSPORT)
+                .UsingJobData(jobData)
+                .Build();
 
             return jobDetail;
         }
 
-        protected SimpleTriggerObject CreateUiTranportTrigger(string TriggerName, JobDetailObject jobDetail)
+        protected ITrigger CreateUiTranportTrigger(string TriggerName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
-
-            simpleTrigger.Group = UiTransportJob.GROUP_UITRANSPORT;
-            simpleTrigger.Name = TriggerName;
-            simpleTrigger.ObjectName = TriggerName;
             //수정필요
-            //simpleTrigger.StartDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
-            simpleTrigger.RepeatInterval = TimeSpan.FromSeconds(this.UiTransportInterval);
-                
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
+            //startDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
 
-            return simpleTrigger;
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(TriggerName, UiTransportJob.GROUP_UITRANSPORT)
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromSeconds(this.UiTransportInterval))
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
+
+            return trigger;
         }
 
         //200622 Change NIO Logic About ES.exe does not restart
-        protected SimpleTriggerObject CreateUiCommandTrigger(string TriggerName, JobDetailObject jobDetail)
+        protected ITrigger CreateUiCommandTrigger(string TriggerName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
-
-            simpleTrigger.Group = UiCommandJob.GROUP_UICOMMAND;
-            simpleTrigger.Name = TriggerName;
-            simpleTrigger.ObjectName = TriggerName;
             //수정필요
-            //simpleTrigger.StartDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
-            simpleTrigger.RepeatInterval = TimeSpan.FromSeconds(this.UiCommandInterval);
+            //startDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
 
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(TriggerName, UiCommandJob.GROUP_UICOMMAND)
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromSeconds(this.UiCommandInterval))
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
 
-            return simpleTrigger;
+            return trigger;
         }
         //
 
-        protected JobDetailObject CreateUiApplicationManagerJobDetail(string TriggerName)
+        protected IJobDetail CreateUiApplicationManagerJobDetail(string TriggerName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER;
-            jobDetail.Name = TriggerName;
-            jobDetail.ObjectName = TriggerName;
-
-            if (UiApplicationManagerJobType != null)
-            {
-                jobDetail.JobType = UiApplicationManagerJobType;
-            }
-            else
-            {
-                jobDetail.JobType = this.JobType;
-            }
+            Type jobType = UiApplicationManagerJobType ?? this.JobType;
 
             //ControlMessageEx controlMessage = this.MessageManager.CreateControlMessage("CONTROL-HEARTBEAT", applicationName);
             //XmlDocument document = this.MessageManager.CreateDocument(controlMessage);
@@ -1145,29 +1095,19 @@ namespace ACS.Control
             jobData.Put("workflowManager", WorkflowManager);
             //jobData.Put("Document", document);
             //jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
-            jobDetail.JobDataMap = jobData;
-            jobDetail.AfterPropertiesSet();
+
+            IJobDetail jobDetail = JobBuilder.Create(jobType)
+                .WithIdentity(TriggerName, UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER)
+                .UsingJobData(jobData)
+                .Build();
 
             return jobDetail;
         }
 
         //200622 Change NIO Logic About ES.exe does not restart
-        protected JobDetailObject CreateUiCommandJobDetail(string TriggerName)
+        protected IJobDetail CreateUiCommandJobDetail(string TriggerName)
         {
-            JobDetailObject jobDetail = new JobDetailObject();
-
-            jobDetail.Group = UiCommandJob.GROUP_UICOMMAND;
-            jobDetail.Name = TriggerName;
-            jobDetail.ObjectName = TriggerName;
-
-            if (UiCommandJobType != null)
-            {
-                jobDetail.JobType = UiCommandJobType;
-            }
-            else
-            {
-                jobDetail.JobType = this.JobType;
-            }
+            Type jobType = UiCommandJobType ?? this.JobType;
 
             //ControlMessageEx controlMessage = this.MessageManager.CreateControlMessage("CONTROL-HEARTBEAT", applicationName);
             //XmlDocument document = this.MessageManager.CreateDocument(controlMessage);
@@ -1184,28 +1124,30 @@ namespace ACS.Control
 
             //jobData.Put("Document", document);
             //jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
-            jobDetail.JobDataMap = jobData;
-            jobDetail.AfterPropertiesSet();
+
+            IJobDetail jobDetail = JobBuilder.Create(jobType)
+                .WithIdentity(TriggerName, UiCommandJob.GROUP_UICOMMAND)
+                .UsingJobData(jobData)
+                .Build();
 
             return jobDetail;
         }
         //
 
-        protected SimpleTriggerObject CreateUiApplicationManagerTrigger(string TriggerName, JobDetailObject jobDetail)
+        protected ITrigger CreateUiApplicationManagerTrigger(string TriggerName, IJobDetail jobDetail)
         {
-            SimpleTriggerObject simpleTrigger = new SimpleTriggerObject();
-
-            simpleTrigger.Group = UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER;
-            simpleTrigger.Name = TriggerName;
-            simpleTrigger.ObjectName = TriggerName;
             //수정필요
-            //simpleTrigger.StartDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
-            simpleTrigger.RepeatInterval = TimeSpan.FromSeconds(this.UiApplicationManagerInterval);
+            //startDelay = TimeSpan.FromSeconds(this.UiTransportStartDelay);
 
-            simpleTrigger.JobDetail = jobDetail;
-            simpleTrigger.AfterPropertiesSet();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(TriggerName, UiApplicationManagerJob.GROUP_UIAPPLICATIONMANAGER)
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromSeconds(this.UiApplicationManagerInterval))
+                    .RepeatForever())
+                .ForJob(jobDetail)
+                .Build();
 
-            return simpleTrigger;
+            return trigger;
         }
     }
 }

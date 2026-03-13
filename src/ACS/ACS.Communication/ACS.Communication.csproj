@@ -13,28 +13,15 @@
 
   <ItemGroup>
     <PackageReference Include="RabbitMQ.Client" Version="6.4.0" />
-  
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Iesi.Collections">
-      <HintPath>..\Library/Iesi.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
     <Reference Include="Mina.NET">
       <HintPath>..\Library/Mina.NET.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\Library/Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
     </Reference>
     <Reference Include="TIBCO.Rendezvous">
       <HintPath>..\Library/TIBCO.Rendezvous.dll</HintPath>

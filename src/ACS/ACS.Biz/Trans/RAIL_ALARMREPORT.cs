@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -35,10 +35,10 @@ namespace ACS.Biz.Trans
             VehicleMessageEx vehicleMsg;
             Boolean iConnectionState;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            AlarmService = LifetimeScope.Resolve<AlarmServiceEx>();
            
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_alarmreport);
 

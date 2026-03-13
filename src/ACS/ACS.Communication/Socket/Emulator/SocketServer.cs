@@ -1,4 +1,4 @@
-﻿using log4net;
+﻿using ACS.Framework.Logging;
 using Mina.Core.Filterchain;
 using Mina.Core.Service;
 using Mina.Filter.Codec;
@@ -23,7 +23,7 @@ namespace ACS.Communication.Socket.Emulator
     /// </summary>
     public class SocketServer : AbstractSocketService, IControllable
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(SocketServer));
+        public Logger logger = Logger.GetLogger(typeof(SocketServer));
         private IoAcceptor ioAcceptor;
         private Nio nio;
         private IWorkflowManager workflowManager;

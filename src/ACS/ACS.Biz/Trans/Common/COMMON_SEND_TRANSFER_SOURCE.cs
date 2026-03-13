@@ -9,7 +9,7 @@ using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using System.Xml;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz.Trans.Common
 {
     public class COMMON_SEND_TRANSFER_SOURCE : BaseBizJob
@@ -35,14 +35,14 @@ namespace ACS.Biz.Trans.Common
             int count=0;
             int while_linit=10;  //1019 LSJ 3->10
             VehicleMessageEx vehicleMessage = (VehicleMessageEx)args[0];
-            if (this.ApplicationContext == null) { this.ApplicationContext = (IApplicationContext)args[1]; }
+            if (this.LifetimeScope == null) { this.LifetimeScope = (ILifetimeScope)args[1]; }
            
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
 
             while (!end)
             {

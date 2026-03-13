@@ -7,7 +7,7 @@ using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using System.Xml;
-using Spring.Context;
+using Autofac;
 
 
 namespace ACS.Biz.Ei.Trans
@@ -21,8 +21,8 @@ namespace ACS.Biz.Ei.Trans
         public override int ExecuteJob(object[] args)
         {
             XmlDocument document = (XmlDocument)args[0];
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
 
 
             VehicleMessageEx vehiclemsg = InterfaceService.CreateVehicleMessageFromTrans(document);

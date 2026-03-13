@@ -7,7 +7,7 @@ using System.Threading;
 using System.Reflection;
 using ACS.Service;
 using ACS.Communication.Socket.Model;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz.Ei.Common
 {
     public class COMMON_STOP_NIO : BaseBizJob
@@ -24,7 +24,7 @@ namespace ACS.Biz.Ei.Common
         public override int ExecuteJob(object[] args)
         {
             Nio nio = (Nio)args[0];
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
 
             VehicleInterfaceService.StopNio(nio);
             return 0;

@@ -1,13 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ACS.Framework.Base;
 using Quartz;
-using Quartz.Collection;
 using Quartz.Impl;
-using Quartz.Listener;
+using Quartz.Impl.Matchers;
 
 namespace ACS.Framework.Scheduling
 {
@@ -26,21 +25,19 @@ namespace ACS.Framework.Scheduling
             bool result = false;
 
             try
-            {               
-                this.scheduler.DeleteJob(jobName, jobGroupName);
+            {
+                scheduler.DeleteJob(new JobKey(jobName, jobGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
         }
 
-        public void DisplayJobDetail(JobDetail paramJobDetail)
+        public void DisplayJobDetail(IJobDetail paramJobDetail)
         {
-            //throw new NotImplementedException();
         }
 
         public void DisplayJobGroup(string jobGroupName)
@@ -50,7 +47,7 @@ namespace ACS.Framework.Scheduling
             {
                 String jobName = jobNames[index];
 
-                JobDetail jobDetail = GetJobDetail(jobName, jobGroupName);
+                IJobDetail jobDetail = GetJobDetail(jobName, jobGroupName);
                 if (jobDetail != null)
                 {
                     DisplayJobDetail(jobDetail);
@@ -62,7 +59,7 @@ namespace ACS.Framework.Scheduling
         {
             try
             {
-                List<string> jobGroupNames = this.scheduler.JobGroupNames.ToList();
+                var jobGroupNames = scheduler.GetJobGroupNames().GetAwaiter().GetResult();
                 if (jobGroupNames.Count == 0)
                 {
                     return;
@@ -73,36 +70,36 @@ namespace ACS.Framework.Scheduling
                     DisplayJobGroup(jobGroupName);
                 }
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
             }
         }
 
-        public void DisplayTrigger(Trigger trigger)
+        public void DisplayTrigger(ITrigger trigger)
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.Append("trigger{" + trigger.JobName + "}, ");
-            sb.Append("state{" + GetTriggerState(trigger.JobName, trigger.JobGroup) + "}, ");
-            if (trigger is CronTrigger)
+            sb.Append("trigger{" + trigger.Key.Name + "}, ");
+            sb.Append("state{" + GetTriggerState(trigger.Key.Name, trigger.Key.Group) + "}, ");
+            if (trigger is ICronTrigger cronTrigger)
             {
-                sb.Append("expression{" + ((CronTrigger)trigger).CronExpressionString + "}, ");
-                sb.Append("start{" + ((CronTrigger)trigger).StartTimeUtc.ToString() + "}, ");
-                sb.Append("end{" + ((CronTrigger)trigger).EndTimeUtc.ToString() + "}, ");
-                sb.Append("final{" + ((CronTrigger)trigger).FinalFireTimeUtc.ToString() + "}, ");
-                sb.Append("previous{" + ((CronTrigger)trigger).GetPreviousFireTimeUtc().ToString() + "}, ");
-                sb.Append("next{" + ((CronTrigger)trigger).GetNextFireTimeUtc().ToString() + "}");
+                sb.Append("expression{" + cronTrigger.CronExpressionString + "}, ");
+                sb.Append("start{" + cronTrigger.StartTimeUtc.ToString() + "}, ");
+                sb.Append("end{" + cronTrigger.EndTimeUtc?.ToString() + "}, ");
+                sb.Append("final{" + cronTrigger.FinalFireTimeUtc?.ToString() + "}, ");
+                sb.Append("previous{" + cronTrigger.GetPreviousFireTimeUtc()?.ToString() + "}, ");
+                sb.Append("next{" + cronTrigger.GetNextFireTimeUtc()?.ToString() + "}");
             }
-            else if ((trigger is SimpleTrigger))
+            else if (trigger is ISimpleTrigger simpleTrigger)
             {
-                sb.Append("interval{" + ((SimpleTrigger)trigger).RepeatInterval + "}, ");
-                sb.Append("repeat{" + ((SimpleTrigger)trigger).RepeatCount + "}, ");
-                sb.Append("triggered{" + ((SimpleTrigger)trigger).TimesTriggered + "}, ");
-                sb.Append("start{" + ((SimpleTrigger)trigger).StartTimeUtc + "}, ");
-                sb.Append("end{" + ((SimpleTrigger)trigger).EndTimeUtc + "}, ");
-                sb.Append("final{" + ((SimpleTrigger)trigger).FinalFireTimeUtc + "}, ");
-                sb.Append("previous{" + ((SimpleTrigger)trigger).GetPreviousFireTimeUtc().ToString() + "}, ");
-                sb.Append("next{" + ((SimpleTrigger)trigger).GetNextFireTimeUtc().ToString() + "}");
+                sb.Append("interval{" + simpleTrigger.RepeatInterval + "}, ");
+                sb.Append("repeat{" + simpleTrigger.RepeatCount + "}, ");
+                sb.Append("triggered{" + simpleTrigger.TimesTriggered + "}, ");
+                sb.Append("start{" + simpleTrigger.StartTimeUtc + "}, ");
+                sb.Append("end{" + simpleTrigger.EndTimeUtc + "}, ");
+                sb.Append("final{" + simpleTrigger.FinalFireTimeUtc + "}, ");
+                sb.Append("previous{" + simpleTrigger.GetPreviousFireTimeUtc()?.ToString() + "}, ");
+                sb.Append("next{" + simpleTrigger.GetNextFireTimeUtc()?.ToString() + "}");
             }
         }
 
@@ -110,11 +107,11 @@ namespace ACS.Framework.Scheduling
         {
             List<string> jobNames = GetJobNames(jobGroupName);
 
-            foreach(string jobName in jobNames)
+            foreach (string jobName in jobNames)
             {
-                JobDetail jobDetail = GetJobDetail(jobName, jobGroupName);
+                IJobDetail jobDetail = GetJobDetail(jobName, jobGroupName);
 
-                if(jobDetail != null)
+                if (jobDetail != null)
                 {
                     DisplayJobDetail(jobDetail);
                 }
@@ -125,82 +122,70 @@ namespace ACS.Framework.Scheduling
         {
             try
             {
-                List<string> triggerGroupNames = this.scheduler.TriggerGroupNames.ToList();
+                var triggerGroupNames = scheduler.GetTriggerGroupNames().GetAwaiter().GetResult();
                 if (triggerGroupNames.Count == 0)
                 {
                     return;
                 }
-                for (int triggerGroupIndex = 0; triggerGroupIndex < triggerGroupNames.Count; triggerGroupIndex++)
+                foreach (string triggerGroupName in triggerGroupNames)
                 {
-                    String triggerGroupName = triggerGroupNames[triggerGroupIndex];
                     DisplayTriggerGroup(triggerGroupName);
                 }
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-                
             }
         }
 
-        public JobDetail GetJobDetail(string jobName, string jobGroupName)
+        public IJobDetail GetJobDetail(string jobName, string jobGroupName)
         {
-            JobDetail jobDetail = null;
+            IJobDetail jobDetail = null;
 
             try
-            {                
-                jobDetail = this.scheduler.GetJobDetail(jobName, jobGroupName);
-            }
-            catch (SchedulerException e)
             {
-
+                jobDetail = scheduler.GetJobDetail(new JobKey(jobName, jobGroupName)).GetAwaiter().GetResult();
+            }
+            catch (SchedulerException)
+            {
             }
 
             return jobDetail;
         }
 
-        public IList<string> GetJobGroupNames()
+        public List<string> GetJobGroupNames()
         {
             try
             {
-                return this.scheduler.JobGroupNames;
+                return scheduler.GetJobGroupNames().GetAwaiter().GetResult().ToList();
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-                //logger.Error("", e);
             }
-            return new String[0];
+            return new List<string>();
         }
 
         public List<string> GetJobNames(string jobGroupName)
         {
             try
             {
-                List<string> jobNames = this.scheduler.GetJobNames(jobGroupName).ToList();
-
-                return jobNames;
+                var jobKeys = scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobGroupName)).GetAwaiter().GetResult();
+                return jobKeys.Select(k => k.Name).ToList();
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-                //logger.Error("", e);
             }
-            return new List<string>();          
+            return new List<string>();
         }
 
         public List<string> GetPausedTriggerGroups()
         {
             try
             {
-                Quartz.Collection.ISet pausedTriggerGroups = this.scheduler.GetPausedTriggerGroups();
-                List<string> retpausedTriggerGroups = new List<string>();
-                foreach (var item in pausedTriggerGroups)
-                {
-                    retpausedTriggerGroups.Add(item.ToString());
-                }
-                return retpausedTriggerGroups;
+                var pausedTriggerGroups = scheduler.GetPausedTriggerGroups().GetAwaiter().GetResult();
+                return pausedTriggerGroups.ToList();
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return new List<string>();
@@ -212,12 +197,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                schedulerInstanceId = this.scheduler.SchedulerInstanceId;
+                schedulerInstanceId = scheduler.SchedulerInstanceId;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
-                throw;    
+                throw;
             }
 
             return schedulerInstanceId;
@@ -229,11 +213,10 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                schedulerMetaDataInfo = scheduler.GetMetaData().ToString();
+                schedulerMetaDataInfo = scheduler.GetMetaData().GetAwaiter().GetResult().ToString();
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-                //LOG
             }
 
             return schedulerMetaDataInfo;
@@ -245,27 +228,25 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                schedulerName = this.scheduler.SchedulerName;
+                schedulerName = scheduler.SchedulerName;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-                //LOG
             }
 
             return schedulerName;
         }
 
-        public Trigger GetTrigger(string triggerName, string triggerGroupName)
+        public ITrigger GetTrigger(string triggerName, string triggerGroupName)
         {
-            Trigger trigger = null;
+            ITrigger trigger = null;
 
             try
-            {              
-                trigger = this.scheduler.GetTrigger(triggerName, triggerGroupName);
-            }
-            catch(SchedulerException e)
             {
-
+                trigger = scheduler.GetTrigger(new TriggerKey(triggerName, triggerGroupName)).GetAwaiter().GetResult();
+            }
+            catch (SchedulerException)
+            {
             }
 
             return trigger;
@@ -275,11 +256,10 @@ namespace ACS.Framework.Scheduling
         {
             try
             {
-                return this.scheduler.TriggerGroupNames.ToList();
+                return scheduler.GetTriggerGroupNames().GetAwaiter().GetResult().ToList();
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-                
             }
             return new List<string>();
         }
@@ -288,13 +268,11 @@ namespace ACS.Framework.Scheduling
         {
             try
             {
-                List<string> triggerNames = this.scheduler.GetTriggerNames(triggerGroupName).ToList();
-
-                return triggerNames;
+                var triggerKeys = scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(triggerGroupName)).GetAwaiter().GetResult();
+                return triggerKeys.Select(k => k.Name).ToList();
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
             return new List<string>();
         }
@@ -305,11 +283,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                triggerState = TriggerStateToString((int)this.scheduler.GetTriggerState(triggerName, triggerGroupName));
+                var state = scheduler.GetTriggerState(new TriggerKey(triggerName, triggerGroupName)).GetAwaiter().GetResult();
+                triggerState = TriggerStateToString(state);
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
                 throw;
             }
 
@@ -322,12 +300,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                this.scheduler.PauseAll();
+                scheduler.PauseAll().GetAwaiter().GetResult();
                 result = true;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
@@ -338,13 +315,11 @@ namespace ACS.Framework.Scheduling
             bool result = false;
             try
             {
-              
-                this.scheduler.PauseJob(jobName, jobGroupName);
+                scheduler.PauseJob(new JobKey(jobName, jobGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
             return result;
         }
@@ -355,14 +330,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                //다시
-                string jobname = GetJobNames(jobGroupName)[0];
-                this.scheduler.PauseJob(jobname, jobGroupName);
+                scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
@@ -374,13 +346,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                
-                this.scheduler.PauseTrigger(triggerName, triggerGroupName);
+                scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
@@ -392,18 +362,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                List<string> Trigger = GetTriggerNames(triggerGroupName);
-                foreach(var triggerName in Trigger)
-                {
-                    this.scheduler.PauseTrigger(triggerName, triggerGroupName);
-                }
-
-               
+                scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(triggerGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
@@ -415,12 +378,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                this.scheduler.ResumeAll();
+                scheduler.ResumeAll().GetAwaiter().GetResult();
                 result = true;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
             return result;
         }
@@ -431,12 +393,11 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                this.scheduler.ResumeJob(jobName, jobGroupName);
+                scheduler.ResumeJob(new JobKey(jobName, jobGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch(SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
@@ -448,71 +409,58 @@ namespace ACS.Framework.Scheduling
 
             try
             {
-                List<string> jobs = GetJobNames(jobGroupName);
-                foreach (var jobName in jobs)
-                {
-                    this.scheduler.ResumeJob(jobName, jobGroupName);
-                    result = true;
-                }
+                scheduler.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(jobGroupName)).GetAwaiter().GetResult();
+                result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
         }
 
-        public bool ResumeTrigger(string jobName, string jobGroupName)
+        public bool ResumeTrigger(string triggerName, string triggerGroupName)
         {
             bool result = false;
 
             try
             {
-                this.scheduler.ResumeTrigger(jobName, jobGroupName);
+                scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
         }
 
-        public bool ResumeTriggerGroup(string jobGroupName)
+        public bool ResumeTriggerGroup(string triggerGroupName)
         {
             bool result = false;
 
             try
             {
-                  List<string> Trigger = GetTriggerNames(jobGroupName);
-                  foreach (var triggerName in Trigger)
-                  {
-                      this.scheduler.ResumeTrigger(triggerName ,jobGroupName ); 
-                  }
+                scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(triggerGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-
             }
 
             return result;
         }
 
-        public bool ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        public bool ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
         {
             bool result = false;
             try
             {
-                this.scheduler.ScheduleJob(jobDetail, trigger);
-               
+                scheduler.ScheduleJob(jobDetail, trigger).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
-                
             }
             return result;
         }
@@ -522,51 +470,32 @@ namespace ACS.Framework.Scheduling
             bool result = false;
             try
             {
-                this.scheduler.UnscheduleJob(triggerName, triggerGroupName);
+                scheduler.UnscheduleJob(new TriggerKey(triggerName, triggerGroupName)).GetAwaiter().GetResult();
                 result = true;
             }
-            catch (SchedulerException e)
+            catch (SchedulerException)
             {
             }
             return result;
         }
 
-        protected string TriggerStateToString(int triggerState)
+        protected string TriggerStateToString(TriggerState triggerState)
         {
-            string state = "none";
             switch (triggerState)
             {
-                case 0:
-                    state = "normal";
-                    break;
-                case 1:
-                    state = "paused";
-                    break;
-                case 2:
-                    state = "complete";
-                    break;
-                case 3:
-                    state = "error";
-                    break;
-                case 4:
-                    state = "blocked";
-                    break;
+                case TriggerState.Normal:
+                    return "normal";
+                case TriggerState.Paused:
+                    return "paused";
+                case TriggerState.Complete:
+                    return "complete";
+                case TriggerState.Error:
+                    return "error";
+                case TriggerState.Blocked:
+                    return "blocked";
+                default:
+                    return "none";
             }
-            return state;
-        }
-
-        List<string> ISchedulingManager.GetJobGroupNames()
-        {
-            try
-            {
-                return this.GetTriggerGroupNames();
-            }
-            catch(SchedulerException e)
-            {
-
-            }
-
-            return new List<string>();
         }
     }
 }

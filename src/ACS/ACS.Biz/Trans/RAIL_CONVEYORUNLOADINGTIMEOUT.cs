@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -34,9 +34,9 @@ namespace ACS.Biz.Trans
         {
 
 
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            ResourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            ResourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
 
             XmlDocument rail_conveyorunloadingtimeout = (XmlDocument)args[0];
             VehicleMessageEx vehicleMessage = InterfaceService.CreateVehicleMessageFromES(rail_conveyorunloadingtimeout);

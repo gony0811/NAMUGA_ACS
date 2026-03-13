@@ -12,25 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
-  </ItemGroup>
-
-    <ItemGroup>
-    <Reference Include="Antlr3.Runtime">
-      <HintPath>..\Library/Antlr3.Runtime.dll</HintPath>
-    </Reference>
-    <Reference Include="Iesi.Collections">
-      <HintPath>..\Library/Iesi.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

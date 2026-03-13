@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -32,8 +32,8 @@ namespace ACS.Biz.UI
             XmlDocument document = (XmlDocument)args[0];
             UiTruncateMessageEx uiTruncateMsg;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            HistoryService = (HistoryServiceEx)ApplicationContext.GetObject("HistoryService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            HistoryService = LifetimeScope.Resolve<HistoryServiceEx>();
 
             uiTruncateMsg = InterfaceService.CreateUiTruncateMessage(document);
             HistoryService.TruncatePartitionTable(uiTruncateMsg);

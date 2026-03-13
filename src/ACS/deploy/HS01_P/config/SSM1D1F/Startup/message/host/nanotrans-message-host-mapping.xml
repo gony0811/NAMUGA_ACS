@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping>	
+	<send>
+		<event name="TRSMOVEREPORT" method="reportTransportJobCreated"
+		           class="ACS.Framework.Message.Model.Host.AGVMoveReport"
+		            host-message-name="TRSMOVEREPORT"
+		            use="false" />
+		<event name="TRSSTATEREPORT" method="reportTransportJobCreated"
+		           class="ACS.Framework.Message.Model.Host.AGVStateReport"
+		            host-message-name="TRSSTATEREPORT"
+		            use="true" />		            
+		<event name="TRSALARMREPORT" method="reportTransportJobCreated"
+		           class="ACS.Framework.Message.Model.Host.AGVAlarmReport"
+		            host-message-name="TRSALARMREPORT"
+		            use="false" />
+		<event name="TRSJOBREPORT" method="reportTransportJobCreated"
+		           class="ACS.Framework.Message.Model.Host.AGVJobReport"
+		            host-message-name="TRSJOBREPORT"
+		            use="true" />
+		<!--<event name="TRSJOBREPORT" method="reportTransportJobUpdated"
+		           class="ACS.Framework.Message.Model.Host.AGVJobReport"
+		            host-message-name="TRSJOBREPORT"
+		            use="true" />-->
+	</send>
+
+	<receive>
+		<!-- USE -->
+		<command name="MOVECMD" class="ACS.Framework.Message.Model.Host.MoveCommand"
+				 host-message-name="TRSJOBREQ"
+				 use="true" />
+		<command name="MOVECANCEL" class="ACS.Framework.Message.Model.Host.MoveCancel"
+				 host-message-name="TRSJOBREQ"
+				 use="true" />
+	    <command name="MOVEUPDATE" class="ACS.Framework.Message.Model.Host.MoveUpdateCommand"
+				 host-message-name="TRSJOBREQ"
+				 use="true" />
+				 
+		<!-- Response -->
+		<!-- USE -->
+		<!--<response name="HOST-RESPONSE-TRANSPORTJOB-DESTREQUEST" class="kr.co.samsung.sds.nanotrans.sem.ead.framework.message.model.server.TransportDestResponseMessageEx"
+				 host-message-name="CDQ_REP"
+				 use="true" />-->
+	</receive>
+</mapping>

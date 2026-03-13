@@ -1,4 +1,4 @@
-﻿using log4net;
+﻿using ACS.Framework.Logging;
 using Mina.Core.Service;
 using ACS.Communication;
 using ACS.Workflow;
@@ -13,7 +13,7 @@ namespace ACS.Communication.Socket
 {
     public class SocketServer : AbstractSocketService, IControllable
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(SocketServer)); 
+        public Logger logger = Logger.GetLogger(typeof(SocketServer));
         private IoAcceptor ioAcceptor;
         public IWorkflowManager WorkflowManager { get; set; }
 

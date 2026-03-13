@@ -12,22 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
-  </ItemGroup>
-
-    <ItemGroup>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="Quartz">
-      <HintPath>..\Library/Quartz.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Scheduling.Quartz">
-      <HintPath>..\Library/Spring.Scheduling.Quartz.dll</HintPath>
-    </Reference>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

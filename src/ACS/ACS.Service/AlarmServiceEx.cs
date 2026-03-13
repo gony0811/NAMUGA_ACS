@@ -8,7 +8,7 @@ using ACS.Framework.Alarm.Model;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Resource.Model;
 using System.Collections;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 using ACS.Framework.History.Model;
 using ACS.Framework.Path.Model;
@@ -22,7 +22,7 @@ namespace ACS.Service
         public static String ALARMCODE_FRONTSENSOR = "281";
         public static String ALARMCODE_REMOTESTOP = "285";
        
-        public ILog logger = log4net.LogManager.GetLogger(typeof(AlarmServiceEx)); 
+        public Logger logger = Logger.GetLogger(typeof(AlarmServiceEx));
         public AlarmServiceEx()
             : base()
         {

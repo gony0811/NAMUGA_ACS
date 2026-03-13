@@ -3,6 +3,7 @@ using ACS.Framework.Application.Model;
 using ACS.Framework.Message;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Scheduling.Model;
+using Quartz;
 using ACS.Workflow;
 using System;
 using System.Collections;
@@ -24,7 +25,7 @@ namespace ACS.Control.Scheduling
         //protected IMessageAgent messageAgent;
         protected IWorkflowManager workflowManager;
 
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             this.applicationManager = ((IApplicationManager)context.MergedJobDataMap.Get("applicationManager"));
             this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("messageManager"));

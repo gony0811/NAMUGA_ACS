@@ -1,23 +1,21 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Spring.Context;
-using Spring.Context.Support;
-using Spring.Context.Events;
+using Autofac;
 
 namespace ACS.Application
 {
-    public class AfterContextInitializedEventArg : ApplicationEventArgs
+    public class AfterContextInitializedEventArg : EventArgs
     {
-        public AfterContextInitializedEventArg(object source, IApplicationContext applicationContext)
+        public AfterContextInitializedEventArg(object source, ILifetimeScope lifetimeScope)
         {           
             // TODO: Complete member initialization
             this.Source = source;
-            this.ApplicationContext = applicationContext;
+            this.LifetimeScope = lifetimeScope;
         }
-        public IApplicationContext ApplicationContext { get; private set; }
+        public ILifetimeScope LifetimeScope { get; private set; }
         public object Source { get; private set; }
     }
 }

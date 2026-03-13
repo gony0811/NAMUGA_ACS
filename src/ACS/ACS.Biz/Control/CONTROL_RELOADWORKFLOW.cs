@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Alarm.Model;
@@ -47,8 +47,8 @@ namespace ACS.Biz
             ControlMessageEx controlMsg;
             Boolean result;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ControlService_ = (ControlService)ApplicationContext.GetObject("ControlService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ControlService_ = LifetimeScope.Resolve<ControlService>();
 
             controlMsg = InterfaceService.CreateControlMessage(document);
             result = ControlService_.Control(controlMsg);

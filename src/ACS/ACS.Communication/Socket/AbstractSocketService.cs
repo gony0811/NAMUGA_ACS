@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using log4net;
 using ACS.Framework.Logging;
 
 namespace ACS.Communication.Socket

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -32,7 +32,7 @@ namespace ACS.Biz.Trans
             XmlDocument rail_inform = (XmlDocument)args[0];
             VehicleMessageEx vehicleMsg;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
             
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_inform);
 

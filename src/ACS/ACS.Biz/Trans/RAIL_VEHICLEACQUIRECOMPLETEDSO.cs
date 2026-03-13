@@ -5,13 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 
 
@@ -22,7 +22,7 @@ namespace ACS.Biz.Trans
 {
     class RAIL_VEHICLEACQUIRECOMPLETEDSO : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(RAIL_VEHICLEACQUIRECOMPLETEDSO));
+        protected static Logger logger = Logger.GetLogger(typeof(RAIL_VEHICLEACQUIRECOMPLETEDSO));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -48,13 +48,13 @@ namespace ACS.Biz.Trans
             Boolean iConnectionState;
             int temp = 1;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
-            ResourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            AlarmService = LifetimeScope.Resolve<AlarmServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
+            ResourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
 
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_vehicleacquirecompletedso);
 

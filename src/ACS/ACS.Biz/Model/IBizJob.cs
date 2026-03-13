@@ -3,33 +3,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Logging;
 
 namespace ACS.Biz
 {
     public abstract class BaseBizJob : IBizJob
     {
-        private IApplicationContext applicationContext;
+        private ILifetimeScope lifetimeScope;
         public Logger Logger = Logger.GetLogger("BUSINESS_PROCESS");
 
         public BaseBizJob()
         {
-            //_applicationContext = ContextRegistry.GetContext();
         }
 
-        //public IApplicationContext ApplicationContext { get { return _applicationContext; } set { _applicationContext = value; } }
-
-
-        public IApplicationContext ApplicationContext
+        public ILifetimeScope LifetimeScope
         {
             get
             {
-                return applicationContext;
+                return lifetimeScope;
             }
             set
             {
-                applicationContext = value;
+                lifetimeScope = value;
             }
         }
 
@@ -43,7 +39,7 @@ namespace ACS.Biz
             int result = 2;
 
             try
-            {              
+            {
                 result = ExecuteJob(args);
                 return result;
             }
@@ -62,7 +58,7 @@ namespace ACS.Biz
 
     public interface IBizJob
     {
-        IApplicationContext ApplicationContext { get; set; }
+        ILifetimeScope LifetimeScope { get; set; }
         int ExecuteJob(Object[] args);
     }
 }

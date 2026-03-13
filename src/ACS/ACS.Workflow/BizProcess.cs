@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Logging;
 using ACS.Framework.Logging.Model;
 using System.Globalization;
@@ -28,7 +28,7 @@ namespace ACS.Workflow
 
         public int JobResult { get; private set; }
         private Dictionary<string, Tuple<Type, object>> commandJobList;
-        public IApplicationContext ApplicationContext { get; set; }
+        public ILifetimeScope LifetimeScope { get; set; }
         //public BizFileRepository BizFileRepository { get; set; }
 
         public BizProcessContext(string command, Tuple<Type, object, bool> bizContext, object[] args, bool isAsyncMode = false)
@@ -84,10 +84,10 @@ namespace ACS.Workflow
                     try
                     {
                         
-                        PropertyInfo pi = _type.GetProperty("ApplicationContext");
+                        PropertyInfo pi = _type.GetProperty("LifetimeScope");
                         MethodInfo mi = _type.GetMethod("Execute");
                         object[] param = { Arguments };
-                        pi.SetValue(_obj, ApplicationContext);
+                        pi.SetValue(_obj, LifetimeScope);
                         //string logText = string.Format("workflow execute : {0}", Command);
                         //string dateCode = DateTime.Now.ToString("yyyyMMddHHmmssfff", new CultureInfo("en-US"));
                         //string transactionId = string.Format(@"{0}.{1}", dateCode, Thread.GetDomainID().ToString());
@@ -114,10 +114,10 @@ namespace ACS.Workflow
                 {
 
 
-                    PropertyInfo pi = _type.GetProperty("ApplicationContext");
+                    PropertyInfo pi = _type.GetProperty("LifetimeScope");
                     MethodInfo mi = _type.GetMethod("Execute");
                     object[] param = { Arguments };
-                    pi.SetValue(_obj, ApplicationContext);
+                    pi.SetValue(_obj, LifetimeScope);
                     //string logText = string.Format("workflow execute : {0}", _type.Name);
                     //string dateCode = DateTime.Now.ToString("yyyyMMddHHmmssfff", new CultureInfo("en-US"));
                     //string transactionId = string.Format(@"{0}.{1}", dateCode, Thread.GetDomainID().ToString());

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<objects xmlns="http://www.springframework.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.net http://www.springframework.net/xsd/spring-objects.xsd">
+
+  <object id="ApplicationDefaultDestinationName" type="ACS.Framework.Application.Model.ApplicationDefaultDestinationName, ACS.Framework" init-method="Init">
+    <property name="DestinationName">
+      <value>${server.es.ts.listener.destination}</value>
+    </property>
+  </object>
+
+  <!-- destination -->
+  <object id="AbstractDestination" abstract="true" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init"/>
+
+  <object id="ApplicationNameChannelDestination" type="ACS.Communication.Msb.RabbitMQ.ApplicationNameChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.es.ts.listener.destination}</value>
+    </property>
+  </object>
+
+  <object id="AcsListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.es.listener.destination}</value>
+    </property>
+  </object>
+
+  <object id="AcsSenderDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.es.ts.sender.destination}</value>
+    </property>
+  </object>
+
+  <object id="AbstractRabbitMQ" abstract="true" type="ACS.Communication.Msb.RabbitMQ.AbstractRabbitMQ, ACS.Communication">
+    <property name="HostName">
+      <value>${server.domain.connecturl}</value>
+    </property>
+    <property name="UserName">
+      <value>${server.domain.username}</value>
+    </property>
+    <property name="Password">
+      <value>${server.domain.password}</value>
+    </property>
+    <!--property name="StationMode">
+      <value>${server.domain.stationmode}</value>
+    </property-->
+    <property name="LogManager" ref="LogManager">
+    </property>
+  </object>
+
+  <!-- listener -->
+  <object name="TransAgentListener" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>TsAgentListener</value>
+    </property>
+    <property name="Destination" ref="ApplicationNameChannelDestination">
+    </property>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>ES.TS.LISTENER</value>
+    </property-->
+  </object>
+
+  <!-- sender -->
+  <object name="TransAgentSender" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericRabbitMQSender, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>tsAgentSender</value>
+    </property>
+    <property name="DefaultDestination" ref="AcsSenderDestination"/>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>ES.TS.SENDER</value>
+    </property-->
+  </object>
+
+</objects>

@@ -9,7 +9,7 @@ using ACS.Framework.Material.Model;
 using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Application.Model;
-using Spring.Context;
+using Autofac;
 using System.Collections;
 
 namespace ACS.Biz
@@ -22,15 +22,15 @@ namespace ACS.Biz
 
         public DemoProcess()
         {
-            //persistentDao = (IPersistentDao)ApplicationContext["PersistentDao"];
-            //materialManager = (IMaterialManagerEx)ApplicationContext["MaterialManager"];
+            //persistentDao = (IPersistentDao)LifetimeScope["PersistentDao"];
+            //materialManager = (IMaterialManagerEx)LifetimeScope["MaterialManager"];
         }
 
         public override int ExecuteJob(object[] args)
         {
             try
             {
-                resourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
+                resourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
                 ACS.Framework.Application.Model.Application application = (ACS.Framework.Application.Model.Application)args[1];
                 //resourceManager = (IResourceManagerEx)applicationContext.GetObject("ResourceManager");
                 IList listBays = this.resourceManager.GetBays();
@@ -54,7 +54,7 @@ namespace ACS.Biz
 
         public void Dispose()
         {
-            ApplicationContext = null;
+            LifetimeScope = null;
         }
     }
 }

@@ -1,84 +1,41 @@
-﻿//using ACS.Framework.Scheduling.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Quartz;
-using Spring.Scheduling.Quartz;
+using System.Collections;
+using System.Xml;
 using ACS.Framework.Transfer;
 using ACS.Framework.Message;
 using ACS.Communication.Msb;
-using ACS.Framework.Material;
-using ACS.Framework.Application;
 using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
-using ACS.Framework.Transfer.Model;
 using ACS.Framework.Message.Model;
-using ACS.Framework.Logging;
-using ACS.Utility;
-using System.Xml;
-using System.Collections;
-using log4net;
+
 namespace ACS.Scheduling
 {
-    public class AwakeQueueTransportJob : QuartzJobObject //: AbstractJob
+    public class AwakeQueueTransportJob : PeriodicBackgroundService
     {
+        private readonly ITransferManagerEx _transferManager;
+        private readonly IMessageManagerEx _messageManager;
+        private readonly IMessageAgent _messageAgent;
+        private readonly IResourceManagerEx _resourceManager;
 
-        protected Logger logger = Logger.GetLogger("SCHEDULING_LOG");
-        protected ITransferManagerEx transferManager;
-        protected IMessageManagerEx messageManager;
-        protected IMessageAgent messageAgent;
-        protected IMaterialManagerEx materialManager;
-        protected IApplicationManager applicationManager;
-        protected IResourceManagerEx resourceManager;
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(20);
 
-        public IApplicationManager ApplicationManager
+        public AwakeQueueTransportJob(
+            ITransferManagerEx transferManager,
+            IMessageManagerEx messageManager,
+            IMessageAgent messageAgent,
+            IResourceManagerEx resourceManager)
         {
-            get { return applicationManager; }
-            set { applicationManager = value; }
-        }
-        public IMaterialManagerEx MaterialManager
-        {
-            get { return materialManager; }
-            set { materialManager = value; }
-        }
-        public ITransferManagerEx TransferManager
-        {
-            get { return transferManager; }
-            set { transferManager = value; }
-        }
-        public IMessageManagerEx MessageManager
-        {
-            get { return messageManager; }
-            set { messageManager = value; }
+            _transferManager = transferManager;
+            _messageManager = messageManager;
+            _messageAgent = messageAgent;
+            _resourceManager = resourceManager;
         }
 
-        public IMessageAgent MessageAgent
-        {
-            get { return messageAgent; }
-            set { messageAgent = value; }
-        }
-        public IResourceManagerEx ResourceManager
-        {
-            get { return resourceManager; }
-            set { resourceManager = value; }
-        }
-
-        protected override void ExecuteInternal(JobExecutionContext context)
+        protected override void ExecuteOnce()
         {
             try
             {
-                //logger.info("AwakeQueueTransportJob will be invoked");
-                //logger.Debug("==========================================================================");
-                //logger.Debug("DS AwakeQueueTransportJob Start");
-                this.transferManager = ((ITransferManagerEx)context.MergedJobDataMap.Get("TransferManager"));
-                this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("MessageManager"));
-                this.messageAgent = ((IMessageAgent)context.MergedJobDataMap.Get("MessageAgent"));
-                this.resourceManager = ((IResourceManagerEx)context.MergedJobDataMap.Get("ResourceManager"));
-
-                IList listBays = this.resourceManager.GetBays();
-           
+                IList listBays = _resourceManager.GetBays();
 
                 if (listBays != null)
                 {
@@ -89,19 +46,17 @@ namespace ACS.Scheduling
                             BayEx bay = (BayEx)listbay;
                             String bayId = bay.Id;
 
-                            IList queueList = this.transferManager.GetQueuedTransportCommandsByBayId(bayId);
+                            IList queueList = _transferManager.GetQueuedTransportCommandsByBayId(bayId);
 
                             if (queueList != null)
                             {
                                 if (queueList.Count != 0)
                                 {
                                     {
-                                        //logger.info("Send awake Queued Job in " + bayId);
-
                                         AbstractMessage message = new AbstractMessage();
 
                                         message.MessageName = "SCHEDULE-QUEUEJOB";
-                                        XmlDocument document = this.messageManager.CreateDocument(message);
+                                        XmlDocument document = _messageManager.CreateDocument(message);
 
                                         XmlElement data = document.DocumentElement["DATA"];
 
@@ -110,9 +65,7 @@ namespace ACS.Scheduling
                                         element.InnerText = bay.Id;
                                         data.AppendChild(element);
 
-                                        //logger.info(XmlUtils.toStringWithoutDeclaration(document));
-                                        this.messageAgent.Send(document);//SCHEDULE_QUEUEJOB message
-                                        // logger.Info("daemon message send : " + Environment.NewLine + XmlUtility.GetLogStringFromXml(document.DocumentElement));
+                                        _messageAgent.Send(document);//SCHEDULE_QUEUEJOB message
                                     }
                                 }
                             }
@@ -124,13 +77,7 @@ namespace ACS.Scheduling
             {
                 logger.Error(ex.StackTrace, ex);
                 return;
-            }    
+            }
         }
     }
 }
-      
-        
-    
- 
-
-       

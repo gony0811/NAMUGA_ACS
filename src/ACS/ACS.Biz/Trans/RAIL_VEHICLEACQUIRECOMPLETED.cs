@@ -5,20 +5,20 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 
 namespace ACS.Biz.Trans
 {
     class RAIL_VEHICLEACQUIRECOMPLETED : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(RAIL_VEHICLEACQUIRECOMPLETED));
+        protected static Logger logger = Logger.GetLogger(typeof(RAIL_VEHICLEACQUIRECOMPLETED));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -40,12 +40,12 @@ namespace ACS.Biz.Trans
             VehicleMessageEx vehicleMsg;
             Boolean iConnectionState;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            AlarmService = LifetimeScope.Resolve<AlarmServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_vehicleacquirecompleted);
             

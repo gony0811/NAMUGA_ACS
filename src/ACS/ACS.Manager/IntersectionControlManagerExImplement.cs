@@ -16,9 +16,7 @@ using ACS.Framework.Alarm;
 using ACS.Framework.Alarm.Model;
 using ACS.Framework.Path.Model;
 using ACS.Manager.Resource;
-using NHibernate.Criterion;
 using ACS.Framework.Path.Comparator;
-using NHibernate.Engine;
 using ACS.Framework.Alarm.Model;
 
 namespace ACS.Manager
@@ -165,9 +163,7 @@ namespace ACS.Manager
 
         public IList GetInterSectionControlByEndNode(string endNodeId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.Add(Restrictions.Like("endNodeId", "%" + endNodeId + "%"));
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByLike(typeof(InterSectionControlEx), "endNodeId", "%" + endNodeId + "%");
 
         }
 
@@ -179,16 +175,13 @@ namespace ACS.Manager
 
             string interSectionId = "";
 
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.SetProjection(Projections.Property("interSectionId"));
-            criteria.Add(Restrictions.Like("endNodeId", "%" + endNodeId + "%"));
-            IList result = this.PersistentDao.FindByCriteria(criteria);
+            IList result = this.PersistentDao.FindByLike(typeof(InterSectionControlEx), "endNodeId", "%" + endNodeId + "%");
 
             if (result.Count > 0)
             {
                 if (result.Count == 1)
                 {
-                    interSectionId = (string)result[0];
+                    interSectionId = ((InterSectionControlEx)result[0]).InterSectionId;
 
                 }
                 else
@@ -334,19 +327,14 @@ namespace ACS.Manager
 
         public IList GetStartNodesByInterSectionId(string interSectionId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.SetProjection(Projections.Property("startNodeId"));
-            criteria.Add(Restrictions.Eq("interSectionId", interSectionId));
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindPropertyByAttributes(typeof(InterSectionControlEx), "startNodeId", "interSectionId", interSectionId);
         }
 
         //@SuppressWarnings("unchecked")
 
         public IList GetAllStartNodesByInterSectionId()
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.SetProjection(Projections.Property("startNodeId"));
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindProperty(typeof(InterSectionControlEx), "startNodeId");
         }
 
         /**
@@ -688,15 +676,12 @@ namespace ACS.Manager
 
         public List<VehicleEx> GetOtherWaitAGVsInIntersection(String intersectionId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.SetProjection(Projections.Property("StartNodeId"));
-            criteria.Add(Restrictions.Eq("InterSectionId", intersectionId));
-            List<String> listNode = (List<String>)this.PersistentDao.FindByCriteria(criteria);
+            IList nodeResult = this.PersistentDao.FindPropertyByAttributes(typeof(InterSectionControlEx), "StartNodeId", "InterSectionId", intersectionId);
+            List<String> listNode = nodeResult.Cast<String>().ToList();
             if (listNode.Count > 0)
             {
-                DetachedCriteria criteria2 = DetachedCriteria.For(typeof(VehicleEx));
-                criteria2.Add(Restrictions.In("currentNodeId", listNode));
-                return (List<VehicleEx>)this.PersistentDao.FindByCriteria(criteria2);
+                var attributes = new Dictionary<string, object> { { "currentNodeId", listNode } };
+                return (List<VehicleEx>)this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
 
             }
             return null;
@@ -840,10 +825,8 @@ namespace ACS.Manager
         private List<String> GetAllCheckNodeIdList(String interSectionId)
         {
             List<String> checkNodeIds = new List<String>();
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(InterSectionControlEx));
-            criteria.SetProjection(Projections.Property("CheckNodeIds"));
-            criteria.Add(Restrictions.Eq("InterSectionId", interSectionId));
-            List<String> result = (List<String>)this.PersistentDao.FindByCriteria(criteria);
+            IList resultList = this.PersistentDao.FindPropertyByAttributes(typeof(InterSectionControlEx), "CheckNodeIds", "InterSectionId", interSectionId);
+            List<String> result = resultList.Cast<String>().ToList();
             foreach (String checkNodes in result)
             {
                 if (!string.IsNullOrEmpty(checkNodes))

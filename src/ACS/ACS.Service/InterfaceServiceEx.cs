@@ -19,7 +19,6 @@ using System.Xml;
 using System.Collections;
 using System.Threading;
 using System.Xml.XPath;
-using log4net;
 using System.Net.NetworkInformation;
 using System.Configuration;
 using ACS.Framework.Base;

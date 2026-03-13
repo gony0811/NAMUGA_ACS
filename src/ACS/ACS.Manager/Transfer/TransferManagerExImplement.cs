@@ -13,8 +13,6 @@ using ACS.Framework.Transfer.Model;
 using ACS.Framework.Resource;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Transfer;
-using NHibernate.Mapping;
-using NHibernate.Criterion;
 using ACS.Utility;
 using ACS.Framework.Transfer.Model;
 
@@ -22,7 +20,7 @@ namespace ACS.Manager.Transfer
 {
     public class TransferManagerExImplement : AbstractManager, ITransferManagerEx
     {
-        public IResourceManagerEx ResourceManager { get; set; }
+        public Lazy<IResourceManagerEx> ResourceManager { get; set; }
         public IApplicationManager ApplicationManager { get; set; }
         public IMaterialManagerEx MaterialManager { get; set; }
 
@@ -199,23 +197,17 @@ namespace ACS.Manager.Transfer
 
         public int GetTransportCommandCount()
         {
-            return this.PersistentDao.Count(DetachedCriteria.For(typeof(TransportCommandEx)));
+            return this.PersistentDao.FindAll(typeof(TransportCommandEx)).Count;
         }
   
         public int GetTransportCommandCountByDestPortId(String destPortId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandEx));
-            criteria.Add(Restrictions.Eq("DestPortId", destPortId));
-    
-            return this.PersistentDao.Count(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(TransportCommandEx), "DestPortId", destPortId).Count;
         }
 
         public int GetTransportCommandCountBySourcePortId(String sourcePortId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandEx));
-            criteria.Add(Restrictions.Eq("SourcePortId", sourcePortId));
-    
-            return this.PersistentDao.Count(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(TransportCommandEx), "SourcePortId", sourcePortId).Count;
         }
 
         public IList GetQueuedTransportCommands()
@@ -235,13 +227,11 @@ namespace ACS.Manager.Transfer
 
         public IList GetQueuedTransportCommandsByBayId(String bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandEx));
-            criteria.Add(Restrictions.Eq("State", "QUEUED"));
-            criteria.Add(Restrictions.Eq("BayId", bayId));
-            criteria.AddOrder(Order.Desc("Priority"));
-            criteria.AddOrder(Order.Asc("CreateTime"));
+            var attributes = new Dictionary<string, object>();
+            attributes.Add("State", "QUEUED");
+            attributes.Add("BayId", bayId);
 
-            IList transportCommands = this.PersistentDao.FindByCriteria(criteria);
+            IList transportCommands = this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
 
             //logger.info("conut{" + transportCommands.size() + "}, " + transportCommands);
     
@@ -255,11 +245,11 @@ namespace ACS.Manager.Transfer
 
         public IList GetTransportCommandsByStateAndBayId(String state, String bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandEx));
-            criteria.Add(Restrictions.Eq("State", state));
-            criteria.Add(Restrictions.Eq("BayId", bayId));
+            var attributes = new Dictionary<string, object>();
+            attributes.Add("State", state);
+            attributes.Add("BayId", bayId);
 
-            return this.PersistentDao.FindByCriteria(criteria, false);
+            return this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
         }
 
         public void UpdateTransportCommand(TransportCommandEx transportCommand)
@@ -373,10 +363,7 @@ namespace ACS.Manager.Transfer
 
         public PriorityRange GetPriorityRange(String systemName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(PriorityRange));
-            criteria.Add(Restrictions.Eq("SystemName", systemName));
-    
-            IList priorityRanges = this.PersistentDao.FindByCriteria(criteria);
+            IList priorityRanges = this.PersistentDao.FindByAttribute(typeof(PriorityRange), "SystemName", systemName);
             if ((priorityRanges != null) && (priorityRanges.Count > 0)) 
             {
               return (PriorityRange)priorityRanges[0];

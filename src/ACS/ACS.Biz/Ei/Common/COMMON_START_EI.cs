@@ -11,7 +11,7 @@ using ACS.Framework.Application.Model;
 using ACS.Communication.Socket.Model;
 using System.Collections;
 using ACS.Workflow;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz.Ei.Common
 {
     public class COMMON_START_EI : BaseBizJob
@@ -29,8 +29,8 @@ namespace ACS.Biz.Ei.Common
 
         public override int ExecuteJob(object[] args) 
         {
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             ArrayList nioes = (ArrayList)VehicleInterfaceService.GetNioes();
 

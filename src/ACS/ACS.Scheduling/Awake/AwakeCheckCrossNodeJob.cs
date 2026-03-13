@@ -1,50 +1,34 @@
-﻿//using ACS.Framework.Scheduling.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Quartz;
-using Spring.Scheduling.Quartz;
+using System.Xml;
 using ACS.Framework.Message;
 using ACS.Communication.Msb;
 using ACS.Framework.Message.Model;
-using ACS.Framework.Logging;
-using ACS.Utility;
-using System.Xml;
 
 namespace ACS.Scheduling
 {
-    public class AwakeCheckCrossNodeJob : QuartzJobObject //: AbstractJob
+    public class AwakeCheckCrossNodeJob : PeriodicBackgroundService
     {
-        protected Logger logger = Logger.GetLogger("SCHEDULING_LOG");
-        protected IMessageManagerEx messageManager;
-        protected IMessageAgent messageAgent;
-        public IMessageManagerEx MessageManager
+        private readonly IMessageManagerEx _messageManager;
+        private readonly IMessageAgent _messageAgent;
+
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(5);
+
+        public AwakeCheckCrossNodeJob(
+            IMessageManagerEx messageManager,
+            IMessageAgent messageAgent)
         {
-            get { return messageManager; }
-            set { messageManager = value; }
+            _messageManager = messageManager;
+            _messageAgent = messageAgent;
         }
 
-        public IMessageAgent MessageAgent
-        {
-            get { return messageAgent; }
-            set { messageAgent = value; }
-        }
-
-        protected override void ExecuteInternal(JobExecutionContext context)
+        protected override void ExecuteOnce()
         {
             try
             {
-                //logger.Info("AwakeCheckCrossNodeJob will be invoked");
-
-                this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("MessageManager"));
-                this.messageAgent = ((IMessageAgent)context.MergedJobDataMap.Get("MessageAgent"));
-
                 AbstractMessage message = new AbstractMessage();
 
                 message.MessageName = "SCHEDULE-CHECKCROSSNODE";
-                XmlDocument document = this.messageManager.CreateDocument(message);
+                XmlDocument document = _messageManager.CreateDocument(message);
 
                 XmlElement data = document.DocumentElement["DATA"];
 
@@ -52,8 +36,7 @@ namespace ACS.Scheduling
                 element.InnerText = message.MessageName;
                 data.AppendChild(element);
 
-                //logger.Info("daemon message send : " + Environment.NewLine + XmlUtility.GetLogStringFromXml(document.DocumentElement));
-                this.messageAgent.Send(document);
+                _messageAgent.Send(document);
             }
             catch (NullReferenceException nullEx)
             {

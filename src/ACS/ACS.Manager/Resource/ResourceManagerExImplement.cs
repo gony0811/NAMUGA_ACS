@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NHibernate.Criterion;
+
 using System.Configuration;
 
 namespace ACS.Manager.Resource
@@ -1435,12 +1435,12 @@ namespace ACS.Manager.Resource
         {
             if(IsNameValid(unitName) && IsNameValid(machineName))
             {
-                DetachedCriteria criteria = DetachedCriteria.For(typeof(Unit));
-
-                criteria.Add(Restrictions.Eq("Name", unitName));
-                criteria.Add(Restrictions.Eq("MachineName", machineName));
-
-                IList units = this.PersistentDao.FindByCriteria(criteria);
+                var attributes = new Dictionary<string, object>
+                {
+                    { "Name", unitName },
+                    { "MachineName", machineName }
+                };
+                IList units = this.PersistentDao.FindByAttributes(typeof(Unit), attributes);
                 if(units.Count > 0)
                 {
                     return (Unit)units[0];

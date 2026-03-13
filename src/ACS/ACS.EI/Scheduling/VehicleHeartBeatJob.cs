@@ -4,7 +4,7 @@ using ACS.Framework.Application;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
-using Spring.Scheduling.Quartz;
+using ACS.Framework.Scheduling.Model;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -15,12 +15,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
 using ACS.Framework.Logging;
-using log4net;
 using ACS.Communication.Socket.Model;
 
 namespace ACS.EI.Scheduling
 {
-    public class VehicleHeartBeatJob : QuartzJobObject
+    public class VehicleHeartBeatJob : AbstractJob
     {
         public const string NIO_TYPE_REPEATER = "REPEATER";
         public const string NIO_TYPE_WIFI = "WIFI";
@@ -31,7 +30,7 @@ namespace ACS.EI.Scheduling
         protected IApplicationManagerACS applicationManager;
         protected IList vehicleList;
 
-        protected override void ExecuteInternal(JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             logger.Debug("VehicleHeartBeatJob will be invoked");
 

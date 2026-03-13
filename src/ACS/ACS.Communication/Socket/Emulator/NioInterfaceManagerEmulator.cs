@@ -1,5 +1,4 @@
-﻿using NHibernate.Criterion;
-using ACS.Communication.Socket.Checker;
+﻿using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
 using ACS.Framework.Base;
 using ACS.Framework.Message;
@@ -7,7 +6,7 @@ using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
 using ACS.Utility;
 using ACS.Workflow;
-using Spring.Context;
+using Autofac;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,7 +18,7 @@ namespace ACS.Communication.Socket.Emulator
     /// TCP Server용 
     /// </summary>
     //public class NioInterfaceManagerEx : AbstractManager, IApplicationContextAware
-    public class NioInterfaceManagerEmulator : NioInterfaceManager, IApplicationContextAware
+    public class NioInterfaceManagerEmulator : NioInterfaceManager
     {
         public override void DisplayAll()
         {
@@ -43,7 +42,7 @@ namespace ACS.Communication.Socket.Emulator
         //public override SocketServer GetNioInterface(string name)
         public override object GetNioInterface(string name)
         {
-            this.ResourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
+            this.ResourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
 
             VehicleEx vehicle = this.ResourceManager.GetVehicle(name);
             SocketServer socketServer = (SocketServer)this.NioInterfaces[vehicle.NioId];
@@ -92,7 +91,7 @@ namespace ACS.Communication.Socket.Emulator
 
             try
             {
-                IWorkflowManager workflowManager = (IWorkflowManager)this.ApplicationContext.GetObject(nio.WorkflowManagerName);
+                IWorkflowManager workflowManager = (IWorkflowManager)this.LifetimeScope.ResolveNamed<IWorkflowManager>(nio.WorkflowManagerName);
 
                 socketServer.WorkflowManager = workflowManager;
                 socketServer.DuplicateChecker = this.DuplicateChecker;
@@ -141,11 +140,8 @@ namespace ACS.Communication.Socket.Emulator
 
         public override void LoadNioInterface(String applicationName, String name)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("ApplicationName", applicationName));
-            criteria.Add(Restrictions.Eq("Name", name));
-
-            IList nioes = this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object> { { "ApplicationName", applicationName }, { "Name", name } };
+            IList nioes = this.PersistentDao.FindByAttributes(typeof(Nio), attributes);
             if (nioes.Count == 0)
             {
                 logger.Error("nio{" + name + "} does not exist");

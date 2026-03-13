@@ -12,7 +12,6 @@ using ACS.Framework.Transfer.Model;
 using ACS.Framework.Alarm;
 using ACS.Framework.Message.Model.Server;
 using ACS.Framework.Resource.Model.Factory.Machine;
-using NHibernate.Criterion;
 using System.Collections;
 namespace ACS.Framework.History
 {
@@ -33,10 +32,6 @@ namespace ACS.Framework.History
         IList GetHistoriesBetweenTimes(Type paramClass, DateTime paramDate1, DateTime paramDate2, Dictionary<string, object> paramMap);
 
         IList GetHistoriesBetweenTimes(String paramString, DateTime paramDate1, DateTime paramDate2, Dictionary<string, object> paramMap);
-
-        int GetHistoryCountByCriteria(DetachedCriteria paramDetachedCriteria);
-
-        IList GetHistoriesByCriteria(DetachedCriteria paramDetachedCriteria, int paramInt1, int paramInt2);
 
         AbstractHistoryEx GetLatestHistoryBeforeTime(Type paramClass, DateTime paramDate, Dictionary<string, object> paramMap);
 

@@ -151,7 +151,7 @@ namespace ACS.Communication.Msb.Highway101
         {
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }
@@ -215,7 +215,7 @@ namespace ACS.Communication.Msb.Highway101
         {
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }
@@ -279,7 +279,7 @@ namespace ACS.Communication.Msb.Highway101
         {
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }

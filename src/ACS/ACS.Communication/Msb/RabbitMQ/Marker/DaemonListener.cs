@@ -23,7 +23,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
             var originatedName = ea.BasicProperties.AppId;
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
@@ -100,7 +100,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
@@ -177,7 +177,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }

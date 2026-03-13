@@ -11,14 +11,14 @@ using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Transfer.Model;
 using System.Xml;
-using Spring.Context;
-using log4net;
+using Autofac;
+using ACS.Framework.Logging;
 
 namespace ACS.Biz.Trans.Common
 {
     public class VEHICLE_DEPOSITCOMPLETED : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(VEHICLE_DEPOSITCOMPLETED));
+        protected static Logger logger = Logger.GetLogger(typeof(VEHICLE_DEPOSITCOMPLETED));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -41,13 +41,13 @@ namespace ACS.Biz.Trans.Common
             logger.Debug("==========================================================================");
             logger.Debug("TS VEHICLE_DEPOSITCOMPLETED Start");
             VehicleMessageEx vehicleMessage = (VehicleMessageEx)args[0];
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             if (InterfaceService.CheckVehicle(vehicleMessage))
             {
@@ -177,7 +177,7 @@ namespace ACS.Biz.Trans.Common
             // LSJ 
             // Workflow 실행을 함수로 대체함. workflow의 응답에 따라 처리가 다름
             COMMON_SEND_TRANSFER_SOURCE cOMMON_SEND_TRANSFER_SOURCE = new COMMON_SEND_TRANSFER_SOURCE();
-            object[] args = { stealVehicleMessage, ApplicationContext };
+            object[] args = { stealVehicleMessage, LifetimeScope };
             if (cOMMON_SEND_TRANSFER_SOURCE.ExecuteJob(args) == 1)
             //if (WorkflowManager.Execute("COMMON_SEND_TRANSFER_SOURCE", stealVehicleMessage))
             {

@@ -10,14 +10,14 @@ using ACS.Framework.Message.Model.Ui;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Transfer.Model;
 using ACS.Framework.Material.Model;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 
 namespace ACS.Service
 {
     public class MaterialServiceEx : AbstractServiceEx
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(MaterialServiceEx)); 
+        public Logger logger = Logger.GetLogger(typeof(MaterialServiceEx));
         
         public MaterialServiceEx()
             : base()

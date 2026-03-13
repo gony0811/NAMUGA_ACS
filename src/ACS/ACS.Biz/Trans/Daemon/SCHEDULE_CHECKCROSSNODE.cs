@@ -11,7 +11,7 @@ using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Transfer.Model;
-using Spring.Context;
+using Autofac;
 using ACS.Biz.Trans.Common;
 namespace ACS.Biz.Trans.Daemon
 {
@@ -37,12 +37,12 @@ namespace ACS.Biz.Trans.Daemon
         {
             XmlDocument SCHEDULE_CHECKCROSSNODE = (XmlDocument)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
 
             VehicleMessageEx vehicleMessage = InterfaceService.CreateVehicleMessageFromDaemon(SCHEDULE_CHECKCROSSNODE);
             if(ResourceService.CheckVehicleCrossWaitToGO(vehicleMessage))

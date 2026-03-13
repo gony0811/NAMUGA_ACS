@@ -13,13 +13,13 @@ using ACS.Framework.Resource.Model.Factory.Unit;
 using ACS.Framework.Application;
 using ACS.Framework.Material.Model;
 using ACS.Framework.Message.Model;
-using log4net;
+using ACS.Framework.Logging;
 
 namespace ACS.Communication.Msb.Convert.Implement
 {
     public class MsbValueConverterImpl : IMsbValueConverter
     {
-        protected static readonly ILog logger = LogManager.GetLogger(typeof(MsbValueConverterImpl));
+        protected static Logger logger = Logger.GetLogger(typeof(MsbValueConverterImpl));
         public const string TRUE = "T";
         public const string FALSE = "F";
         public const string YES = "Y";

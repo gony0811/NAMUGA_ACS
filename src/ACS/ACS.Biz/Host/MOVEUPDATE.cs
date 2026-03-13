@@ -11,14 +11,14 @@ using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using System.Xml;
-using Spring.Context;
-using log4net;
+using Autofac;
+using ACS.Framework.Logging;
 
 namespace ACS.Biz.Host
 {
     public class MOVEUPDATE : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(MOVEUPDATE));
+        protected static Logger logger = Logger.GetLogger(typeof(MOVEUPDATE));
         public InterfaceServiceEx InterfaceService ;
         public ResourceServiceEx ResourceService ;
         public MaterialServiceEx MaterialService  ;
@@ -36,11 +36,11 @@ namespace ACS.Biz.Host
         {
             XmlDocument MOVEUPDATE = (XmlDocument)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
 
             TransferMessageEx transferMsg = InterfaceService.CreateTransferMessage(MOVEUPDATE);
 

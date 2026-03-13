@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using ACS.Framework.Message;
 using ACS.Framework.Logging.Model;
 using ACS.Framework.Base.Interface;
-using log4net.Core;
+using Serilog.Events;
 
 namespace ACS.Framework.Logging
 {
@@ -14,7 +14,7 @@ namespace ACS.Framework.Logging
     {
         MessageNode GetMessageNode();
 
-        void CreateLogMessage(LoggingEvent loggingEvent);
+        void CreateLogMessage(LogEvent logEvent);
 
         void CreateLogMessage(LogMessage paramLogMessage, String paramString1, String paramString2, String paramString3);
 

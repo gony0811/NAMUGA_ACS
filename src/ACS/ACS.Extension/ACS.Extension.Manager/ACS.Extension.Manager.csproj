@@ -12,15 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="NHibernate">
-      <HintPath>..\..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\..\ACS.Framework\ACS.Framework.csproj" />
     <ProjectReference Include="..\..\ACS.Manager\ACS.Manager.csproj" />

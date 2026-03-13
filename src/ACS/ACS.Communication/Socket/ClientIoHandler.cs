@@ -11,7 +11,6 @@ using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
 using ACS.Framework.Logging;
 using ACS.Workflow;
-using log4net;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
 

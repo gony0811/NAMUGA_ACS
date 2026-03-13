@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<objects xmlns="http://www.springframework.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.net http://www.springframework.net/xsd/spring-objects.xsd">
+
+  <object id="awakeDeleteLogTrigger" type="Spring.Scheduling.Quartz.CronTriggerObject, Spring.Scheduling.Quartz">
+    <property name="jobDetail" ref="awakeDeleteLogJob" />
+    <!-- run every 20 second of minute -->
+    <!--<property name="cronExpressionString" value="0/20 * * * * ?" />-->
+    <!-- run every Day 00:00 -->
+    <property name="cronExpressionString" value="0 0 0 1/1 * ?"/>
+  </object>
+
+
+  <object name="awakeDeleteLogJob" type="Spring.Scheduling.Quartz.JobDetailObject, Spring.Scheduling.Quartz">
+    <property name="JobType" value="ACS.Scheduling.AwakeDeleteLogJob, ACS.Scheduling" />
+    <!-- We can inject values throgh JobDataMap -->
+    <property name="JobDataAsMap">
+      <dictionary>
+        <!--<entry key="TransferManager" value-ref ="TransferManager" />-->
+        <entry key="MessageAgent" value-ref ="TsAgentSender" />
+        <entry key="MessageManager" value-ref="MessageManager" />
+        <!--<entry key="MaterialManager" value-ref="MaterialManager" />
+      <entry key="ApplicationManager" value-ref="ApplicationManager" />
+      <entry key="ResourceManager" value-ref="ResourceManager" />
+      <entry key="Elapsed" value="10000"/>
+      -->
+        <!-- milli -->
+        <!--
+      <entry key="Interval" value="200"/>
+      -->
+        <!-- milli -->
+        <!--
+      <entry key="MaxAwakeCount" value="10"/>-->
+      </dictionary>
+    </property>
+  </object>
+
+</objects>
+

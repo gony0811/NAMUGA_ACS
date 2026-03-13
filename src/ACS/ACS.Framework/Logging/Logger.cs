@@ -13,9 +13,8 @@ using ACS.Framework.Resource.Model.Factory.Zone;
 using ACS.Framework.Material.Model;
 using ACS.Framework.Transfer.Model;
 using ACS.Framework.History.Model;
-using log4net.Repository;
-using log4net;
-using log4net.Core;
+using Serilog;
+using Serilog.Events;
 
 namespace ACS.Framework.Logging
 {
@@ -25,17 +24,18 @@ namespace ACS.Framework.Logging
         protected static string XPATH_NAME_COMMANDID = "/MESSAGE/DATA/COMMANDID | /MESSAGE/DATA//COMMANDID";
         protected static string XPATH_NAME_CARRIERLOC = "/MESSAGE/DATA/CARRIERLOC | /MESSAGE/DATA//CARRIERLOC";
         private static string FQCN = typeof(Logger).Name + ".";
-        private ILog log;
+        private ILogger log;
+        private bool isConfigured = true; // Serilog는 항상 구성됨
 
         public string Name { get; set; }
         public ILogManager logManager { get; set; }
-        public ILog Log
+        public ILogger Log
         {
             get
             {
                 if (log == null)
                 {
-                    log = LogManager.GetLogger(Name);
+                    log = Serilog.Log.ForContext("LoggerName", Name);
                 }
 
                 return log;
@@ -56,7 +56,7 @@ namespace ACS.Framework.Logging
         {
             Logger logger = new Logger(name)
             {
-                Log = LogManager.GetLogger(name)
+                Log = Serilog.Log.ForContext("LoggerName", name)
             };
             return logger;
         }
@@ -65,182 +65,165 @@ namespace ACS.Framework.Logging
         {
             Logger logger = new Logger(type.FullName)
             {
-                Log = LogManager.GetLogger(type.FullName)
+                Log = Serilog.Log.ForContext("LoggerName", type.FullName)
             };
 
             return logger;
         }
 
+        public bool IsDebugEnabled => Log.IsEnabled(LogEventLevel.Debug);
+        public bool IsInfoEnabled => Log.IsEnabled(LogEventLevel.Information);
+
         public void Debug(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            if (log.IsDebugEnabled)
+            if (Log.IsEnabled(LogEventLevel.Debug))
             {
-                ForcedLogAsync(Name, Level.Debug, message, null);
+                Log.Debug("{Message}", message);
             }
         }
 
         public void Debug(object message, Exception e)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            if (log.IsDebugEnabled)
+            if (Log.IsEnabled(LogEventLevel.Debug))
             {
-                ForcedLogAsync(Name, Level.Debug, message, e);
+                Log.Debug(e, "{Message}", message);
             }
         }
 
         public void Info(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsInfoEnabled)
+            if (Log.IsEnabled(LogEventLevel.Information))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Info, message, null);
+                Log.Information("{Message}", message);
             }
 
-            SaveMessageToDatabase(message, 20000, "INFO", locationInfo);
+            SaveMessageToDatabase(message, 20000, "INFO", null);
         }
 
         public void Info(object message, Exception e)
         {
-            if (!log.Logger.Repository.Configured) return;
-            LocationInfo locationInfo = null;
+            if (!isConfigured) return;
 
-            if (log.IsInfoEnabled)
+            if (Log.IsEnabled(LogEventLevel.Information))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Info, message, e);
+                Log.Information(e, "{Message}", message);
             }
-            SaveMessageToDatabase(GetExceptionMessage(message, e), 20000, "INFO", locationInfo);
+            SaveMessageToDatabase(GetExceptionMessage(message, e), 20000, "INFO", null);
         }
 
         public void Fine(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if(log.IsInfoEnabled)
+            // Fine은 Information과 Debug 사이의 레벨 (Verbose로 매핑)
+            if (Log.IsEnabled(LogEventLevel.Verbose))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Fine, message, null);
+                Log.Verbose("{Message}", message);
             }
 
-            SaveMessageToDatabase(message, 20010, "FINE", locationInfo);
+            SaveMessageToDatabase(message, 20010, "FINE", null);
         }
 
         public void Fine(object message, bool saveToDatabase)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsInfoEnabled)
+            if (Log.IsEnabled(LogEventLevel.Verbose))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Fine, message, null);
+                Log.Verbose("{Message}", message);
             }
 
             if(saveToDatabase)
             {
-                SaveMessageToDatabase(message, 20010, "FINE", locationInfo);
+                SaveMessageToDatabase(message, 20010, "FINE", null);
             }
         }
 
         public void Fine(object message, Exception ex)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsInfoEnabled)
+            if (Log.IsEnabled(LogEventLevel.Verbose))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Fine, message, ex);
+                Log.Verbose(ex, "{Message}", message);
             }
-           
-            SaveMessageToDatabase(GetExceptionMessage(message, ex), 20010, "FINE", locationInfo);
+
+            SaveMessageToDatabase(GetExceptionMessage(message, ex), 20010, "FINE", null);
         }
 
         public void Warn(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsWarnEnabled)
+            if (Log.IsEnabled(LogEventLevel.Warning))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Warn, message, null);
+                Log.Warning("{Message}", message);
             }
 
-            SaveMessageToDatabase(message, 30000, "WARN", locationInfo);
+            SaveMessageToDatabase(message, 30000, "WARN", null);
         }
 
         public void Warn(object message, Exception ex)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsWarnEnabled)
+            if (Log.IsEnabled(LogEventLevel.Warning))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Warn, message, null);
+                Log.Warning(ex, "{Message}", message);
             }
-            SaveMessageToDatabase(GetExceptionMessage(message, ex), 30000, "WARN", locationInfo);
+            SaveMessageToDatabase(GetExceptionMessage(message, ex), 30000, "WARN", null);
         }
 
         public void Error(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsErrorEnabled)
+            if (Log.IsEnabled(LogEventLevel.Error))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Error, message, null);
+                Log.Error("{Message}", message);
             }
 
-            SaveMessageToDatabase(message, 40000, "ERROR", locationInfo);
+            SaveMessageToDatabase(message, 40000, "ERROR", null);
         }
 
         public void Error(object message, Exception ex)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsErrorEnabled)
+            if (Log.IsEnabled(LogEventLevel.Error))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Error, message, null);
+                Log.Error(ex, "{Message}", message);
             }
-            SaveMessageToDatabase(GetExceptionMessage(message, ex), 40000, "ERROR", locationInfo);
+            SaveMessageToDatabase(GetExceptionMessage(message, ex), 40000, "ERROR", null);
         }
 
         public void Fatal(object message)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsFatalEnabled)
+            if (Log.IsEnabled(LogEventLevel.Fatal))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Fatal, message, null);
+                Log.Fatal("{Message}", message);
             }
 
-            SaveMessageToDatabase(message, 50000, "FATAL", locationInfo);
+            SaveMessageToDatabase(message, 50000, "FATAL", null);
         }
 
         public void Fatal(object message, Exception ex)
         {
-            if (!log.Logger.Repository.Configured) return;
+            if (!isConfigured) return;
 
-            LocationInfo locationInfo = null;
-
-            if (log.IsFatalEnabled)
+            if (Log.IsEnabled(LogEventLevel.Fatal))
             {
-                locationInfo = ForcedLogAsync(Name, Level.Fatal, message, null);
+                Log.Fatal(ex, "{Message}", message);
             }
-            SaveMessageToDatabase(GetExceptionMessage(message, ex), 50000, "FATAL", locationInfo);
+            SaveMessageToDatabase(GetExceptionMessage(message, ex), 50000, "FATAL", null);
         }
 
         public void Debug(object message, string carrierName, string commandId, string machineName, string unitName)
@@ -828,37 +811,7 @@ namespace ACS.Framework.Logging
             return sb.ToString();
         }
 
-        private LocationInfo ForcedLogAsync(string name, Level level, object message, Exception exception)
-        {
-            StackFrame sf = new StackFrame(-1);
-
-            LoggingEvent loggingEvent = new LoggingEvent(sf.GetType().DeclaringType, log.Logger.Repository, name, level, message, exception);
-            LocationInfo locationInfo = loggingEvent.LocationInformation;
-            //log4net.Appender.IAppender[] appenders = Log.Logger.Repository.GetAppenders();
-            ILogger logger = Log.Logger.Repository.GetLogger(name);
-
-            logger.Repository.Log(loggingEvent);
-
-            //foreach(log4net.Appender.IAppender appender in logger.Repository.GetAppenders())
-            //{
-            //    appender.DoAppend(loggingEvent);
-            //}
-
-            //foreach(log4net.Appender.IAppender appender in appenders)
-            //{
-            //    appender.DoAppend(loggingEvent);
-            //}
-
-            return locationInfo;
-
-        }
-
-        protected void SaveMessageToDatabase(object message, int currentLogLevelInt, string currentLogLevel, LocationInfo locationInfo)
-        {
-            SaveMessageToDatabase(message, currentLogLevelInt, currentLogLevel, "", locationInfo);
-        }
-
-        protected void SaveMessageToDatabase(object message, int currentLogLevelInt, string currentLogLevel, string communicationMessageName, LocationInfo locationInfo)
+        protected void SaveMessageToDatabase(object message, int currentLogLevelInt, string currentLogLevel, string communicationMessageName)
         {
             try
             {
@@ -866,13 +819,12 @@ namespace ACS.Framework.Logging
                     if(this.logManager.IsUseAdoDotNetAppender())
                     {
                         LogMessage logMessage = !(message is LogMessage) ? CreateLogMessage(message, communicationMessageName) : (LogMessage)message;
-                        if(locationInfo == null)
-                        {
-                            locationInfo = new LocationInfo(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-                        }
 
-                        string className = locationInfo.ClassName;
-                        string methodName = locationInfo.MethodName;
+                        // StackTrace를 사용하여 호출자 정보 획득
+                        StackFrame sf = new StackFrame(2, true); // 2 프레임 위로 올라가서 실제 호출자 찾기
+                        var method = sf.GetMethod();
+                        string className = method?.DeclaringType?.FullName ?? "Unknown";
+                        string methodName = method?.Name ?? "Unknown";
                         string operationName = this.logManager.IsUseShortClassNameAtOperationName() ? className + "." + methodName : methodName;
 
                         this.logManager.CreateLogMessage(logMessage, Thread.CurrentThread.Name, operationName, currentLogLevel);

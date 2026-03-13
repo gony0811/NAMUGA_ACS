@@ -13,7 +13,7 @@ using ACS.Communication.Http.uHttpSharp.Handlers;
 using System.Dynamic;
 using ACS.Communication.Http.Controllers;
 using ACS.Communication.Http.uHttpSharp.Handlers.Compression;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Workflow;
 
 namespace ACS.Communication.Http
@@ -21,7 +21,7 @@ namespace ACS.Communication.Http
     public class HttpCommServer
     {
 
-        public ILog logger = LogManager.GetLogger(typeof(HttpCommServer));
+        public Logger logger = Logger.GetLogger(typeof(HttpCommServer));
         public string httpServerListenIP { get; set; }
         public string httpServerListenPort { get; set; }
 

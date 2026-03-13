@@ -15,8 +15,7 @@ using ACS.Framework.Message.Model.Control;
 using ACS.Communication.Socket;
 using ACS.Workflow;
 using ACS.Utility;
-using Spring.Context;
-using Spring.Context.Support;
+using Autofac;
 using System.Configuration;
 using ACS.Framework.Cache;
 
@@ -28,7 +27,7 @@ namespace ACS.Manager.Application
         public long RunningBizProcessCheckIntervalWhenStop { get; set; }
 
         public int RunningBizProcessCheckRetryCountWhenStop { get; set; }
-        public IApplicationContext ApplicationContext { get; set; }
+        public ILifetimeScope LifetimeScope { get; set; }
         public IReloadableApplicationContextAware ReloadableApplicationContextAware { get; set; }
         public string ReloadableDirectory { get; set; }
         public string[] ReloadableAssemblyDefinitions { get; set; }
@@ -228,26 +227,9 @@ namespace ACS.Manager.Application
         {
             logger.Info("reloadService asked");
 
-            AbstractApplicationContext currentApplicationContext = (AbstractApplicationContext)this.ApplicationContext;
-
-            IApplicationContext parentApplicationContext = currentApplicationContext.ParentContext;
-            string path = SystemUtility.GetFullPathName(ReloadableDirectory);
-            CustomClassLoader serviceClassLoader = new CustomClassLoader(path);
-            AbstractApplicationContext reloadableApplicationContext = new XmlApplicationContext(false, parentApplicationContext, this.ReloadableAssemblyDefinitions);
-            foreach (object classObject in serviceClassLoader.GetClassLoader())
-            {
-                reloadableApplicationContext.ConfigureObject(classObject, classObject.GetType().FullName);
-            }
-
-            reloadableApplicationContext.Refresh();
-
-            //this.ReloadableApplicationContextAware.SetApplicationContext(reloadableApplicationContext);
-            this.ApplicationContext = reloadableApplicationContext;
-
-            currentApplicationContext.Dispose();
-
+            // TODO: Reload service via Autofac child lifetime scope
             logger.Info("completed reloadService");
-            
+
             return true;
         }
 
@@ -303,7 +285,7 @@ namespace ACS.Manager.Application
         {
             if (this.WorkflowManager != null)
             {
-                Object[] args = { this.ApplicationContext, application };
+                Object[] args = { this.LifetimeScope, application };
                 this.WorkflowManager.Execute(GetStopWorkflowName(application), args);
             }
         }
@@ -405,29 +387,12 @@ namespace ACS.Manager.Application
          */
         protected void DisposeMsbControllables()
         {
-            IApplicationContext currentApplicationContext = this.ApplicationContext;
-            IDictionary currentControllables = currentApplicationContext.GetObjectsOfType(typeof(IControllable));
-            foreach (object obj in currentControllables)
+            var controllables = this.LifetimeScope.Resolve<IEnumerable<IControllable>>();
+            foreach (var controllable in controllables)
             {
-                IControllable controllable = (IControllable)obj;
-                if ((controllable is IMsbControllable))
+                if (controllable is IMsbControllable)
                 {
                     controllable.Stop();
-                }
-            }
-
-            while (currentApplicationContext.ParentContext != null)
-            {
-                currentApplicationContext = currentApplicationContext.ParentContext;
-                IDictionary parentControllables = currentApplicationContext.GetObjectsOfType(typeof(IControllable));
-
-                foreach (object obj in parentControllables.Values)
-                {
-                    IControllable controllable = (IControllable)obj;
-                    if (controllable is IMsbControllable)
-                    {
-                        controllable.Stop();
-                    }
                 }
             }
         }

@@ -183,7 +183,7 @@ namespace ACS.Communication.Msb.RabbitMQ
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + Destination.Name + "}, received message{" + message + "}");
                 }
@@ -266,7 +266,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 object obj = null;
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + Destination + "}, received message{" + body + "}");
                 }
@@ -330,7 +330,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                 var message = Encoding.UTF8.GetString(body);
                 object obj = null;
 
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + Destination + "}, received message{" + body + "}");
                 }

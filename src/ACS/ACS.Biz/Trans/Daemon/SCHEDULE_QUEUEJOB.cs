@@ -6,12 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using log4net;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Transfer.Model;
-using Spring.Context;
+using Autofac;
 using ACS.Biz.Trans.Common;
 using ACS.Framework.Logging;
 
@@ -41,13 +40,13 @@ namespace ACS.Biz.Trans.Daemon
 
             XmlDocument SCHEDULE_QUEUEJOB = (XmlDocument)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
-            Logger.logManager = (ILogManager)ApplicationContext.GetObject("LogManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
+            Logger.logManager = LifetimeScope.Resolve<ILogManager>();
             VehicleMessageEx vehicleMessage = InterfaceService.CreateVehicleMessageFromDaemon(SCHEDULE_QUEUEJOB);
 
 

@@ -4,17 +4,12 @@ using System.Collections;
 using System.Text;
 using System.Xml;
 using System.Diagnostics;
-using Spring.Context.Support;
 using ACS.Communication.Msb.Convert.Mapping;
 using ACS.Communication.Msb.Convert;
 using ACS.Framework.Message.Model;
 using ACS.Utility;
-using Spring.Util;
-using Spring.Objects;
 using System.Reflection;
-using log4net;
 using System.Configuration;
-using NHibernate.Cfg;
 using ACS.Communication.Msb.Convert.Implement;
 
 namespace ACS.Communication.Msb.Convert.Impl

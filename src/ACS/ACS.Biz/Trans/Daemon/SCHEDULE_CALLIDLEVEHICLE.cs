@@ -12,7 +12,7 @@ using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Transfer.Model;
 using ACS.Biz.Trans.Common;
-using Spring.Context;
+using Autofac;
 
 
 namespace ACS.Biz.Trans.Daemon
@@ -30,12 +30,12 @@ namespace ACS.Biz.Trans.Daemon
         {
             XmlDocument SCHEDULE_CALLIDLEVEHICLE = (XmlDocument)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
 
             VehicleMessageEx vehicleMessage = InterfaceService.CreateVehicleMessageFromDaemon(SCHEDULE_CALLIDLEVEHICLE);
 

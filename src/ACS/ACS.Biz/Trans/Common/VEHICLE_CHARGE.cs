@@ -10,7 +10,7 @@ using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using System.Xml;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz.Trans.Common
 {
     public class VEHICLE_CHARGE : BaseBizJob
@@ -32,12 +32,12 @@ namespace ACS.Biz.Trans.Common
         public override int ExecuteJob(object[] args)
         {
             VehicleMessageEx vehicleMessage = (VehicleMessageEx)args[0];
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
 
            if(ResourceService.SearchSuitableRechargeStation(vehicleMessage))
            {

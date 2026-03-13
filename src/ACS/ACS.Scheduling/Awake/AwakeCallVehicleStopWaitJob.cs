@@ -1,56 +1,35 @@
-﻿//using ACS.Framework.Scheduling.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Collections;
+using System.Xml;
 using ACS.Framework.Message;
 using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
 using ACS.Communication.Msb;
-using ACS.Framework.Logging;
 using ACS.Framework.Message.Model;
-using ACS.Utility;
-using System.Xml;
-using Quartz;
-using Spring.Scheduling.Quartz;
-using System.Collections;
 
 namespace ACS.Scheduling
 {
-    public class AwakeCallVehicleStopWaitJob : QuartzJobObject //: AbstractJob
+    public class AwakeCallVehicleStopWaitJob : PeriodicBackgroundService
     {
-        protected Logger logger = Logger.GetLogger("SCHEDULING_LOG");
-        private IMessageManagerEx messageManager;
-        private IMessageAgent messageAgent;
-        private IResourceManagerEx resourceManager;
+        private readonly IMessageManagerEx _messageManager;
+        private readonly IMessageAgent _messageAgent;
+        private readonly IResourceManagerEx _resourceManager;
 
-        public IMessageManagerEx MessageManager
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(5);
+
+        public AwakeCallVehicleStopWaitJob(
+            IMessageManagerEx messageManager,
+            IMessageAgent messageAgent,
+            IResourceManagerEx resourceManager)
         {
-            get { return messageManager; }
-            set { messageManager = value; }
+            _messageManager = messageManager;
+            _messageAgent = messageAgent;
+            _resourceManager = resourceManager;
         }
 
-        public IMessageAgent MessageAgent
+        protected override void ExecuteOnce()
         {
-            get { return messageAgent; }
-            set { messageAgent = value; }
-        }
-
-        public IResourceManagerEx ResourceManager
-        {
-            get { return resourceManager; }
-            set { resourceManager = value; }
-        }
-
-        protected override void ExecuteInternal(JobExecutionContext context)
-        {
-            // logger.info("AwakeCallVehicleStopWaitJob will be invoked");
-            this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("MessageManager"));
-            this.messageAgent = ((IMessageAgent)context.MergedJobDataMap.Get("MessageAgent"));
-            this.resourceManager = ((IResourceManagerEx)context.MergedJobDataMap.Get("ResourceManager"));
-
-            IList listBays = this.resourceManager.GetBays();
+            IList listBays = _resourceManager.GetBays();
 
             if (listBays != null)
             {
@@ -60,18 +39,16 @@ namespace ACS.Scheduling
                     AbstractMessage message = new AbstractMessage();
                     message.MessageName = "SCHEDULE-CALLIDLEVEHICLE";
 
-                    XmlDocument document = this.messageManager.CreateDocument(message);
+                    XmlDocument document = _messageManager.CreateDocument(message);
                     XmlElement data = document.DocumentElement["DATA"];
 
                     XmlNode element = document.CreateNode(XmlNodeType.Element, "BAYID", "");
                     element.InnerText = bay.Id;
                     data.AppendChild(element);
 
-                    //logger.info(XmlUtils.toStringWithoutDeclaration(document));
-                    this.messageAgent.Send(document);
+                    _messageAgent.Send(document);
                 }
             }
         }
-
     }
 }

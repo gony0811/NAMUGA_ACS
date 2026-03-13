@@ -1,4 +1,4 @@
-﻿using log4net;
+﻿using ACS.Framework.Logging;
 using Mina.Core.Buffer;
 using Mina.Core.Session;
 using Mina.Filter.Codec;
@@ -18,7 +18,7 @@ namespace ACS.Communication.Socket.Emulator
     /// </summary>
     public class CommonPackerEmulatorDecoder : ObjectSerializationDecoder
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(CommonPacketDecoder));
+        public Logger logger = Logger.GetLogger(typeof(CommonPacketDecoder));
         protected override bool DoDecode(IoSession session, IoBuffer @in, IProtocolDecoderOutput @out)
         {
             ////BSW Test

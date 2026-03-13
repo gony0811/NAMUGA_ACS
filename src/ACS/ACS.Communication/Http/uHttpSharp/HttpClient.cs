@@ -29,7 +29,7 @@ using ACS.Communication.Http.uHttpSharp.Clients;
 using ACS.Communication.Http.uHttpSharp.Headers;
 using ACS.Communication.Http.uHttpSharp.RequestProviders;
 //using ACS.Communication.Http.uHttpSharp.Logging;
-using log4net;
+using ACS.Framework.Logging;
 
 namespace ACS.Communication.Http.uHttpSharp
 {
@@ -39,7 +39,7 @@ namespace ACS.Communication.Http.uHttpSharp
         private static readonly byte[] CrLfBuffer = Encoding.UTF8.GetBytes(CrLf);
 
         //private static readonly ILog Logger = LogProvider.GetCurrentClassLogger();
-        public ILog logger = LogManager.GetLogger(typeof(HttpClientHandler));
+        public Logger logger = Logger.GetLogger(typeof(HttpClientHandler));
 
         private readonly IClient _client;
         private readonly Func<IHttpContext, Task> _requestHandler;
@@ -58,7 +58,7 @@ namespace ACS.Communication.Http.uHttpSharp
 
             _stream = new BufferedStream(_client.Stream, 8096);
             
-            logger.InfoFormat("Got Client {0}", _remoteEndPoint);
+            logger.Info(string.Format("Got Client {0}", _remoteEndPoint));
 
             Task.Factory.StartNew(Process);
 
@@ -81,7 +81,7 @@ namespace ACS.Communication.Http.uHttpSharp
 
                         var context = new HttpContext(request, _client.RemoteEndPoint);
 
-                        logger.InfoFormat("{1} : Got request {0}", request.Uri, _client.RemoteEndPoint);
+                        logger.Info(string.Format("{1} : Got request {0}", request.Uri, _client.RemoteEndPoint));
 
 
                         await _requestHandler(context).ConfigureAwait(false);       // Registered Handler Check..
@@ -114,7 +114,7 @@ namespace ACS.Communication.Http.uHttpSharp
                 _client.Close();
             }
 
-            logger.InfoFormat("Lost Client {0}", _remoteEndPoint);
+            logger.Info(string.Format("Lost Client {0}", _remoteEndPoint));
         }
         private async Task WriteResponse(HttpContext context, StreamWriter writer)
         {

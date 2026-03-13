@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using ACS.Framework.Logging;
 using ACS.Framework.Base.Interface;
-using log4net;
 
 namespace ACS.Framework.Base
 {

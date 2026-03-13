@@ -10,7 +10,7 @@ using ACS.Framework.Application.Model;
 using System.Collections;
 using ACS.Communication.Socket.Model;
 using ACS.Workflow;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz.Ei.Common
 {
     public class COMMON_STOP_EI : BaseBizJob
@@ -28,8 +28,8 @@ namespace ACS.Biz.Ei.Common
         //public bool Execute(string command, object args, bool isAsyncMode)
         public override int ExecuteJob(object[] args)    //매개변수 재확인 필요
         {
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
             ///로직 재확인 필요..
             ArrayList nios = (ArrayList)VehicleInterfaceService.GetNioes();
 

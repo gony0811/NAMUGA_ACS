@@ -12,44 +12,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
-  </ItemGroup>
-
-    <ItemGroup>
-    <Reference Include="Antlr3.Runtime">
-      <HintPath>..\Library/Antlr3.Runtime.dll</HintPath>
-    </Reference>
-    <Reference Include="Common.Logging">
-      <HintPath>..\Library/Common.Logging.dll</HintPath>
-    </Reference>
-    <Reference Include="Common.Logging.Core">
-      <HintPath>..\Library/Common.Logging.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Aop">
-      <HintPath>..\Library/Spring.Aop.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Data">
-      <HintPath>..\Library/Spring.Data.dll</HintPath>
-    </Reference>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Database\**\*.hbm.xml" Exclude="Database\Communication\Secs\Secs.hbm.xml" />
-    <EmbeddedResource Include="Database\**\*.xml" Exclude="Database\**\*.hbm.xml" />
+    <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
   </ItemGroup>
 
   <ItemGroup>

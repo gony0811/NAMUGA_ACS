@@ -26,7 +26,7 @@ namespace ACS.Manager.Message
             set {messageTemplatePath=value;}
         }
 
-        public virtual void Init()
+        public override void Init()
         {
             base.Init();
             if (this.messageTemplatePath == null)

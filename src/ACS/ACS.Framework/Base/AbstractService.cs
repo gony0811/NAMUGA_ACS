@@ -23,7 +23,6 @@ using ACS.Framework.Resource;
 using ACS.Framework.Transfer;
 using ACS.Framework.Host;
 using ACS.Framework.Logging;
-using log4net;
 
 namespace ACS.Framework.Base
 {

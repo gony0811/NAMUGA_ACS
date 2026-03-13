@@ -16,12 +16,12 @@ using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
 using ACS.Communication;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 namespace ACS.Communication.Socket
 {
     public class SocketClient : AbstractSocketService, IControllable
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(SocketClient)); 
+        public Logger logger = Logger.GetLogger(typeof(SocketClient));
         private IoConnector ioConnector;
         private long connectionTimeout = 10000L;
         private Nio nio;

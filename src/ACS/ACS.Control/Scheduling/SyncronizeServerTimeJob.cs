@@ -5,8 +5,7 @@ using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
 using System.Configuration;
-using Spring.Scheduling;
-using Spring.Scheduling.Quartz;
+using Quartz;
 using ACS.Control;
 using ACS.Framework.Scheduling.Model;
 using ACS.Framework.Application;
@@ -19,7 +18,7 @@ namespace ACS.Control.Scheduling
     {
         public static string SCHEDULE_TIMESYNC = "SCHEDULE-TIMESYNC";
         
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             IControlServerManagerEx controlServerManager = (IControlServerManagerEx)context.MergedJobDataMap.Get("ControlServerManager");
             string applicationName = (string)context.MergedJobDataMap.Get("ApplicationName");

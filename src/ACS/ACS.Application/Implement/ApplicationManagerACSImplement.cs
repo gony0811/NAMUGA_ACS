@@ -1,10 +1,9 @@
-﻿using ACS.Framework.Application;
+using ACS.Framework.Application;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NHibernate.Criterion;
 using ACS.Framework.Base;
 
 namespace ACS.Application.Implement
@@ -37,15 +36,15 @@ namespace ACS.Application.Implement
 
         public virtual System.Collections.IList GetApplicationNamesByStateAndRunHW(string type, string state, string runningHardware)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
+            Dictionary<string, object> attributes = new Dictionary<string, object>();
+            attributes.Add("Type", type);
+            attributes.Add("State", state);
+            attributes.Add("RunningHardware", runningHardware);
 
-            criteria.Add(Restrictions.Eq("Type", type));
-            criteria.Add(Restrictions.Eq("State", state));
-            criteria.Add(Restrictions.Eq("RunningHardware", runningHardware));
-            criteria.AddOrder(Order.Asc("Name"));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttributesOrderBy(typeof(ACS.Framework.Application.Model.Application), attributes, "Name")
+                .Cast<ACS.Framework.Application.Model.Application>()
+                .Select(app => app.Name)
+                .ToList();
         }
 
     }

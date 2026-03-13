@@ -1,5 +1,4 @@
-﻿using NHibernate.Criterion;
-using ACS.Framework.Base;
+﻿using ACS.Framework.Base;
 using ACS.Framework.Material.Model;
 using ACS.Framework.Material;
 using ACS.Framework.Resource;
@@ -55,10 +54,8 @@ namespace ACS.Manager.Material
 
         public IList GetCarriersByCarrierLoc(String carrierLoc)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(CarrierEx));
-            criteria.Add(Restrictions.Eq("CarrierLoc", carrierLoc));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object> { { "CarrierLoc", carrierLoc } };
+            return this.PersistentDao.FindByAttributes(typeof(CarrierEx), attributes);
         }
 
         public IList GetCarriers()
@@ -110,10 +107,8 @@ namespace ACS.Manager.Material
 
         public CarrierEx GetCarrierByVehicleId(String vehicleId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(CarrierEx));
-            criteria.Add(Restrictions.Eq("CarrierLoc", vehicleId));
-
-            IList carriers = this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object> { { "CarrierLoc", vehicleId } };
+            IList carriers = this.PersistentDao.FindByAttributes(typeof(CarrierEx), attributes);
             if (carriers.Count == 0)
             {
                 //logger.info("carriers in {" + vehicleId + "} does not exist");

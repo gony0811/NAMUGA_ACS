@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,11 +25,11 @@ namespace ACS.Framework.Scheduling.Model
             }
         }
 
-        protected void ExcuteInternal(JobExecutionContext context)
+        protected void ExcuteInternal(IJobExecutionContext context)
         {
             try
             {
-                Execute(context);
+                ExecuteJob(context);
             }
             catch(Exception e)
             {
@@ -37,9 +37,14 @@ namespace ACS.Framework.Scheduling.Model
             }
         }
 
-        public virtual void Execute(JobExecutionContext context)
+        public virtual Task Execute(IJobExecutionContext context)
         {
+            ExecuteJob(context);
+            return Task.CompletedTask;
+        }
 
+        public virtual void ExecuteJob(IJobExecutionContext context)
+        {
         }
     }
 }

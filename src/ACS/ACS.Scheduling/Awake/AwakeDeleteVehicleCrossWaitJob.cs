@@ -1,44 +1,33 @@
-﻿//using ACS.Framework.Scheduling.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Quartz;
-using Spring.Scheduling.Quartz;
 using ACS.Framework.Resource;
 using System.Globalization;
 
 namespace ACS.Scheduling
 {
-    public class AwakeDeleteVehicleCrossWaitJob : QuartzJobObject// : AbstractJob
+    public class AwakeDeleteVehicleCrossWaitJob : DailyBackgroundService
     {
-        //protected static final Logger logger = Logger.getLogger(AwakeDeleteVehicleCrossWaitJob.class);
-        protected IResourceManagerEx resourceManager;
-        public IResourceManagerEx ResourceManager
+        private readonly IResourceManagerEx _resourceManager;
+        private const int SavePeriodSeconds = 60;
+
+        public AwakeDeleteVehicleCrossWaitJob(IResourceManagerEx resourceManager)
         {
-            get { return resourceManager; }
-            set { resourceManager = value; }
+            _resourceManager = resourceManager;
         }
 
-        protected override void ExecuteInternal(JobExecutionContext context)
+        protected override void ExecuteOnce()
         {
             //logger.info("AwakeDeleteVehicleCrossWaitJob will be invoked");
 
-            this.resourceManager = ((IResourceManagerEx)context.MergedJobDataMap.Get("ResourceManager"));
-
-            int savePeriod = Convert.ToInt32(context.MergedJobDataMap.Get("SavePeriod").ToString()); //60
-
-            /*
-            Calendar toCalendar = new GregorianCalendar();
-            toCalendar.SetTime(new Date());
-            toCalendar.Add(13, -savePeriod);*/
             DateTime toCalendar = DateTime.Now;
-            DateTime toDelete = toCalendar.AddSeconds(-savePeriod);
+            DateTime toDelete = toCalendar.AddSeconds(-SavePeriodSeconds);
 
             //logger.info("VehicleCrossWait will be deleted until {" + TimeUtils.getTimeToMilliPrettyFormat(toCalendar.getTime()) + "}");
 
-            int count = this.resourceManager.DeleteVehicleCrossWait(toDelete);
+            int count = _resourceManager.DeleteVehicleCrossWait(toDelete);
 
             //logger.info("VehicleCrossWait(" + count + ") was deleted, DeleteVehicleCrossWaitJob was end");
         }

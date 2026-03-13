@@ -1,4 +1,5 @@
-﻿using ACS.Framework.Message.Model;
+﻿using Autofac;
+using ACS.Framework.Message.Model;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Transfer.Model;
 using ACS.Service;
@@ -33,12 +34,12 @@ namespace ACS.Biz.Trans
             XmlDocument rail_vehicleocodeseperator = (XmlDocument)args[0];
             VehicleMessageEx vehicleMsg;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            AlarmService = LifetimeScope.Resolve<AlarmServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_vehicleocodeseperator);
 

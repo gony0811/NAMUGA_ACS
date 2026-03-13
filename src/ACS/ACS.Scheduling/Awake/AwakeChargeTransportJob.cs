@@ -1,54 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Quartz;
-using Spring.Scheduling.Quartz;
-using Spring.Core;
+using System;
+using System.Collections;
+using System.Xml;
 using ACS.Framework.Message;
 using ACS.Communication.Msb;
 using ACS.Framework.Resource;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Message.Model;
-using System.Xml;
-using System.Collections;
 
 namespace ACS.Scheduling
 {
-    public class AwakeChargeTransportJob : QuartzJobObject //: AbstractJob
+    public class AwakeChargeTransportJob : PeriodicBackgroundService
     {
-        //protected static final Logger logger = Logger.getLogger(AwakeChargeTransportJob.class);
-        protected IMessageManagerEx messageManager;
-        protected IMessageAgent messageAgent;
-        protected IResourceManagerEx resourceManager;
+        private readonly IMessageManagerEx _messageManager;
+        private readonly IMessageAgent _messageAgent;
+        private readonly IResourceManagerEx _resourceManager;
 
-        public IMessageManagerEx MessageManager
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(20);
+
+        public AwakeChargeTransportJob(
+            IMessageManagerEx messageManager,
+            IMessageAgent messageAgent,
+            IResourceManagerEx resourceManager)
         {
-            get { return messageManager; }
-            set { messageManager = value; }
+            _messageManager = messageManager;
+            _messageAgent = messageAgent;
+            _resourceManager = resourceManager;
         }
 
-        public IMessageAgent MessageAgent
+        protected override void ExecuteOnce()
         {
-            get { return messageAgent; }
-            set { messageAgent = value; }
-        }
-        public IResourceManagerEx ResourceManager
-        {
-            get { return resourceManager; }
-            set { resourceManager = value; }
-        }
-
-        protected override void ExecuteInternal(JobExecutionContext context)
-        {
-            //logger.info("AwakeChargeTransportJob will be invoked");
-            
-            this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("MessageManager"));
-            this.messageAgent = ((IMessageAgent)context.MergedJobDataMap.Get("MessageAgent"));
-            this.resourceManager = ((IResourceManagerEx)context.MergedJobDataMap.Get("ResourceManager"));
-            
-            IList listBays = this.resourceManager.GetBays();
+            IList listBays = _resourceManager.GetBays();
             if (listBays != null)
             {
                 foreach (var listbay in listBays)
@@ -58,7 +39,7 @@ namespace ACS.Scheduling
                     AbstractMessage message = new AbstractMessage();
 
                     message.MessageName = "SCHEDULE-CHARGEJOB";
-                    XmlDocument document = this.messageManager.CreateDocument(message);
+                    XmlDocument document = _messageManager.CreateDocument(message);
 
                     XmlElement data = document.DocumentElement["DATA"];
 
@@ -66,8 +47,7 @@ namespace ACS.Scheduling
                     element.InnerText = bay.Id;
                     data.AppendChild(element);
 
-                    //logger.info(XmlUtils.toStringWithoutDeclaration(document));
-                    this.messageAgent.Send(document);
+                    _messageAgent.Send(document);
                 }
             }
         }

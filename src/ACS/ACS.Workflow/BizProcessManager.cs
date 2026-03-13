@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Concurrent;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Logging;
 
 namespace ACS.Workflow
@@ -18,7 +18,7 @@ namespace ACS.Workflow
         public BizProcessContext CurrentRunningProcess { get { return currentRunningProcess; } }
         public bool Terminate { get; set; }
         public ILogManager LogManager { get; set; }
-        public IApplicationContext ApplicationContext { get; set; }
+        public ILifetimeScope LifetimeScope { get; set; }
 
         public BizProcessManager()
         {
@@ -46,7 +46,7 @@ namespace ACS.Workflow
                 while (!Terminate)
                 {
                     currentRunningProcess = reservedProcess.Take();
-                    currentRunningProcess.ApplicationContext = ApplicationContext;
+                    currentRunningProcess.LifetimeScope = LifetimeScope;
 
                     if (currentRunningProcess.AsyncMode)
                     {

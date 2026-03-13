@@ -1,50 +1,34 @@
-﻿//using ACS.Framework.Scheduling.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Quartz;
-using Spring.Scheduling.Quartz;
+using System.Xml;
 using ACS.Framework.Message;
 using ACS.Communication.Msb;
 using ACS.Framework.Message.Model;
-using System.Xml;
-using ACS.Framework.Logging;
 
 namespace ACS.Scheduling
 {
-    public class AwakeCheckVehiclesJob : QuartzJobObject//:AbstractJob
+    public class AwakeCheckVehiclesJob : PeriodicBackgroundService
     {
-        protected Logger logger = Logger.GetLogger("SCHEDULING_LOG");
-        protected IMessageManagerEx messageManager;
-        protected IMessageAgent messageAgent;
+        private readonly IMessageManagerEx _messageManager;
+        private readonly IMessageAgent _messageAgent;
 
-        public IMessageManagerEx MessageManager
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(10);
+
+        public AwakeCheckVehiclesJob(
+            IMessageManagerEx messageManager,
+            IMessageAgent messageAgent)
         {
-            get { return messageManager; }
-            set { messageManager = value; }
+            _messageManager = messageManager;
+            _messageAgent = messageAgent;
         }
 
-        public IMessageAgent MessageAgent
-        {
-            get { return messageAgent; }
-            set { messageAgent = value; }
-        }
-
-        protected override void ExecuteInternal(JobExecutionContext context)
+        protected override void ExecuteOnce()
         {
             try
             {
-                //logger.info("AwakeCheckVehiclesJob will be invoked");
-
-                this.messageManager = ((IMessageManagerEx)context.MergedJobDataMap.Get("MessageManager"));
-                this.messageAgent = ((IMessageAgent)context.MergedJobDataMap.Get("MessageAgent"));
-
                 AbstractMessage message = new AbstractMessage();
 
                 message.MessageName = "SCHEDULE-CHECKVEHICLES";
-                XmlDocument document = this.messageManager.CreateDocument(message);
+                XmlDocument document = _messageManager.CreateDocument(message);
 
                 XmlElement data = document.DocumentElement["DATA"];
 
@@ -52,8 +36,7 @@ namespace ACS.Scheduling
                 element.InnerText = message.MessageName;
                 data.AppendChild(element);
 
-                //logger.info(XmlUtils.toStringWithoutDeclaration(document));
-                this.messageAgent.Send(document);
+                _messageAgent.Send(document);
             }
             catch (NullReferenceException nullEx)
             {

@@ -11,7 +11,6 @@ using ACS.Extension.Framework.Resource.Model;
 using ACS.Framework.Base;
 using ACS.Framework.Resource;
 using ACS.Manager.Resource;
-using NHibernate.Criterion;
 using ACS.Framework.Path;
 using ACS.Framework.Path.Model;
 using ACS.Framework.Resource.Model;
@@ -69,12 +68,7 @@ namespace ACS.Extension.Manager
         }
         public VehicleIdleEx GetVehicleIdleByBayID(string bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleIdleEx));
-
-            criteria.Add(Restrictions.Eq("BayId", bayId));
-            criteria.AddOrder(Order.Asc("IdleTime"));
-
-            IList VehicleIdles = this.PersistentDao.FindByCriteria(criteria);
+            IList VehicleIdles = this.PersistentDao.FindByAttributeOrderBy(typeof(VehicleIdleEx), "BayId", bayId, "IdleTime");
 
             for (IEnumerator iterator = VehicleIdles.GetEnumerator(); iterator.MoveNext();)
             {
@@ -100,30 +94,16 @@ namespace ACS.Extension.Manager
 
         public IList GetWaitPointByTypeAndBayId(string type, string bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(WaitPointViewEx));
-
-            criteria.Add(Restrictions.Eq("Type", type));
-            criteria.Add(Restrictions.Eq("ZoneId", bayId));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object> { { "Type", type }, { "ZoneId", bayId } };
+            return this.PersistentDao.FindByAttributes(typeof(WaitPointViewEx), attributes);
         }
 
         public bool IsHaveVehicleGoToDestNode(string destNode)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-
-            criteria.Add(Restrictions.Eq("Installed", VehicleEx.INSTALL_INSTALLED));
-
-            ICriterion currentnode = Restrictions.Eq("CurrentNodeId", destNode);
-            ICriterion vehicleDestnode = Restrictions.Eq("VehicleDestNodeId", destNode);
-            ICriterion acsDestnode = Restrictions.Eq("AcsDestNodeId", destNode);
-
-            LogicalExpression orEx = (LogicalExpression)Restrictions.Or(currentnode, vehicleDestnode);
-            LogicalExpression orAll = (LogicalExpression)Restrictions.Or(orEx, acsDestnode);
-
-            criteria.Add(orAll);
-
-            IList values = this.PersistentDao.FindByCriteria(criteria);
+            IList installedVehicles = this.PersistentDao.FindByAttribute(typeof(VehicleEx), "Installed", VehicleEx.INSTALL_INSTALLED);
+            IList values = installedVehicles.Cast<VehicleEx>()
+                .Where(v => v.CurrentNodeId == destNode || v.VehicleDestNodeId == destNode || v.AcsDestNodeId == destNode)
+                .Cast<object>().ToList() as IList;
             if (values.Count > 0)
                 return true;
 
@@ -131,9 +111,7 @@ namespace ACS.Extension.Manager
         }
         public Dictionary<string, List<VehicleEx>> MapVehicleByCurrentNode()
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-            criteria.Add(Restrictions.Eq("Installed", VehicleEx.INSTALL_INSTALLED));
-            IList vehicles = this.PersistentDao.FindByCriteria(criteria);
+            IList vehicles = this.PersistentDao.FindByAttribute(typeof(VehicleEx), "Installed", VehicleEx.INSTALL_INSTALLED);
 
             if (vehicles.Count > 0)
             {
@@ -288,28 +266,28 @@ namespace ACS.Extension.Manager
         {
             float chargeVoltage = this.GetBayLimitVoltage(bayId);
 
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
+            IList vehicleList;
             if (!containUnavailableVehicle)
             {
-                criteria.Add(Restrictions.Eq("ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT));
-                //criteria.Add(Restrictions.Eq("ProcessingState", VehicleEx.PROCESSINGSTATE_IDLE));
-
-                ICriterion idlestate = Restrictions.Eq("ProcessingState", VehicleEx.PROCESSINGSTATE_IDLE);
-                ICriterion parkstate = Restrictions.Eq("ProcessingState", VehicleEx.PROCESSINGSTATE_PARK); //20200612 LYS PARK Condition Add
-
-                LogicalExpression orAll = (LogicalExpression)Restrictions.Or(idlestate, parkstate);
-                criteria.Add(orAll);
-
-                criteria.Add(Restrictions.Eq("State", VehicleEx.STATE_ALIVE));
-                criteria.Add(Restrictions.Gt("BatteryVoltage", chargeVoltage));
-                criteria.Add(Restrictions.Eq("BayId", bayId));
-                criteria.Add(Restrictions.Eq("FullState", VehicleEx.FULLSTATE_EMPTY));
-                criteria.Add(Restrictions.Eq("Installed", VehicleEx.INSTALL_INSTALLED));
-                criteria.Add(Restrictions.Not(Restrictions.Eq("Vendor", VehicleEx.VENDOR_FIXMODE)));
-                criteria.AddOrder(Order.Asc("NodeCheckTime"));
+                var attributes = new Dictionary<string, object>
+                {
+                    { "ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT },
+                    { "State", VehicleEx.STATE_ALIVE },
+                    { "BayId", bayId },
+                    { "FullState", VehicleEx.FULLSTATE_EMPTY },
+                    { "Installed", VehicleEx.INSTALL_INSTALLED }
+                };
+                IList allMatches = this.PersistentDao.FindByAttributesOrderBy(typeof(VehicleEx), attributes, "NodeCheckTime");
+                vehicleList = allMatches.Cast<VehicleEx>()
+                    .Where(v => (v.ProcessingState == VehicleEx.PROCESSINGSTATE_IDLE || v.ProcessingState == VehicleEx.PROCESSINGSTATE_PARK)
+                        && v.BatteryVoltage > chargeVoltage
+                        && v.Vendor != VehicleEx.VENDOR_FIXMODE)
+                    .Cast<object>().ToList() as IList;
             }
-
-            IList vehicleList = this.PersistentDao.FindByCriteria(criteria);
+            else
+            {
+                vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
+            }
             IList returnList = new ArrayList();
             foreach (var item in vehicleList)
             {
@@ -373,9 +351,7 @@ namespace ACS.Extension.Manager
 
         public TransportCommandEx GetTransportCommandBySourcePortId(string sourcePortId)
         {
-            DetachedCriteria crit = DetachedCriteria.For(typeof(TransportCommandEx));
-            crit.Add(Restrictions.Eq("Source", sourcePortId));
-            IList transportCommands = this.PersistentDao.FindByCriteria(crit);
+            IList transportCommands = this.PersistentDao.FindByAttribute(typeof(TransportCommandEx), "Source", sourcePortId);
             if (transportCommands.Count > 0)
                 return (TransportCommandEx)transportCommands[0];
             else
@@ -630,48 +606,40 @@ namespace ACS.Extension.Manager
 
         public IList GetVehiclesForCharge(String bayId, bool containUnavailableVehicle)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-
             // added RGV logic
             BayEx bay = this.GetBay(bayId);
 
+            IList vehicleList;
             if (!containUnavailableVehicle)
             {
-                criteria.Add(Restrictions.Eq("ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT));
-
-                ICriterion processIdle = Restrictions.Eq("ProcessingState", VehicleEx.PROCESSINGSTATE_IDLE);
-                ICriterion processPark = Restrictions.Eq("ProcessingState", VehicleEx.PROCESSINGSTATE_PARK);
-                //ICriterion vendorFix = Restrictions.Eq("vendor", BayExs.AGVTYPE_FIXED_MODE);
-                LogicalExpression orTransferState = Restrictions.Or(processIdle, processPark) as LogicalExpression;
-                //LogicalExpression orVendor = Restrictions.Or(orTransferState, vendorFix) as LogicalExpression;
-                criteria.Add(orTransferState);
-
-                // criteria.add(Restrictions.eq("processingState",
-                // VehicleACS.PROCESSINGSTATE_IDLE));
-
-                // criteria.add(Restrictions.eq("state", VehicleACS.STATE_ALIVE));
                 if (bay == null)
                 {
                     logger.Warn("can not find Bay, bayId{" + bayId + "}");
                     return null;
                 }
-                if (!String.IsNullOrEmpty(bay.AgvType) && bay.AgvType.Equals(BayExs.AGVTYPE_RGV))
-                {
 
-                    criteria.Add(Restrictions.Le("BatteryVoltage", VehicleExs.AVAIALBE_VOLTAGE_RGV));
-                }
-                else
+                var attributes = new Dictionary<string, object>
                 {
+                    { "ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT },
+                    { "BayId", bayId },
+                    { "FullState", VehicleEx.FULLSTATE_EMPTY },
+                    { "Installed", VehicleEx.INSTALL_INSTALLED }
+                };
+                IList allMatches = this.PersistentDao.FindByAttributesOrderBy(typeof(VehicleEx), attributes, "BatteryVoltage");
 
-                    criteria.Add(Restrictions.Le("BatteryVoltage", bay.ChargeVoltage));
-                }
-                criteria.Add(Restrictions.Eq("BayId", bayId));
-                criteria.Add(Restrictions.Eq("FullState", VehicleEx.FULLSTATE_EMPTY));
-                criteria.Add(Restrictions.Eq("Installed", VehicleEx.INSTALL_INSTALLED));
-                criteria.AddOrder(Order.Asc("BatteryVoltage"));
+                float voltageLimit = (!String.IsNullOrEmpty(bay.AgvType) && bay.AgvType.Equals(BayExs.AGVTYPE_RGV))
+                    ? VehicleExs.AVAIALBE_VOLTAGE_RGV
+                    : bay.ChargeVoltage;
+
+                vehicleList = allMatches.Cast<VehicleEx>()
+                    .Where(v => (v.ProcessingState == VehicleEx.PROCESSINGSTATE_IDLE || v.ProcessingState == VehicleEx.PROCESSINGSTATE_PARK)
+                        && v.BatteryVoltage <= voltageLimit)
+                    .Cast<object>().ToList() as IList;
             }
-
-            IList vehicleList = this.PersistentDao.FindByCriteria(criteria);
+            else
+            {
+                vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
+            }
 
             List<VehicleEx> returnList = new List<VehicleEx>();
             foreach (VehicleEx vehicle in vehicleList)
@@ -746,11 +714,13 @@ namespace ACS.Extension.Manager
                 // addHql = addHql + ")";
                 // addHql = addHql.replace(",)", ")");
 
-                DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-                criteria.Add(Restrictions.Eq("ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT));
-                criteria.Add(Restrictions.Eq("Installed", VehicleEx.INSTALL_INSTALLED));
-                criteria.Add(Restrictions.In("CurrentNodeId", startNodeIds));
-                return this.PersistentDao.FindByCriteria(criteria);
+                var attributes = new Dictionary<string, object>
+                {
+                    { "ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT },
+                    { "Installed", VehicleEx.INSTALL_INSTALLED }
+                };
+                IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
+                return allMatches.Cast<VehicleEx>().Where(v => startNodeIds.Contains(v.CurrentNodeId)).Cast<object>().ToList() as IList;
 
                 // return this.persistentDao.find(hql.concat(addHql));
             }
@@ -764,11 +734,13 @@ namespace ACS.Extension.Manager
 
         public IList GetRunningVehiclesByNodeList(IList nodeIds)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-		    criteria.Add(Restrictions.In("CurrentNodeId", nodeIds));
-		    criteria.Add(Restrictions.Eq("ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT));
-		    criteria.Add(Restrictions.Eq("Installed", Entity.TRUE));
-		    return this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object>
+            {
+                { "ConnectionState", VehicleEx.CONNECTIONSTATE_CONNECT },
+                { "Installed", Entity.TRUE }
+            };
+            IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
+            return allMatches.Cast<VehicleEx>().Where(v => nodeIds.Contains(v.CurrentNodeId)).Cast<object>().ToList() as IList;
         }
 
         public bool CheckNodeIsMonitoringNode(string nodeId)
@@ -995,10 +967,7 @@ namespace ACS.Extension.Manager
         public OrderPairNodeEx GetOrderPairByGroup(String orderGroup)
         {
             //string st = "ORDER_RF";
-            DetachedCriteria crit = DetachedCriteria.For(typeof(OrderPairNodeEx));
-            crit.Add(Restrictions.Eq("OrderGroup", orderGroup));
-            //crit.Add(Restrictions.Eq("Status", st));
-            IList orderPair = this.PersistentDao.FindByCriteria(crit);
+            IList orderPair = this.PersistentDao.FindByAttribute(typeof(OrderPairNodeEx), "OrderGroup", orderGroup);
             if (orderPair.Count > 0)
             {
                 return (OrderPairNodeEx)orderPair[0];
@@ -1010,9 +979,7 @@ namespace ACS.Extension.Manager
         }
         public SpecialConfig GetValuesBySpecialName(String specialName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(SpecialConfig));
-		    criteria.Add(Restrictions.Eq("Name", specialName));
-		    IList values = this.PersistentDao.FindByCriteria(criteria);
+            IList values = this.PersistentDao.FindByAttribute(typeof(SpecialConfig), "Name", specialName);
 		    if (values.Count == 0)
             {
                 return null;

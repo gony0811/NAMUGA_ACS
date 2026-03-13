@@ -18,7 +18,7 @@ using ACS.Communication.Socket.Model;
 using ACS.Communication.Socket;
 using System.Collections;
 using System.Threading;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 using ACS.Framework.Message.Model;
 
@@ -26,7 +26,7 @@ namespace ACS.Service
 {
     public class VehicleInterfaceServiceEx : AbstractServiceEx
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(VehicleInterfaceServiceEx));
+        public Logger logger = Logger.GetLogger(typeof(VehicleInterfaceServiceEx));
 
         //private NioInterfaceManager NioInterfaceManager;
         //private ITransferManagerEx transferManager;

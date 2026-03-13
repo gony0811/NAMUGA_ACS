@@ -7,13 +7,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using log4net;
+using ACS.Framework.Logging;
 using System.IO;
 namespace ACS.Communication.Socket
 {
     public class CommonPacketDecoder : ObjectSerializationDecoder
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(CommonPacketDecoder));
+        public Logger logger = Logger.GetLogger(typeof(CommonPacketDecoder));
         protected override bool DoDecode(IoSession session, IoBuffer @in, IProtocolDecoderOutput @out)
         {
 #if BYTE12

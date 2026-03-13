@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -33,13 +33,13 @@ namespace ACS.Biz.Trans.Common
 
         public override int ExecuteJob(object[] args)
         {
-            //InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            //ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            //MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            //TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            //VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            //DataHandlingService = (DataHandlingServiceEx)ApplicationContext.GetObject("DataHandlingService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            //InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            //ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            //MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            //TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            //VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            //DataHandlingService = LifetimeScope.Resolve<DataHandlingServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             //WorkflowManager.Stop();
             

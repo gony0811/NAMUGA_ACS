@@ -7,7 +7,7 @@ using System.Threading;
 using System.Reflection;
 using ACS.Service;
 using ACS.Workflow;
-using Spring.Context;
+using Autofac;
 namespace ACS.Biz
 {
     public class COMMON_STOP_CONTROL : BaseBizJob
@@ -21,7 +21,7 @@ namespace ACS.Biz
 
         public override int ExecuteJob(object[] args)
         {
-            IWorkflowManager workflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            IWorkflowManager workflowManager = LifetimeScope.Resolve<IWorkflowManager>();
             
             workflowManager.Stop();
 

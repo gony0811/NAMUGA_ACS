@@ -13,14 +13,14 @@ using ACS.Utility;
 using System.Collections;
 using System.Xml;
 using System.Xml.XPath;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 
 namespace ACS.Service
 {
     public class DataHandlingServiceEx : AbstractServiceEx, ICloneable
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(DataHandlingServiceEx));
+        public Logger logger = Logger.GetLogger(typeof(DataHandlingServiceEx));
         
         public DataHandlingServiceEx() : base() { }
         public override void Init()

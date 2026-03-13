@@ -5,7 +5,7 @@ using ACS.Communication.Msb.Util;
 using ACS.Communication.Util;
 using ACS.Framework.Message.Model;
 using ACS.Utility;
-using Spring.Util;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace ACS.Communication.Msb.Highway101.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }
@@ -116,7 +116,7 @@ namespace ACS.Communication.Msb.Highway101.Marker
         {
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }
@@ -207,7 +207,7 @@ namespace ACS.Communication.Msb.Highway101.Marker
         {
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + paramMessage.getChannel() + "}, received message{" + paramMessage.ToString() + "}");
                 }

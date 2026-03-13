@@ -16,7 +16,7 @@ namespace ACS.Control.Scheduling
         //protected Logger logger = Logger.getLogger(typeof(RescheduleHeartBeatJob));
 
 
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             IControlServerManager controlServerManager = (IControlServerManager)context.MergedJobDataMap.Get("ControlServerManager");
             controlServerManager.RescheduleHeartBeats();

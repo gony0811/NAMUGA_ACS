@@ -6,9 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using ACS.Framework.Logging;
-using log4net;
 using ACS.Framework.Resource;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Alarm;
@@ -19,7 +18,7 @@ namespace ACS.Communication.Socket.Checker
 {
     //181127 Ignore E_Code Overlap 
     //public class DuplicatedCheckerImpl : DuplicateChecker, IApplicationContextAware
-    public class DuplicatedCheckerImpl : DuplicateChecker, IApplicationContextAware
+    public class DuplicatedCheckerImpl : DuplicateChecker
     {
         public Logger logger = Logger.GetLogger(typeof(DuplicatedCheckerImpl));
 
@@ -32,13 +31,13 @@ namespace ACS.Communication.Socket.Checker
         protected int allowElapseTime = 5000;
         protected bool useNioNameForDuplicated = false;
 
-        //181127 Ignore E_Code Overlap 
-        private IApplicationContext applicationContext;
+        //181127 Ignore E_Code Overlap
+        private ILifetimeScope lifetimeScope;
         public IResourceManagerEx ResourceManager { get; set; }
         public IAlarmManagerEx AlarmManager { get; set; }
-        public virtual IApplicationContext ApplicationContext
+        public virtual ILifetimeScope LifetimeScope
         {
-            set { this.applicationContext = value; }
+            set { this.lifetimeScope = value; }
         }
 
 
@@ -148,11 +147,11 @@ namespace ACS.Communication.Socket.Checker
                     //E_CODE && Duplciation false
                     if (commandCode.Equals(VehicleMessageEx.COMMAND_CODE_E) && result == false)
                     {
-                        this.AlarmManager = (IAlarmManagerEx)applicationContext.GetObject("AlarmManager");
+                        this.AlarmManager = lifetimeScope.Resolve<IAlarmManagerEx>();
                         AlarmEx alarm = this.AlarmManager.GetAlarmByVehicleId(vehicleId);
 
                         //200423 Modify Ignore E_Code Overlap (Vehicle Null Exception)
-                        this.ResourceManager = (IResourceManagerEx)applicationContext.GetObject("ResourceManager");
+                        this.ResourceManager = lifetimeScope.Resolve<IResourceManagerEx>();
                         VehicleEx vehicle = this.ResourceManager.GetVehicle(vehicleId);
                         //
 

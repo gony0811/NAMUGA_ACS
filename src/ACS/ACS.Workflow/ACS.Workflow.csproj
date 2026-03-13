@@ -12,12 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
   </ItemGroup>
 

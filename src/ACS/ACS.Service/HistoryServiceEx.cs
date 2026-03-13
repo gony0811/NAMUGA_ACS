@@ -10,7 +10,7 @@ using ACS.Framework.Resource.Model;
 using System.Collections;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Framework.History.Model;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 using ACS.Communication.Socket.Model;
 using ACS.Framework.History.Model;
@@ -21,7 +21,7 @@ namespace ACS.Service
 {
     public class HistoryServiceEx : AbstractServiceEx
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(HistoryServiceEx));
+        public Logger logger = Logger.GetLogger(typeof(HistoryServiceEx));
 
         public void CreateNioHistory(Nio nio)
         {

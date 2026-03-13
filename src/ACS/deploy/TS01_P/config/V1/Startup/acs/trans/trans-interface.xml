@@ -1,0 +1,345 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<objects xmlns="http://www.springframework.net" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.net http://www.springframework.net/xsd/spring-objects.xsd">
+
+  <object id="ApplicationDefaultDestinationName" type="ACS.Framework.Application.Model.ApplicationDefaultDestinationName, ACS.Framework" init-method="Init">
+    <property name="DestinationName">
+      <value>${server.ts.host.listener.destination}</value>
+    </property>
+  </object>
+
+
+  <object id="ApplicationNameChannelDestination" type="ACS.Communication.Msb.RabbitMQ.ApplicationNameChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.es.ts.listener.destination}</value>
+    </property>
+  </object>
+
+
+  <object id="AbstractDestination" abstract="true" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+  </object>
+
+
+  <object id="HostSenderDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.host.sender.destination}</value>
+    </property>
+  </object>
+
+  <object id="HostListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.host.listener.destination}</value>
+    </property>
+  </object>
+
+  <object id="EiSenderDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.es.sender.destination}</value>
+    </property>
+  </object>
+
+  <object id="EiListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.es.listener.destination}</value>
+    </property>
+  </object>
+
+
+  <object id="UiSenderDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.ui.sender.destination}</value>
+    </property>
+  </object>
+
+  <object id="UiListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.ui.listener.destination}</value>
+    </property>
+  </object>
+
+  <object id="DaemonListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.ts.daemon.listener.destination}</value>
+    </property>
+  </object>
+
+
+  <object id="ControlListenerDestination" parent="AbstractDestination" type="ACS.Communication.Msb.RabbitMQ.ChannelDestination, ACS.Communication" init-method="Init">
+    <property name="Name">
+      <value>${server.control.ts.sender.destination}</value>
+    </property>
+  </object>
+
+  <object id="AbstractRabbitMQ" abstract="true" type="ACS.Communication.Msb.RabbitMQ.AbstractRabbitMQ, ACS.Communication">
+    <property name="HostName">
+      <value>${server.domain.connecturl}</value>
+    </property>
+    <property name="UserName">
+      <value>${server.domain.username}</value>
+    </property>
+    <property name="Password">
+      <value>${server.domain.password}</value>
+    </property>
+    <property name="StationMode">
+      <value>${server.domain.stationmode}</value>
+    </property>
+    <property name="LogManager" ref="LogManager">
+    </property>
+  </object>
+
+  <object id="AbstractHostRabbitMQ" abstract="true" type="ACS.Communication.Msb.RabbitMQ.AbstractRabbitMQ, ACS.Communication">
+    <property name="HostName">
+      <value>${host.domain.connecturl}</value>
+    </property>
+    <property name="UserName">
+      <value>${host.domain.username}</value>
+    </property>
+    <property name="Password">
+      <value>${host.domain.password}</value>
+    </property>
+    <property name="StationMode">
+      <value>${host.domain.stationmode}</value>
+    </property>
+    <property name="LogManager" ref="LogManager">
+    </property>
+  </object>
+  
+  <!-- listener -->
+  <object name="HostListener" parent="AbstractHostRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>HOSTLISTENER</value>
+    </property>
+    <property name="Destination" ref="HostListenerDestination">     
+    </property>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+    <property name="SessionId">
+      <value>TS.ADS.LISTENER</value>
+    </property>
+    -->
+  </object>
+
+
+  <object name="EsListener" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref ="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>ESLISTENER</value>
+    </property>
+    <property name="Destination" ref="EiListenerDestination"/>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.ES.LISTENER</value>
+    </property>
+    -->
+  </object>
+
+  <object name="UiListener" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>UILISTENER</value>
+    </property>
+    <property name="Destination" ref="UiListenerDestination"/>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.GUI.LISTENER</value>
+    </property>
+    -->
+  </object>
+
+  <object name="DaemonListener" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>DAEMONLISTENER</value>
+    </property>
+    <property name="Destination" ref="DaemonListenerDestination"/>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.DS.LISTENER</value>
+    </property>
+    -->
+  </object>
+
+
+  <object name="ControlListener" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericWorkflowRabbitMQListener, ACS.Communication" init-method="Init">
+    <property name="WorkflowManager" ref="WorkflowManager"/>
+    <property name="XpathOfMessageName">
+      <value>${server.ts.xpathofmessagename.default}</value>
+    </property>
+    <property name="Name">
+      <value>DAEMONLISTENER</value>
+    </property>
+    <property name="Destination" ref="ControlListenerDestination"/>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="PullTimeout">
+      <value>10000</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.CS.LISTENER</value>
+    </property>
+    -->
+  </object>
+  
+  <!-- SENDER -->
+  <object id="HostAgentSender" parent="AbstractHostRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericRabbitMQSender, ACS.Communication"  init-method="Init">
+    <property name="DefaultDestination" ref="HostSenderDestination"/>
+    <property name="Name">
+      <value>HOSTSENDER</value>
+    </property>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.ADS.SENDER</value>
+    </property>
+    -->
+  </object>
+
+  <object id="EsAgentSender" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericRabbitMQSender, ACS.Communication" init-method="Init">
+    <property name="DefaultDestination" ref= "ApplicationNameChannelDestination"/>
+    <property name="Name">
+      <value>ESSENDER</value>
+    </property>
+    <property name="CastOption">
+      <value>UNICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.ES.SENDER</value>
+    </property>
+    -->
+  </object>
+
+  <object id="UiAgentSender" parent="AbstractRabbitMQ" type="ACS.Communication.Msb.RabbitMQ.GenericRabbitMQSender, ACS.Communication" init-method="Init">
+    <property name="DefaultDestination" ref="UiSenderDestination"/>
+    <property name="Name">
+      <value>UISENDER</value>
+    </property>
+    <property name="CastOption">
+      <value>MULTICAST</value>
+    </property>
+    <property name="DefaultTTL">
+      <value>60000</value>
+    </property>
+    <!--
+    <property name="DeliveryMode">
+      <value>PULL</value>
+    </property>
+    <property name="AutoRecoveryOption">
+      <value>true</value>
+    </property>
+
+    <property name="SessionId">
+      <value>TS.GUI.SENDER</value>
+    </property>
+    -->
+  </object>
+</objects>

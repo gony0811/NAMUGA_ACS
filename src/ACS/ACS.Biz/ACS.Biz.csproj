@@ -12,18 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Aop">
-      <HintPath>..\Library/Spring.Aop.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />

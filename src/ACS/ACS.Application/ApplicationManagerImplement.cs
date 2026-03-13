@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
-using NHibernate.Criterion;
 using ACS.Framework.Base;
 using ACS.Framework.Application;
 using ACS.Framework.Application.Model;
@@ -38,66 +37,56 @@ namespace ACS.Application
 
         public System.Collections.IList GetApplicationNamesByType(string type)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-             criteria.SetProjection(Projections.Property("Name"));
-    
-             criteria.Add(Restrictions.Eq("Type", type));
-             criteria.AddOrder(Order.Asc("Name"));
-    
-             return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindPropertyByAttributesOrderBy(typeof(ACS.Framework.Application.Model.Application), "Name", "Type", type, "Name");
         }
 
         public System.Collections.IList GetApplicationNamesByType(string type, string runningHardware)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
-
-            criteria.Add(Restrictions.Eq("Type", type));
+            Dictionary<string, object> attributes = new Dictionary<string, object>();
+            attributes.Add("Type", type);
 
             //200630 REFRESHCACHE
-            //criteria.Add(Restrictions.Eq("RunnningHardware", runningHardware));
-            criteria.Add(Restrictions.Eq("RunningHardware", runningHardware));
+            attributes.Add("RunningHardware", runningHardware);
             //
 
-            return this.PersistentDao.FindByCriteria(criteria);
+            System.Collections.IList applications = this.PersistentDao.FindByAttributes(typeof(ACS.Framework.Application.Model.Application), attributes);
+            System.Collections.ArrayList names = new System.Collections.ArrayList();
+            foreach (ACS.Framework.Application.Model.Application app in applications)
+            {
+                names.Add(app.Name);
+            }
+            return names;
         }
 
         public System.Collections.IList GetApplicationNamesByState(string type, string state)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
+            Dictionary<string, object> attributes = new Dictionary<string, object>();
+            attributes.Add("Type", type);
+            attributes.Add("State", state);
 
-            criteria.Add(Restrictions.Eq("Type", type));
-            criteria.Add(Restrictions.Eq("State", state));
-
-            criteria.AddOrder(Order.Asc("Name"));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttributesOrderBy(typeof(ACS.Framework.Application.Model.Application), attributes, "Name")
+                .Cast<ACS.Framework.Application.Model.Application>()
+                .Select(app => app.Name)
+                .ToList();
         }     
 
         public System.Collections.IList GetApplicationNamesByState(string type, string state, string excludeApplicationName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
+            Dictionary<string, object> attributes = new Dictionary<string, object>();
+            attributes.Add("Type", type);
+            attributes.Add("State", state);
 
-            criteria.Add(Restrictions.Eq("Type", type));
-            criteria.Add(Restrictions.Eq("State", state));
-            
             //[2018.08.03] ksg : Need to check function of the Restrictions.NotEqProperty
-            criteria.Add(Restrictions.Not(Restrictions.Eq("Name", excludeApplicationName)));
-            criteria.AddOrder(Order.Asc("Name"));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttributesOrderBy(typeof(ACS.Framework.Application.Model.Application), attributes, "Name")
+                .Cast<ACS.Framework.Application.Model.Application>()
+                .Where(app => !app.Name.Equals(excludeApplicationName))
+                .Select(app => app.Name)
+                .ToList();
         }
 
         public System.Collections.IList GetApplicationNamesByInitialHardware(string initialHardware)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
-
-            criteria.Add(Restrictions.Eq("InitialHardware", initialHardware));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindPropertyByAttributes(typeof(ACS.Framework.Application.Model.Application), "Name", "InitialHardware", initialHardware);
         }
 
         public System.Collections.IList GetApplicationNamesByRunningHardware(string runningHardware)
@@ -107,36 +96,35 @@ namespace ACS.Application
 
         public System.Collections.IList GetApplicationNamesByRunningHardware(string runningHardware, bool excludeControlServer)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
-
-            criteria.Add(Restrictions.Eq("RunningHardware", runningHardware));
-
-            if (excludeControlServer)
+            if (!excludeControlServer)
             {
-                criteria.Add(Restrictions.Not(Restrictions.Eq("Type", "control")));
+                return this.PersistentDao.FindPropertyByAttributes(typeof(ACS.Framework.Application.Model.Application), "Name", "RunningHardware", runningHardware);
             }
 
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(ACS.Framework.Application.Model.Application), "RunningHardware", runningHardware)
+                .Cast<ACS.Framework.Application.Model.Application>()
+                .Where(app => !app.Type.Equals("control"))
+                .Select(app => app.Name)
+                .ToList();
         }
 
         public System.Collections.IList GetApplicationNamesByRunningHardware(string runningHardware, bool excludeInvalidState, bool excludeControlServer)
         {
-            DetachedCriteria criteria = DetachedCriteria.For<ACS.Framework.Application.Model.Application>();
-            criteria.SetProjection(Projections.Property("Name"));
+            System.Collections.IList applications = this.PersistentDao.FindByAttribute(typeof(ACS.Framework.Application.Model.Application), "RunningHardware", runningHardware);
 
-            criteria.Add(Restrictions.Eq("RunningHardware", runningHardware));
+            IEnumerable<ACS.Framework.Application.Model.Application> filtered = applications.Cast<ACS.Framework.Application.Model.Application>();
+
             if (excludeInvalidState)
             {
-                criteria.Add(Restrictions.Not(Restrictions.Eq("State", "inactive")));
+                filtered = filtered.Where(app => !app.State.Equals("inactive"));
             }
 
             if (excludeControlServer)
             {
-                criteria.Add(Restrictions.Not(Restrictions.Eq("Type", "control")));
+                filtered = filtered.Where(app => !app.Type.Equals("control"));
             }
 
-            return this.PersistentDao.FindByCriteria(criteria);
+            return filtered.Select(app => app.Name).ToList();
         }
 
         public System.Collections.IList GetApplications(string type, string state)
@@ -1022,7 +1010,15 @@ namespace ACS.Application
 
         public Option CreateDefaultOptionAwakeLimitCountForAlternatedJob()
         {
-            throw new NotImplementedException();
+            Option option = new Option();
+            option.Id = "2007";
+            option.Name = "2007";
+            option.NameDescription = "AWAKELIMITCOUNTFORALTERNATEDJOB";
+            option.Value = "0";
+            option.ValueDescription = "NOTUSED";
+            CreateOption(option);
+
+            return option;
         }
 
         public Option CreateDefaultOptionExecuteBatchJobInDueOrder()
@@ -1069,14 +1065,22 @@ namespace ACS.Application
 
         public Option CreateDefaultOptionUseTransportFailWhenFirstTransport()
         {
-            throw new NotImplementedException();
+            Option option = new Option();
+            option.Id = "2002";
+            option.Name = "2002";
+            option.NameDescription = "USETRANSPORTFAILWHENFIRSTTRANSPORT";
+            option.Value = "02";
+            option.ValueDescription = "FALSE";
+            CreateOption(option);
+
+            return option;
         }
 
         public Option CreateDefaultOptionForeTransferWhenDestUnavailable()
         {
             Option option = new Option();
-            option.Id = "2002";
-            option.Name = "2002";
+            option.Id = "2001";
+            option.Name = "2001";
             option.NameDescription = "FORETRANSFERWHENDESTUNAVAILABLE";
             option.Value = "01";
             option.ValueDescription = "TRUE";

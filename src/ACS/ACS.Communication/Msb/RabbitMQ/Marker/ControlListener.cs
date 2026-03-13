@@ -22,7 +22,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
             var message = Encoding.UTF8.GetString(body);
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + session.ChannelNumber.ToString() + "}, received message{" + message + "}");
                 }
@@ -93,7 +93,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" +ea.BasicProperties.AppId + "}, received message{" + message + "}");
                 }
@@ -161,7 +161,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + ea.BasicProperties.AppId + "}, received message{" + message + "}");
                 }

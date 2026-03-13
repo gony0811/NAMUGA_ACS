@@ -5,13 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Communication.Socket;
 using ACS.Communication.Socket.Model;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 using ACS.Framework.Resource;
 
@@ -87,7 +87,7 @@ namespace ACS.Biz.Ei
 
     public class VEHICLE_MESSAGERECEIVED : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(VEHICLE_MESSAGERECEIVED));
+        protected static Logger logger = Logger.GetLogger(typeof(VEHICLE_MESSAGERECEIVED));
         public InterfaceServiceEx InterfaceService;
         public IResourceManagerEx ResourceManager;
         public TransferServiceEx TransferService;
@@ -108,11 +108,11 @@ namespace ACS.Biz.Ei
             Nio nio = (Nio)args[1];
 
             VehicleMessageEx vehicleMsg;
-            ResourceManager = (IResourceManagerEx)ApplicationContext.GetObject("ResourceManager");
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            //ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
+            ResourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            //ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
 
             if (InterfaceService.CheckNio(receivePacket, nio))
             {

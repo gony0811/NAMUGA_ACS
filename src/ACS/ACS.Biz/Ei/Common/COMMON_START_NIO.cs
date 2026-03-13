@@ -7,7 +7,7 @@ using System.Threading;
 using System.Reflection;
 using ACS.Service;
 using ACS.Communication.Socket.Model;
-using Spring.Context;
+using Autofac;
 using ACS.Communication.Socket;
 namespace ACS.Biz.Ei.Common
 {
@@ -26,7 +26,7 @@ namespace ACS.Biz.Ei.Common
 
         public override int ExecuteJob(object[] args)
         {
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
 
             VehicleInterfaceService.StartNio((Nio)args[0]);
 

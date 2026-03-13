@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using System.Xml;
-using log4net;
+using ACS.Framework.Logging;
 namespace ACS.Biz.Ei.Trans
 {
     class RAIL_CARRIERTRANSFER : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(RAIL_CARRIERTRANSFER));
+        protected static Logger logger = Logger.GetLogger(typeof(RAIL_CARRIERTRANSFER));
         public InterfaceServiceEx InterfaceService;
         public VehicleInterfaceServiceEx VehicleInterfaceService;
         public ResourceServiceEx ResourceService;
@@ -23,9 +23,9 @@ namespace ACS.Biz.Ei.Trans
         {
             XmlDocument document = (XmlDocument)args[0];
             logger.Debug("ES RAIL_CARRIERTRANSFER Start=============================================");
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
 
             VehicleMessageEx vehiclemsg = InterfaceService.CreateVehicleMessageFromTrans(document);
             logger.Debug("RAIL_CARRIERTRANSFER Normal Sequence Step.1 CreateVehicleMessageFromTrans");

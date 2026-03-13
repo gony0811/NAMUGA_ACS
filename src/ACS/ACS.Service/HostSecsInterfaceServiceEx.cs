@@ -21,14 +21,14 @@ using System.Collections;
 using System.Threading;
 using ACS.Framework.Message;
 using System.Xml;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Framework.Base;
 
 namespace ACS.Service
 {
     public class HostSecsInterfaceServiceEx : AbstractServiceEx
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(HostSecsInterfaceServiceEx)); 
+        public Logger logger = Logger.GetLogger(typeof(HostSecsInterfaceServiceEx));
         //private VariableInfo variableInfo;
         //private SecsWriter secsWriter;
         //private SecsInterfaceManager secsInterfaceManager;ㅣ

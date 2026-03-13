@@ -12,28 +12,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
-    <PackageReference Include="System.Security.Permissions" Version="8.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageReference Include="System.Security.Permissions" Version="8.0.1" />
+    <PackageReference Include="Autofac" Version="8.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.MSSqlServer" Version="8.0.0" />
+    <PackageReference Include="Quartz" Version="3.13.1" />
   </ItemGroup>
 
-    <ItemGroup>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
+  <ItemGroup>
     <Reference Include="Mina.NET">
       <HintPath>..\Library/Mina.NET.dll</HintPath>
-    </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Quartz">
-      <HintPath>..\Library/Quartz.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Scheduling.Quartz">
-      <HintPath>..\Library/Spring.Scheduling.Quartz.dll</HintPath>
     </Reference>
   </ItemGroup>
 

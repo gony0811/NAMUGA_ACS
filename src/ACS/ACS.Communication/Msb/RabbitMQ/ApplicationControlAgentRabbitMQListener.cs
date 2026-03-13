@@ -12,7 +12,7 @@ using ACS.Framework.Message.Model.Control;
 
 namespace ACS.Communication.Msb.RabbitMQ
 {
-    class ApplicationControlAgentRabbitMQListener : AbstractRabbitMQListener
+    public class ApplicationControlAgentRabbitMQListener : AbstractRabbitMQListener
     {
         public IApplicationControlManager ApplicationControlManager { get; set; }
         public IMessageManagerEx MessageManager { get; set; }

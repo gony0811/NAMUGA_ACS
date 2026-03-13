@@ -24,7 +24,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
@@ -94,7 +94,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
@@ -160,7 +160,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }

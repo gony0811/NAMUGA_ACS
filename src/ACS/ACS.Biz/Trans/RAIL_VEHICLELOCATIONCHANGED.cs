@@ -5,20 +5,20 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 
 namespace ACS.Biz.Trans
 {
     class RAIL_VEHICLELOCATIONCHANGED : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger("OCODELog");
+        protected static Logger logger = Logger.GetLogger("OCODELog");
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -43,13 +43,13 @@ namespace ACS.Biz.Trans
                 int iCount;
                 bool sendReport = false;
                 bool isOCodeBay = false;
-                InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-                ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-                MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-                TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-                HistoryService = (HistoryServiceEx)ApplicationContext.GetObject("HistoryService");
-                AlarmService = (AlarmServiceEx)ApplicationContext.GetObject("AlarmService");
-                WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+                InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+                ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+                MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+                TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+                HistoryService = LifetimeScope.Resolve<HistoryServiceEx>();
+                AlarmService = LifetimeScope.Resolve<AlarmServiceEx>();
+                WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
                 vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_vehiclelocationchanged);
                 if (ResourceService.CheckVehicle(vehicleMsg))

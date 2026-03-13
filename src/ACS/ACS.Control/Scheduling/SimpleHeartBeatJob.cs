@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ACS.Framework.Scheduling.Model;
+using Quartz;
 
 namespace ACS.Control.Scheduling
 {
@@ -12,7 +13,7 @@ namespace ACS.Control.Scheduling
 
         public static string GROUP_SIMPLE_HEARTBEAT = "GROUP-SIMPLE-HEARTBEAT";
         //protected static ILog logger = LogManager.GetLogger(typeof(SimpleHeartBeatJob)); 
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             IControlServerManager controlServerManager = (IControlServerManager)context.MergedJobDataMap.Get("ControlServerManager");
             string applicationName = (string)context.MergedJobDataMap.Get("ApplicationName");

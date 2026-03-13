@@ -1,117 +1,163 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Collections;
-using Spring.Context;
-using Spring.Context.Support;
-using Spring.Context.Events;
-using System.Configuration;
-using System.Xml;
-using System.IO;
 using System.Diagnostics;
-using ACS.Framework.Reload;
+using System.IO;
+using Autofac;
+using Microsoft.Extensions.Configuration;
+using SysConfigManager = System.Configuration.ConfigurationManager;
+using ACS.Application.Modules;
+using Site = ACS.Application.Modules.Site;
 using ACS.Framework.Application;
-using ACS.Framework.Logging;
-using ACS.Utility;
-using log4net;
-using log4net.Config;
+using Serilog;
 
 namespace ACS.Application
 {
     public class Executor
     {
-        private Logger logger = Logger.GetLogger("ErrorLogger");
-        private IList definitions = new ArrayList();
-        private IList serviceDefinitions = new ArrayList();     
+        private ILogger logger = Log.ForContext("Logger", "ErrorLogger");
         public string Id { get; set; }
         public string StartUpPath { get; set; }
-        public string ConfigPath { get; set; }
         public string Type { get; set; }
         public string HardwareType { get; set; }
         public string Msb { get; set; }
         public string BaseClass { get; set; }
         public string ServicePath { get; set; }
         public bool UseService { get; set; }
+        /// <summary>
+        /// 레거시 호환용 — Serilog 마이그레이션 후 실질적으로 사용되지 않음.
+        /// LogPropertyWatchDog에서 참조하나 WatchDog 내부에서 실제로 사용하지 않음.
+        /// </summary>
         public string LogPath { get; set; }
-        public string LogTemplate { get; set; }
-        public string LogLevel { get; set; }
-        public bool UpdateLogPropertiesFile { get; set; }
 
+        private IContainer _container = null;
 
-        public IList Definitions { get { return definitions; } set { definitions = value; } }
-        public IList ServiceDefinitions { get { return serviceDefinitions; } set { serviceDefinitions = value; } }
-        public IBeforeContextInitialized BeforeContextInitialized { get; set; }
-
-        private IApplicationContext applicationContext = null;
-
-        public IApplicationContext Start()
+        public IContainer Start()
         {
             try
             {
                 long startTime = System.DateTime.UtcNow.Millisecond;
-                this.StartUpPath = ConfigurationManager.AppSettings[Settings.SYSTEM_STARTUP_PATH];
+                this.StartUpPath = SysConfigManager.AppSettings[Settings.SYSTEM_STARTUP_PATH];
 
-                this.Id = ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_ID_VALUE];
+                this.Id = SysConfigManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_ID_VALUE];
                 if (this.Id == null)
                 {
-                    //log
                     throw new ApplicationException("process id is null");
                 }
 
-
-                if(string.IsNullOrEmpty(StartUpPath))
+                if (string.IsNullOrEmpty(StartUpPath))
                 {
                     string exe = Process.GetCurrentProcess().MainModule.FileName;
                     StartUpPath = Path.GetDirectoryName(exe);
                 }
 
-                
-                this.HardwareType = ConfigurationManager.AppSettings[Settings.SYSTEM_ENV_KEY_HARDWARE_TYPE];
+                this.HardwareType = SysConfigManager.AppSettings[Settings.SYSTEM_ENV_KEY_HARDWARE_TYPE];
 
-                if (string.IsNullOrEmpty(this.ConfigPath))
+                // App.config에서 프로세스 설정 로드 (startup.xml 대체)
+                this.Type = SysConfigManager.AppSettings[Settings.SYSTEM_PROCESS_TYPE];
+                this.Msb = SysConfigManager.AppSettings[Settings.SYSTEM_PROCESS_MSB];
+                this.BaseClass = SysConfigManager.AppSettings[Settings.SYSTEM_PROCESS_BASE];
+                this.ServicePath = SysConfigManager.AppSettings[Settings.SYSTEM_PROCESS_SERVICEPATH];
+
+                if (string.IsNullOrEmpty(this.Type))
                 {
-                    this.ConfigPath = ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_CONFIG];
-                    this.ConfigPath = this.ConfigPath.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                    throw new ApplicationException("acs.process.type is not configured in App.config");
                 }
 
-                XmlElement node = GetApplicationElement();
-                Load(node);
-
-                CreateLogProperty();
-
-                this.BeforeContextInitialized = (this.BeforeContextInitialized == null ? (this.BeforeContextInitialized = new BeforeContextInitializedImplement()) : this.BeforeContextInitialized);
-                this.BeforeContextInitialized.Execute(this);
-
-                IReloadableClassLoader serviceClassLoader = null;
-
-                if(this.UseService)
+                if (!string.IsNullOrEmpty(ServicePath))
                 {
-                    IApplicationContext parentApplicationContext = new XmlApplicationContext(GetBeanDefinitionsAsStringArray());
-                    parentApplicationContext.Name = this.Id;
-                    string path = SystemUtility.GetFullPathName(ServicePath);
-                    serviceClassLoader = new CustomClassLoader(path);
-                    applicationContext = new XmlApplicationContext(false, parentApplicationContext, GetServiceBeanDefinitionsAsStringArray());
-
-                    foreach(object classObject in serviceClassLoader.GetClassLoader())
+                    string fullPath = StartUpPath + @"/" + ServicePath;
+                    if (!Directory.Exists(fullPath))
                     {
-                        applicationContext.ConfigureObject(classObject, classObject.GetType().FullName);
+                        Directory.CreateDirectory(fullPath);
+                    }
+                    this.UseService = true;
+                }
+
+                // Autofac 컨테이너 빌드 (Spring XmlApplicationContext 대체)
+                var builder = new ContainerBuilder();
+
+                // IConfiguration 등록 (Spring PropertyPlaceholderConfigurer 대체)
+                var configuration = new ConfigurationBuilder()
+                    .SetBasePath(StartUpPath)
+                    .AddJsonFile("appsettings.json", optional: true)
+                    .Build();
+                builder.RegisterInstance(configuration).As<IConfiguration>().SingleInstance();
+
+                // Executor 자신을 등록
+                builder.RegisterInstance(this).AsSelf().SingleInstance();
+
+                // 공통 모듈
+                builder.RegisterModule<CoreModule>();
+
+                // 프로세스 타입별 모듈 등록
+                RegisterProcessModule(builder, this.Type);
+
+                // 사이트별 모듈 등록
+                string site = SysConfigManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE];
+                RegisterSiteModule(builder, site);
+
+                // DB 모듈 등록
+                builder.RegisterModule<DatabaseModule>();
+
+                // MSB(RabbitMQ) 모듈 등록
+                if (!string.IsNullOrEmpty(this.Msb) && this.Msb.Equals("rabbitmq"))
+                {
+                    builder.RegisterModule(new MsbRabbitMQModule(this.Type));
+                }
+
+                // 스케줄링 모듈 등록 (프로세스 타입에 따라 Awake 잡 포함 여부 결정)
+                builder.RegisterModule(new SchedulingModule(this.Type));
+
+                _container = builder.Build();
+
+                // DB 스키마 생성 및 초기화
+                try
+                {
+                    var dbContext = _container.Resolve<ACS.Database.AcsDbContext>();
+                    dbContext.Database.EnsureCreated();
+                }
+                catch (Exception ex)
+                {
+                    logger.Error(ex, "Failed to initialize database schema.");
+                    throw; // DB 초기화 실패 시 실행 중단
+                }
+
+                // 초기화 실행 (Spring PublishEvent → AfterContextInitialized 대체)
+                var initializer = _container.Resolve<ApplicationInitializer>();
+                initializer.Initialize(this);
+
+                // 스케줄러 시작 (DB 초기화 이후에 실행) — Control/EI 동적 잡용
+                try
+                {
+                    var scheduler = _container.Resolve<Quartz.IScheduler>();
+                    if (!scheduler.IsStarted)
+                    {
+                        scheduler.Start().GetAwaiter().GetResult();
+                        logger.Information("Scheduler started successfully.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    applicationContext = new XmlApplicationContext(GetAllBeanDefinitionsAsStringArray());
-                    ((XmlApplicationContext)applicationContext).Name = this.Id;
-
+                    logger.Error(ex, "Failed to start scheduler.");
                 }
 
-                AfterContextInitializedEventArg afterContextInitializedEventArg = new AfterContextInitializedEventArg(this, applicationContext);
+                // BackgroundService 시작 (Awake 잡 10개)
+                try
+                {
+                    var hostedServices = _container.Resolve<IEnumerable<Microsoft.Extensions.Hosting.IHostedService>>();
+                    foreach (var service in hostedServices)
+                    {
+                        service.StartAsync(System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                    }
+                    logger.Information("Background services started successfully.");
+                }
+                catch (Exception ex)
+                {
+                    logger.Error(ex, "Failed to start background services.");
+                }
 
-                applicationContext.PublishEvent(this, afterContextInitializedEventArg);
-
-                logger.Info(string.Format("{0}({1}) server is started.", this.Type, this.Id));
-                return applicationContext;
+                logger.Information("{Type}({Id}) server is started.", this.Type, this.Id);
+                return _container;
             }
             catch (Exception e)
             {
@@ -121,211 +167,77 @@ namespace ACS.Application
 
         public void Stop()
         {
-            IApplicationControlManager applicationControlManager = (IApplicationControlManager)applicationContext.GetObject("ApplicationControlManager");
-            if(applicationControlManager.InvokeStop(this.Type, this.Id))
+            IApplicationControlManager applicationControlManager = _container.Resolve<IApplicationControlManager>();
+            if (applicationControlManager.InvokeStop(this.Type, this.Id))
             {
-                logger.Info(string.Format("{0}({1}) server is stopped.", this.Type, this.Id));
+                logger.Information("{Type}({Id}) server is stopped.", this.Type, this.Id);
             }
             else
             {
-                logger.Error(string.Format("{0}({1}) server stop is failed.", this.Type, this.Id));
+                logger.Error("{Type}({Id}) server stop is failed.", this.Type, this.Id);
+            }
+
+            // BackgroundService 종료
+            try
+            {
+                var hostedServices = _container.Resolve<IEnumerable<Microsoft.Extensions.Hosting.IHostedService>>();
+                foreach (var service in hostedServices)
+                {
+                    service.StopAsync(System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+                }
+            }
+            catch { }
+
+            _container?.Dispose();
+        }
+
+        private void RegisterProcessModule(ContainerBuilder builder, string processType)
+        {
+            switch (processType)
+            {
+                case "trans":
+                    builder.RegisterModule<TransModule>();
+                    break;
+                case "ei":
+                    builder.RegisterModule<EiModule>();
+                    break;
+                case "daemon":
+                    builder.RegisterModule<DaemonModule>();
+                    break;
+                case "control":
+                    builder.RegisterModule<ControlModule>();
+                    break;
+                case "query":
+                case "report":
+                    builder.RegisterModule<TransModule>();
+                    break;
+                case "host":
+                    builder.RegisterModule<HostModule>();
+                    break;
+                default:
+                    throw new ApplicationException($"Unknown process type: {processType}");
             }
         }
 
-
-        public String[] GetServiceBeanDefinitionsAsStringArray()
+        private void RegisterSiteModule(ContainerBuilder builder, string site)
         {
-            String[] serviceBeanDefinitionPaths = new String[this.ServiceDefinitions.Count];
-            for (int index = 0; index < this.ServiceDefinitions.Count; index++)
+            if (string.IsNullOrEmpty(site)) return;
+
+            switch (site.ToUpperInvariant())
             {
-                String path = SystemUtility.GetFullPathName((String)this.ServiceDefinitions[index]);
-                serviceBeanDefinitionPaths[index] = path;
+                case "V1":
+                    builder.RegisterModule<Site.V1SiteModule>();
+                    break;
+                case "V2":
+                    builder.RegisterModule<Site.V2SiteModule>();
+                    break;
+                case "SSM1D1F":
+                    builder.RegisterModule<Site.Ssm1d1fSiteModule>();
+                    break;
+                case "NAMUGA":
+                    builder.RegisterModule<Site.NamugaSiteModule>();
+                    break;
             }
-            return serviceBeanDefinitionPaths;
-        }
-
-        private String[] GetAllBeanDefinitionsAsStringArray()
-        {
-            String[] allBeanDefinitionPaths = new String[this.Definitions.Count + this.ServiceDefinitions.Count];
-            for (int index = 0; index < this.Definitions.Count; index++)
-            {
-                String path = (String)this.Definitions[index];
-                allBeanDefinitionPaths[index] = path;
-            }
-            for (int index = 0; index < this.ServiceDefinitions.Count; index++)
-            {
-                String path = (String)this.ServiceDefinitions[index];
-                allBeanDefinitionPaths[index] = path;
-            }
-            return allBeanDefinitionPaths;
-        }
-
-        private String[] GetBeanDefinitionsAsStringArray()
-        {
-            String[] beanDefinitionPaths = new String[this.Definitions.Count];
-            for (int index = 0; index < this.Definitions.Count; index++)
-            {
-                String path = StartUpPath + @"/" + (String)this.Definitions[index];
-                beanDefinitionPaths[index] = path;
-            }
-            return beanDefinitionPaths;
-        }
-
-
-        private void Load(XmlElement applicationElement)
-        {
-            string fullPath = string.Empty;
-            XmlElement idElement = applicationElement["id"];
-            this.Msb = idElement.GetAttribute("msb");
-            this.BaseClass = idElement.GetAttribute("base");
-            this.ServicePath = idElement.GetAttribute("servicepath");
-                     
-            if (!string.IsNullOrEmpty(ServicePath))
-            {
-                fullPath = StartUpPath + @"/" + ServicePath;
-                if (!Directory.Exists(fullPath))
-                {
-                    //System.out.println("[" + TimeUtils.getTimeToMilliPrettyFormat() + "] servicePath{" + this.servicePath + "} will be created");
-                    Directory.CreateDirectory(fullPath);
-                }
-                this.UseService = true;
-                
-            }
-
-            this.Type = idElement.GetAttribute("type");
-
-            XmlElement logElement = applicationElement["log"];
-            this.LogLevel = logElement.GetAttribute("level");
-            this.LogTemplate = logElement.GetAttribute("template");
-            if(string.IsNullOrEmpty(this.LogTemplate))
-            {
-                this.LogTemplate = StartUpPath + "/config/@{site}/startup/log-template.xml";
-                this.LogTemplate = this.LogTemplate.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
-            }
-            else
-            {
-                this.LogTemplate = StartUpPath + @"/" + this.LogTemplate;
-                this.LogTemplate = this.LogTemplate.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
-            }
-            this.LogPath = StartUpPath + @"/" + logElement.InnerText;
-            this.LogPath = LogPath.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
-            this.UpdateLogPropertiesFile = (logElement.GetAttribute("update").Equals("true"));
-
-            XmlElement definitionsElement = applicationElement["definitions"];
-
-            foreach(XmlNode node in definitionsElement.ChildNodes)
-            {
-                if (node.NodeType == XmlNodeType.Comment) continue;
-                XmlElement definitionElement = (XmlElement)node;
-                definitionElement.InnerText = definitionElement.InnerText.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
-                this.Definitions.Add(definitionElement.InnerText);
-            }
-
-            XmlElement serviceDefinitionsElement = applicationElement["services"];
-            if (serviceDefinitionsElement != null)
-            {
-                foreach(XmlNode node in serviceDefinitionsElement)
-                {
-                    if (node.NodeType == XmlNodeType.Comment) continue;
-                    XmlElement serviceDefinitionElement = (XmlElement)node;
-                    serviceDefinitionElement.InnerText = serviceDefinitionElement.InnerText.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
-                    this.ServiceDefinitions.Add(serviceDefinitionElement.InnerText);
-                }
-            }
-            else
-            {
-                //System.out.println("[" + TimeUtils.getTimeToMilliPrettyFormat() + "] services element does not exist in startup configuration file, you can not use the reload funtionality");
-            }
-        }
-
-        private void CreateLogProperty()
-        {
-            if (this.UpdateLogPropertiesFile)
-            {
-                List<string> newLines = new List<string>();
-                FineLevel fineLevel = new FineLevel(FineLevel.FINE_INT, "FINE", 0);
-
-                String logLevel = this.LogLevel;
-                if (this.LogLevel.Equals("FINE"))
-                {
-                    logLevel = "FINE#" + fineLevel.FINE.Name;
-                }
-                else if(this.LogLevel.Equals("WELL"))
-                {
-
-                }
-
-                try
-                {
-                    IList lines = System.IO.File.ReadAllLines(LogTemplate);
-
-                    foreach (var line in lines)
-                    {
-                        string newLine = line as string;
-
-                        int equalIndex = newLine.IndexOf("$");
-
-                        if (equalIndex > 0)
-                        {
-                            if (newLine.Contains("${log.level}"))
-                            {
-                                newLine = newLine.Replace("${log.level}", logLevel);
-                            }
-
-                            if (newLine.Contains("${process.type}"))
-                            {
-                                newLine = newLine.Replace("${process.type}", this.Type);
-                            }
-
-                            if (newLine.Contains("${process.name}"))
-                            {
-                                newLine = newLine.Replace("${process.name}", this.Id);
-                            }
-
-                            newLines.Add(newLine);
-                        }
-                        else
-                        {
-                            newLines.Add(newLine);
-                        }
-                    }
-                    System.IO.File.WriteAllLines(this.LogPath, newLines);
-                }
-                catch (Exception e)
-                {
-
-                    Console.WriteLine(e.Message);
-                }
-            }
-
-            XmlConfigurator.ConfigureAndWatch(new FileInfo(LogPath));
-        }
-
-        private XmlElement GetApplicationElement()
-        {
-            XmlDocument document = new XmlDocument();
-            string path = StartUpPath + @"/" + ConfigPath;
-
-            document.Load(path);
-
-            if (document == null)
-            {
-                //System.out.println("[" + TimeUtils.getTimeToMilliPrettyFormat() + "] failed to start, please check the configPath{" + this.configPath + "}");
-                //System.exit(0);
-            }
-            XmlNodeList ids = document.SelectNodes("//id");
-
-            foreach(XmlNode id in ids)
-            {
-                XmlNode idNode = id.LastChild;
-                if (idNode.InnerText.Equals(this.Id))
-                {
-                    return (XmlElement)id.ParentNode;
-                }
-            }
-            //System.out.println("[" + TimeUtils.getTimeToMilliPrettyFormat() + "] " + this.id + " does not exist in startup configuration file, please double-check it");
-            //System.exit(0);
-            return null;
         }
 
     }

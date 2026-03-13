@@ -1,5 +1,3 @@
-﻿using Quartz;
-using ACS.Framework.Scheduling.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,38 +8,44 @@ using ACS.Framework.Base.Interface;
 using ACS.Framework.History.Model;
 using System.Collections;
 using System.Globalization;
-using Spring.Scheduling.Quartz;
 using ACS.Framework.Logging;
+using ACS.Framework.History;
 
 
 namespace ACS.Scheduling.Awake
 {
-    public class AwakeTruncateHistoryJob : QuartzJobObject
+    public class AwakeTruncateHistoryJob : DailyBackgroundService
     {
-        protected Logger logger = Logger.GetLogger("SCHEDULING_LOG");
+        private readonly IHistoryManagerEx _historyManager;
+        private readonly IPersistentDao _persistentDao;
+        private const string DefaultTableName = "NA_L_LOGMESSAGE";
 
-        protected override void ExecuteInternal(JobExecutionContext context)
+        public AwakeTruncateHistoryJob(IHistoryManagerEx historyManager, IPersistentDao persistentDao)
+        {
+            _historyManager = historyManager;
+            _persistentDao = persistentDao;
+        }
+
+        protected override void ExecuteOnce()
         {
             try
             {
                 //logger.info("truncateHistoryJob will be invoked");
 
-                HistoryManagerExImplement historyManager = (HistoryManagerExImplement)context.MergedJobDataMap.Get("HistoryManager");
-                IPersistentDao persistentDao = (IPersistentDao)context.MergedJobDataMap.Get("PersistentDao");
-                String tableName = (String)context.MergedJobDataMap.Get("TableName");
+                HistoryManagerExImplement historyManagerImpl = (HistoryManagerExImplement)_historyManager;
 
-                TruncateParameterEx truncateParameterEx = historyManager.GetTruncateParameter(tableName);
+                TruncateParameterEx truncateParameterEx = historyManagerImpl.GetTruncateParameter(DefaultTableName);
                 if (truncateParameterEx == null)
                 {
-                    // logger.error("truncateParameter does not exist in repository, tableName{" + tableName + "}");
+                    // logger.error("truncateParameter does not exist in repository, tableName{" + DefaultTableName + "}");
                 }
                 else if (truncateParameterEx.PartitioningBase.Equals("DAY"))
                 {
-                    truncateHistoryByDayBasePartition(persistentDao, truncateParameterEx);
+                    truncateHistoryByDayBasePartition(_persistentDao, truncateParameterEx);
                 }
                 else if (truncateParameterEx.PartitioningBase.Equals("MONTH"))
                 {
-                    truncateHistoryByMonthBasePartition(persistentDao, truncateParameterEx);
+                    truncateHistoryByMonthBasePartition(_persistentDao, truncateParameterEx);
                 }
                 else
                 {
@@ -62,7 +66,7 @@ namespace ACS.Scheduling.Awake
 
        private void truncateHistoryByDayBasePartition(IPersistentDao persistentDao, String nativeSql, String partitioningBase, int savePeriod, String truncateSingleOrMulti)
         {
-            DateTime calender = DateTime.Now; 
+            DateTime calender = DateTime.Now;
             //Calendar calendar = new GregorianCalendar();
             if (truncateSingleOrMulti.Equals("SINGLE"))
             {

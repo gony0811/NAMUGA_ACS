@@ -1,32 +1,26 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
+using Autofac;
 using ACS.Framework.Application;
 using ACS.Framework.Application.Model;
 using ACS.Framework.Resource;
 using ACS.Framework.Logging;
-using ACS.Framework.Logging.Database;
 using ACS.Communication.Msb;
 using ACS.Communication.Msb.Highway101;
 using ACS.Control;
 using ACS.Utility;
 using ACS.Workflow;
 using System.Configuration;
-using Spring.Context;
-using Spring.Context.Support;
 using System.Net;
 using System.Net.Sockets;
-using log4net;
-using log4net.Config;
-using log4net.Repository;
 using ACS.Framework.Base;
 using ACS.Framework.Cache;
 
-[assembly: log4net.Config.XmlConfigurator(Watch = true)]
 namespace ACS.Application
 {
     public class AfterContextInitialized : AbstractManager
@@ -54,142 +48,142 @@ namespace ACS.Application
             
         }
 
-        public virtual void AfterContextInitComplete(Executor executor, IApplicationContext applicationContext)
+        public virtual void AfterContextInitComplete(Executor executor, ILifetimeScope lifetimeScope)
         {
             ACS.Framework.Application.Model.Application application = null;
             
             if (executor.Type.Equals(TYPE_TS))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, true);
+                StartLogPropertyWatchDog(lifetimeScope, executor, true);
 
-                SetApplicationContextWorkflowManager(applicationContext);
+                SetLifetimeScopeWorkflowManager(lifetimeScope);
 
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                SetReloadableToApplicationControlManager(applicationContext, executor);
+                SetReloadableToApplicationControlManager(lifetimeScope, executor);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                SynchronizeCache(applicationContext);
+                SynchronizeCache(lifetimeScope);
 
-                CreateOptions(applicationContext);
+                CreateOptions(lifetimeScope);
 
-                UpdateMaxCapacity(applicationContext);
+                UpdateMaxCapacity(lifetimeScope);
 
-                CreateSingleNodes(applicationContext);
+                CreateSingleNodes(lifetimeScope);
 
-                CreateTripleNodes(applicationContext);
+                CreateTripleNodes(lifetimeScope);
                 
-                DisplayDataSource(applicationContext);
+                DisplayDataSource(lifetimeScope);
 
-                InvokeStartWorkflow(applicationContext, application, "COMMON-START-TRANS");
+                InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-TRANS");
             }
             else if(executor.Type.Equals(TYPE_EI))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, false);
+                StartLogPropertyWatchDog(lifetimeScope, executor, false);
 
-                SetApplicationContextWorkflowManager(applicationContext);
+                SetLifetimeScopeWorkflowManager(lifetimeScope);
 
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                SetReloadableToApplicationControlManager(applicationContext, executor);
+                SetReloadableToApplicationControlManager(lifetimeScope, executor);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                StartSocket(applicationContext, executor);
+                StartSocket(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                SynchronizeCache(applicationContext);
-                DisplayDataSource(applicationContext);
+                SynchronizeCache(lifetimeScope);
+                DisplayDataSource(lifetimeScope);
 
                 logger.Info("successed in starting server");
 
-                InvokeStartWorkflow(applicationContext, application, "COMMON-START-EI");
+                InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-EI");
                 //logger.well("successed in starting server", true);
             }
             else if(executor.Type.Equals(TYPE_DS))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, false);
+                StartLogPropertyWatchDog(lifetimeScope, executor, false);
 
-                //SetApplicationContextWorkflowManager(applicationContext);
+                //SetLifetimeScopeWorkflowManager(lifetimeScope);
 
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                SynchronizeCache(applicationContext);
+                SynchronizeCache(lifetimeScope);
 
-                DisplayDataSource(applicationContext);
+                DisplayDataSource(lifetimeScope);
 
-                //InvokeStartWorkflow(applicationContext, application, "COMMON-START-DAEMON");
+                //InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-DAEMON");
                 //logger.well("successed in starting server", true);
             }
             else if(executor.Type.Equals(TYPE_MS))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, false);
+                StartLogPropertyWatchDog(lifetimeScope, executor, false);
 
-                SetApplicationContextWorkflowManager(applicationContext);
+                SetLifetimeScopeWorkflowManager(lifetimeScope);
 
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                SynchronizeCache(applicationContext);
+                SynchronizeCache(lifetimeScope);
 
-                DisplayDataSource(applicationContext);
+                DisplayDataSource(lifetimeScope);
 
-                InvokeStartWorkflow(applicationContext, application, "COMMON-START-REPORT");
+                InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-REPORT");
                 //logger.well("successed in starting server", true);
             }
             else if (executor.Type.Equals(TYPE_CS))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, false);
+                StartLogPropertyWatchDog(lifetimeScope, executor, false);
 
-                SetApplicationContextWorkflowManager(applicationContext);
+                SetLifetimeScopeWorkflowManager(lifetimeScope);
 
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                SetReloadableToApplicationControlManager(applicationContext, executor);
+                SetReloadableToApplicationControlManager(lifetimeScope, executor);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                ScheduleHeartBeat(applicationContext);
+                ScheduleHeartBeat(lifetimeScope);
 
-                //ScheduleServerTimeSync(applicationContext);
+                //ScheduleServerTimeSync(lifetimeScope);
 
-                DisplayDataSource(applicationContext);
+                DisplayDataSource(lifetimeScope);
 
-                InvokeStartWorkflow(applicationContext, application, "COMMON-START-CONTROL");
+                InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-CONTROL");
 
                 //logger.well("successed in starting server", true);
             }
             else if(executor.Type.Equals(TYPE_HS))
             {
-                StartLogPropertyWatchDog(applicationContext, executor, false);
+                StartLogPropertyWatchDog(lifetimeScope, executor, false);
 
-                SetApplicationContextWorkflowManager(applicationContext);
-                SetApplicationContextToApplicationControlManager(applicationContext);
+                SetLifetimeScopeWorkflowManager(lifetimeScope);
+                SetLifetimeScopeToApplicationControlManager(lifetimeScope);
 
-                SetReloadableToApplicationControlManager(applicationContext, executor);
+                SetReloadableToApplicationControlManager(lifetimeScope, executor);
 
-                StartMsb(applicationContext, executor);
+                StartMsb(lifetimeScope, executor);
 
-                application = CreateOrUpdateApplication(applicationContext, executor);
+                application = CreateOrUpdateApplication(lifetimeScope, executor);
 
-                SynchronizeCache(applicationContext);
+                SynchronizeCache(lifetimeScope);
 
-                DisplayDataSource(applicationContext);
+                DisplayDataSource(lifetimeScope);
 
-                InvokeStartWorkflow(applicationContext, application, "COMMON-START-HOST");
+                InvokeStartWorkflow(lifetimeScope, application, "COMMON-START-HOST");
 
                 //logger.well("successed in starting server", true);
             }
@@ -205,13 +199,13 @@ namespace ACS.Application
             }
         }
 
-        private void ScheduleServerTimeSync(IApplicationContext applicationContext)
+        private void ScheduleServerTimeSync(ILifetimeScope lifetimeScope)
         {
             IControlServerManagerEx controlServerManager = null;
 
             try
             {
-                controlServerManager = (IControlServerManagerEx)applicationContext.GetObject("ControlServerManager");
+                controlServerManager = lifetimeScope.Resolve<IControlServerManagerEx>();
             }
             catch (Exception e)
             {
@@ -222,7 +216,7 @@ namespace ACS.Application
             controlServerManager.ScheduleServerTimeSync();
         }
 
-        protected virtual void StartLogPropertyWatchDog(IApplicationContext applicationContext, Executor executor, bool useLogManager)
+        protected virtual void StartLogPropertyWatchDog(ILifetimeScope lifetimeScope, Executor executor, bool useLogManager)
         {
             LogPropertyWatchDog logPropertyWatchDog = new LogPropertyWatchDog(executor.LogPath);
 
@@ -230,19 +224,8 @@ namespace ACS.Application
             {
                 try
                 {
-                    ILogManager logManager = (ILogManager)applicationContext.GetObject("LogManager");
+                    ILogManager logManager = lifetimeScope.Resolve<ILogManager>();
                     logPropertyWatchDog.LogManager = logManager;
-
-                    log4net.Repository.ILoggerRepository loggerRepository = log4net.LogManager.GetRepository();
-                    
-                    foreach(log4net.Appender.IAppender appender in loggerRepository.GetAppenders())
-                    {
-                        if(appender is DatabaseAppender)
-                        {
-                            DatabaseAppender databaseAppender = (DatabaseAppender)appender;
-                            databaseAppender.LogManager = logManager;
-                        }
-                    }
                 }
                 catch (Exception e)
                 {
@@ -265,13 +248,13 @@ namespace ACS.Application
             //XmlConfigurator.Configure(new System.IO.FileInfo(LogconfigPath));
         }
 
-        protected void ScheduleHeartBeat(IApplicationContext applicationContext)
+        protected void ScheduleHeartBeat(ILifetimeScope lifetimeScope)
         {
             IControlServerManager controlServerManager = null;
 
             try
             {
-                controlServerManager = (IControlServerManager)applicationContext.GetObject("ControlServerManager");
+                controlServerManager = lifetimeScope.Resolve<IControlServerManager>();
             }
             catch (Exception e)
             {
@@ -299,39 +282,39 @@ namespace ACS.Application
             //
         }
 
-        protected virtual void StartSocket(IApplicationContext applicationContext, Executor executor)
+        protected virtual void StartSocket(ILifetimeScope lifetimeScope, Executor executor)
         {
 
         }
 
 
 
-        protected void SetApplicationContextWorkflowManager(IApplicationContext applicationContext)
+        protected void SetLifetimeScopeWorkflowManager(ILifetimeScope lifetimeScope)
         {
-            BizProcessManager bizProcessManager = (BizProcessManager)applicationContext.GetObject("BizProcessManager");
-            bizProcessManager.ApplicationContext = applicationContext;
+            BizProcessManager bizProcessManager = lifetimeScope.Resolve<BizProcessManager>();
+            bizProcessManager.LifetimeScope = lifetimeScope;
         }
 
-        protected void DisplayDataSource(IApplicationContext applicationContext)
+        protected void DisplayDataSource(ILifetimeScope lifetimeScope)
         {
             
         }
 
-        protected void CreateTripleNodes(IApplicationContext applicationContext)
+        protected void CreateTripleNodes(ILifetimeScope lifetimeScope)
         {
 
         }
 
-        protected void CreateSingleNodes(IApplicationContext applicationContext)
+        protected void CreateSingleNodes(ILifetimeScope lifetimeScope)
         {
 
         }
 
-        protected void SynchronizeCache(IApplicationContext applicationContext)
+        protected void SynchronizeCache(ILifetimeScope lifetimeScope)
         {
             try
             {
-                ICacheManagerEx CacheManager = (ICacheManagerEx)applicationContext.GetObject("CacheManager");
+                ICacheManagerEx CacheManager = lifetimeScope.Resolve<ICacheManagerEx>();
                 bool result = CacheManager.Synchronize();
                 if (result)
                 {
@@ -348,25 +331,25 @@ namespace ACS.Application
             }
         }
 
-        protected void UpdateMaxCapacity(IApplicationContext applicationContext)
+        protected void UpdateMaxCapacity(ILifetimeScope lifetimeScope)
         {
-            IResourceManagerEx resourceManager = (IResourceManagerEx)applicationContext.GetObject("ResourceManager");
+            IResourceManagerEx resourceManager = lifetimeScope.Resolve<IResourceManagerEx>();
         }
 
-        protected void CreateOptions(IApplicationContext applicationContext)
+        protected void CreateOptions(ILifetimeScope lifetimeScope)
         {
-            IApplicationManager applicationManager = (IApplicationManager)applicationContext.GetObject("ApplicationManager");
+            IApplicationManager applicationManager = lifetimeScope.Resolve<IApplicationManager>();
 
             applicationManager.CreateDefaultOptions();
         }
 
-        protected ACS.Framework.Application.Model.Application CreateOrUpdateApplication(IApplicationContext applicationContext, Executor executor)
+        protected ACS.Framework.Application.Model.Application CreateOrUpdateApplication(ILifetimeScope lifetimeScope, Executor executor)
         {
             ACS.Framework.Application.Model.Application application = null;
 
             try
             {
-                IApplicationManager applicationManager = (IApplicationManager)applicationContext.GetObject("ApplicationManager");
+                IApplicationManager applicationManager = lifetimeScope.Resolve<IApplicationManager>();
                 application = applicationManager.GetApplication(executor.Id);
 
                 //NA_X_APPLICATION Table EXE Name 없음
@@ -396,7 +379,7 @@ namespace ACS.Application
                         application.RunningHardware = executor.HardwareType;
                     }
 
-                    string defaultDestinationName = GetDefaultDestinationName(applicationContext);
+                    string defaultDestinationName = GetDefaultDestinationName(lifetimeScope);
                     
                     ////1PC 2ACS Test : Add 1Row
                     defaultDestinationName = defaultDestinationName.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
@@ -437,10 +420,10 @@ namespace ACS.Application
                     ////190316 //1PC 2ACS Test : 미들웨어 Queue destination Name 변경시  NA_X_APPLICATION 테이블 DB반영
                     //if (string.IsNullOrEmpty(application.DestinationName))
                     //{
-                    //    string defaultDestinationName = GetDefaultDestinationName(applicationContext);
+                    //    string defaultDestinationName = GetDefaultDestinationName(lifetimeScope);
                     //    application.DestinationName = defaultDestinationName;
                     //}
-                    string defaultDestinationName = GetDefaultDestinationName(applicationContext);
+                    string defaultDestinationName = GetDefaultDestinationName(lifetimeScope);
                     defaultDestinationName = defaultDestinationName.Replace("@{site}", ConfigurationManager.AppSettings[Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
 
                     if (string.IsNullOrEmpty(application.DestinationName) || !defaultDestinationName.Equals(application.DestinationName))
@@ -495,69 +478,48 @@ namespace ACS.Application
             return null;
         }
 
-        protected string GetDefaultDestinationName(IApplicationContext applicationContext)
+        protected string GetDefaultDestinationName(ILifetimeScope lifetimeScope)
         {
             string defaultDestinationName = "";
-            bool existDefaultDestination = false;
 
-            IDictionary applicationDefaultDestinationNames = applicationContext.GetObjectsOfType(typeof(ApplicationDefaultDestinationName));
-
-
-            foreach (object value in applicationDefaultDestinationNames.Values)
+            try
             {
-                ApplicationDefaultDestinationName applicationDefaultDestinationName = (ApplicationDefaultDestinationName)value;
-
+                ApplicationDefaultDestinationName applicationDefaultDestinationName = lifetimeScope.Resolve<ApplicationDefaultDestinationName>();
                 defaultDestinationName = applicationDefaultDestinationName.DestinationName;
-                existDefaultDestination = true;
-                break;
             }
-
-            if (!existDefaultDestination)
+            catch (Exception)
             {
-                while (applicationContext.ParentContext != null)
-                {
-                    applicationContext = applicationContext.ParentContext;
-                    applicationDefaultDestinationNames = applicationContext.GetObjectsOfType(typeof(ApplicationDefaultDestinationName));
-
-                    foreach (object value in applicationDefaultDestinationNames.Values)
-                    {
-                        ApplicationDefaultDestinationName applicationDefaultDestinationName = (ApplicationDefaultDestinationName)value;
-
-                        defaultDestinationName = applicationDefaultDestinationName.DestinationName;
-                        existDefaultDestination = true;
-                        break;
-                    }
-                }
+                // ApplicationDefaultDestinationName is not registered
             }
 
             return defaultDestinationName;
         }
 
-        protected void StartMsb(IApplicationContext applicationContext, Executor executor)
+        protected void StartMsb(ILifetimeScope lifetimeScope, Executor executor)
         {
             if (executor.Msb.Equals("tibrv"))
             {
-                StartTibrvListener(applicationContext);
+                StartTibrvListener(lifetimeScope);
             }
             else if (executor.Msb.Equals("highway101"))
             {
-                StartHighway101Listener(applicationContext);
+                StartHighway101Listener(lifetimeScope);
             }
             else if (executor.Msb.Equals("ibmmq"))
             {
-                StartIbmMq(applicationContext);
+                StartIbmMq(lifetimeScope);
             }
             else if (executor.Msb.Equals("activemq"))
             {
-                StartActiveMq(applicationContext);
+                StartActiveMq(lifetimeScope);
             }
             else if (executor.Msb.Equals("any"))
             {
-                StartHighway101Listener(applicationContext);
+                StartHighway101Listener(lifetimeScope);
             }
             else if (executor.Msb.Equals("rabbitmq"))
             {
-                StartRabbitMQListener(applicationContext);
+                StartRabbitMQListener(lifetimeScope);
             }
             else if (executor.Msb.Equals("none"))
             {
@@ -569,41 +531,26 @@ namespace ACS.Application
 
                 throw new ApplicationNotStartedException(message);
             }
-
-            //StringBuilder sbSender = new StringBuilder();
-            //StringBuilder sbReceiver = new StringBuilder();
-
-            //IDictionary currentAbstractMsbs = applicationContext.GetObjectsOfType(typeof(AbstractMsb));
-
-            //foreach(AbstractMsb abstractMsb in currentAbstractMsbs)
-            //{
-            //    if(abstractMsb is IControllable)
-            //    {
-
-            //    }
-            //}
         }
 
-        protected void StartActiveMq(IApplicationContext applicationContext)
+        protected void StartActiveMq(ILifetimeScope lifetimeScope)
         {
             throw new NotImplementedException();
         }
 
-        protected void StartIbmMq(IApplicationContext applicationContext)
+        protected void StartIbmMq(ILifetimeScope lifetimeScope)
         {
             throw new NotImplementedException();
         }
 
-        protected void StartRabbitMQListener(IApplicationContext applicationContext)
+        protected void StartRabbitMQListener(ILifetimeScope lifetimeScope)
         {
-            IDictionary currentMsbControllables = applicationContext.GetObjectsOfType(typeof(IMsbControllable));
+            IEnumerable<IMsbControllable> msbControllables = lifetimeScope.Resolve<IEnumerable<IMsbControllable>>();
 
-            foreach (object obj in currentMsbControllables.Values)
+            foreach (IMsbControllable msbControllable in msbControllables)
             {
                 try
                 {
-                    IMsbControllable msbControllable = (IMsbControllable)obj;
- 
                     if(msbControllable.GetMsbControllerName().Equals("rabbitmq"))
                     {
                         msbControllable.Start();
@@ -614,33 +561,15 @@ namespace ACS.Application
                     throw e;
                 }
             }
-
-            IApplicationContext parentApplicationContext = applicationContext.ParentContext;
-            if (parentApplicationContext != null)
-            {
-                IDictionary parentMsbControllables = parentApplicationContext.GetObjectsOfType(typeof(IMsbControllable));
-                foreach (object msbControllable in parentMsbControllables.Values)
-                {
-                    try
-                    {
-                        ((IMsbControllable)msbControllable).Start();
-                    }
-                    catch (MsbStartExecption e)
-                    {
-                        throw e;
-                    }
-                }
-            }
         }
-        protected void StartHighway101Listener(IApplicationContext applicationContext)
+        protected void StartHighway101Listener(ILifetimeScope lifetimeScope)
         {
-            IDictionary currentMsbControllables = applicationContext.GetObjectsOfType(typeof(IMsbControllable));
+            IEnumerable<IMsbControllable> msbControllables = lifetimeScope.Resolve<IEnumerable<IMsbControllable>>();
 
-            foreach (object obj in currentMsbControllables.Values)
+            foreach (IMsbControllable msbControllable in msbControllables)
             {
                 try
                 {
-                    IMsbControllable msbControllable = (IMsbControllable)obj;
                     msbControllable.Start();
                 }
                 catch (MsbStartExecption e)
@@ -648,36 +577,16 @@ namespace ACS.Application
                     throw e;
                 }
             }
-
-            IApplicationContext parentApplicationContext = applicationContext.ParentContext;
-            if (parentApplicationContext != null)
-            {
-                IDictionary parentMsbControllables = parentApplicationContext.GetObjectsOfType(typeof(IMsbControllable));
-                foreach (object msbControllable in parentMsbControllables.Values)
-                {
-                    try
-                    {
-                        ((IMsbControllable)msbControllable).Start();
-                    }
-                    catch (MsbStartExecption e)
-                    {
-                        throw e;
-                    }
-                }
-            }
         }
 
-        protected void StartTibrvListener(IApplicationContext applicationContext)
+        protected void StartTibrvListener(ILifetimeScope lifetimeScope)
         {
-            IDictionary currentMsbControllables = applicationContext.GetObjectsOfType(typeof(IMsbControllable));
+            IEnumerable<IMsbControllable> msbControllables = lifetimeScope.Resolve<IEnumerable<IMsbControllable>>();
 
-            //foreach (IMsbControllable msbControllable in currentMsbControllables)
-            foreach (object obj in currentMsbControllables.Values)
+            foreach (IMsbControllable msbControllable in msbControllables)
             {
                 try
                 {
-                    //msbControllable.Start();
-                    IMsbControllable msbControllable = (IMsbControllable)obj;
                     msbControllable.Start();
                 }
                 catch (MsbStartExecption e)
@@ -685,31 +594,14 @@ namespace ACS.Application
                     throw e;
                 }
             }
-
-            IApplicationContext parentApplicationContext = applicationContext.ParentContext;
-            if (parentApplicationContext != null)
-            {
-                IDictionary parentMsbControllables = parentApplicationContext.GetObjectsOfType(typeof(IMsbControllable));
-                foreach (object msbControllable in parentMsbControllables.Values)
-                {
-                    try
-                    {
-                        ((IMsbControllable)msbControllable).Start();
-                    }
-                    catch (MsbStartExecption e)
-                    {
-                        throw e;
-                    }
-                }
-            }
         }
 
-        protected void SetApplicationContextToApplicationControlManager(IApplicationContext applicationContext)
+        protected void SetLifetimeScopeToApplicationControlManager(ILifetimeScope lifetimeScope)
         {
             try
             {
-                IApplicationControlManager applicationControlManager = (IApplicationControlManager)applicationContext.GetObject("ApplicationControlManager");
-                applicationControlManager.ApplicationContext = applicationContext;
+                IApplicationControlManager applicationControlManager = lifetimeScope.Resolve<IApplicationControlManager>();
+                applicationControlManager.LifetimeScope = lifetimeScope;
             }
             catch (Exception e)
             {
@@ -717,20 +609,20 @@ namespace ACS.Application
             }
         }
 
-        protected void SetReloadableToApplicationControlManager(IApplicationContext applicationContext, Executor executor)
+        protected void SetReloadableToApplicationControlManager(ILifetimeScope lifetimeScope, Executor executor)
         {
             try
             {
-                IApplicationControlManager applicationControlManager = (IApplicationControlManager)applicationContext.GetObject("ApplicationControlManager");
+                IApplicationControlManager applicationControlManager = lifetimeScope.Resolve<IApplicationControlManager>();
                 if (executor.UseService)
                 {
                     //-----------BPEL Document Reload 
-                    //IReloadableApplicationContextAware reloadableApplicationContextAware = (IReloadableApplicationContextAware)applicationContext.GetObject("bpelProcessContext");
+                    //IReloadableApplicationContextAware reloadableApplicationContextAware = (IReloadableApplicationContextAware)lifetimeScope.Resolve<IReloadableApplicationContextAware>();
                     //applicationControlManager.ReloadableApplicationContextAware = reloadableApplicationContextAware;
 
                     //-----------Service.dll Reload
                     applicationControlManager.ReloadableDirectory = executor.ServicePath;
-                    applicationControlManager.ReloadableAssemblyDefinitions = executor.GetServiceBeanDefinitionsAsStringArray();
+                    // applicationControlManager.ReloadableAssemblyDefinitions = executor.GetServiceBeanDefinitionsAsStringArray();
                 }
             }
             catch (Exception e)
@@ -740,13 +632,13 @@ namespace ACS.Application
             }
         }
 
-        protected void InvokeStartWorkflow(IApplicationContext applicationContext, ACS.Framework.Application.Model.Application application, string messageName)
+        protected void InvokeStartWorkflow(ILifetimeScope lifetimeScope, ACS.Framework.Application.Model.Application application, string messageName)
         {
             try
             {
-                Workflow.IWorkflowManager workflowManager = (IWorkflowManager)applicationContext.GetObject("WorkflowManager");
+                Workflow.IWorkflowManager workflowManager = lifetimeScope.Resolve<IWorkflowManager>();
                 
-                Object[] args = { applicationContext, application };               
+                Object[] args = { lifetimeScope, application };               
                 workflowManager.Execute(messageName, args);
                 //workflowManager.Start();
             }

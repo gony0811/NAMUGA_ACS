@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
-using NHibernate.Criterion;
 using ACS.Framework.Base;
 using ACS.Framework.Base.Interface;
 using ACS.Framework.Transfer.Model;
@@ -92,55 +91,43 @@ namespace ACS.Manager.Transfer
   
         public TransportCommandRequestEx GetTransportCommandRequest(String jobId, String vehicleId, String dest)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandRequestEx));
-            criteria.Add(Restrictions.Eq("JobId", jobId));
-            criteria.Add(Restrictions.Eq("VehicleId", vehicleId));
-            criteria.Add(Restrictions.Eq("Dest", dest));
-
-            IList transportCommandRequests = this.PersistentDao.FindByCriteria(criteria);
-                //logger.info("count{" + transportCommandRequests.size() + "}, " + transportCommandRequests);
+            var attributes = new Dictionary<string, object>
+            {
+                { "JobId", jobId },
+                { "VehicleId", vehicleId },
+                { "Dest", dest }
+            };
+            IList transportCommandRequests = this.PersistentDao.FindByAttributes(typeof(TransportCommandRequestEx), attributes);
             if (transportCommandRequests.Count > 0)
             {
-                TransportCommandRequestEx transportCommandRequestEx = (TransportCommandRequestEx)transportCommandRequests[0];
-                //logger.info(transportCommandRequestACS);
-                return transportCommandRequestEx;
+                return (TransportCommandRequestEx)transportCommandRequests[0];
             }
-            //logger.info("transportCommandRequest does not exist in repository, " + criteria);
             return null;
          }
   
         public TransportCommandRequestEx GetTransportCommandRequest(String jobId, String vehicleId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandRequestEx));
-            criteria.Add(Restrictions.Eq("JobId", jobId));
-            criteria.Add(Restrictions.Eq("VehicleId", vehicleId));
-    
-            IList transportCommandRequests = this.PersistentDao.FindByCriteria(criteria);
-            //logger.info("count{" + transportCommandRequests.size() + "}, " + transportCommandRequests);
-            if (transportCommandRequests.Count> 0)
+            var attributes = new Dictionary<string, object>
             {
-              TransportCommandRequestEx transportCommandRequestEx = (TransportCommandRequestEx)transportCommandRequests[0];
-            //logger.info(transportCommandRequestACS);
-              return transportCommandRequestEx;
+                { "JobId", jobId },
+                { "VehicleId", vehicleId }
+            };
+            IList transportCommandRequests = this.PersistentDao.FindByAttributes(typeof(TransportCommandRequestEx), attributes);
+            if (transportCommandRequests.Count > 0)
+            {
+                return (TransportCommandRequestEx)transportCommandRequests[0];
             }
-            //logger.info("transportCommandRequest does not exist in repository, " + criteria);
             return null;
         }
   
         public TransportCommandRequestEx GetTransportCommandRequest(String vehicleId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(TransportCommandRequestEx));
-            criteria.Add(Restrictions.Eq("VehicleId", vehicleId));
-    
-            IList transportCommandRequests = this.PersistentDao.FindByCriteria(criteria);
-            //logger.info("count{" + transportCommandRequests.size() + "}, " + transportCommandRequests);
+            var attributes = new Dictionary<string, object> { { "VehicleId", vehicleId } };
+            IList transportCommandRequests = this.PersistentDao.FindByAttributes(typeof(TransportCommandRequestEx), attributes);
             if (transportCommandRequests.Count > 0)
             {
-              TransportCommandRequestEx transportCommandRequestEx = (TransportCommandRequestEx)transportCommandRequests[0];
-            //logger.info(transportCommandRequestACS);
-              return transportCommandRequestEx;
+                return (TransportCommandRequestEx)transportCommandRequests[0];
             }
-            //logger.info("transportCommandRequest does not exist in repository, " + criteria);
             return null;
         }
 

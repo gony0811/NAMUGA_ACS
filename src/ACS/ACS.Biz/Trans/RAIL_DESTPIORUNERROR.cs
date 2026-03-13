@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -31,7 +31,7 @@ namespace ACS.Biz.Trans
         {
             XmlDocument rail_destoccupied = (XmlDocument)args[0];
 
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
 
             this.WorkflowManager.Execute("RAIL_DESTOCCUPIED", rail_destoccupied);
 

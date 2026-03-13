@@ -5,13 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
 using ACS.Framework.Message.Model.Ui;
 using ACS.Workflow;
-using log4net;
+using ACS.Framework.Logging;
 using System.Xml;
 using ACS.Utility;
 
@@ -19,7 +19,7 @@ namespace ACS.Biz.Trans
 {
     class RAIL_DESTOCCUPIED : BaseBizJob
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(RAIL_DESTOCCUPIED));
+        public Logger logger = Logger.GetLogger(typeof(RAIL_DESTOCCUPIED));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;
@@ -40,11 +40,11 @@ namespace ACS.Biz.Trans
             Boolean iConnectionState;
             Boolean result;
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            WorkflowManager = (IWorkflowManager)ApplicationContext.GetObject("WorkflowManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            WorkflowManager = LifetimeScope.Resolve<IWorkflowManager>();
             vehicleMsg = InterfaceService.CreateVehicleMessageFromES(rail_destoccupied);
 
             logger.Debug("TS RAIL_DESTOCCUPIED START========================================================");

@@ -123,7 +123,7 @@ namespace ACS.Manager.Message
 
         }
 
-        public virtual void Init()
+        public override void Init()
         {
             base.Init();
             if (this.messageTemplatePath == null)

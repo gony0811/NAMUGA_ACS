@@ -1,5 +1,5 @@
 ﻿using ACS.Framework.Base;
-using Spring.Context;
+using Autofac;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,7 +11,6 @@ using ACS.Communication.Socket;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
 using ACS.Workflow;
-using NHibernate.Criterion;
 using ACS.Framework.Resource.Model;
 using ACS.Framework.Resource;
 using ACS.Utility;
@@ -19,13 +18,13 @@ using ACS.Utility;
 
 namespace ACS.Communication.Socket
 {
-    public class NioInterfaceManager : AbstractManager, IApplicationContextAware
+    public class NioInterfaceManager : AbstractManager
     {
         private IDictionary nioInterfaces = new Hashtable();
         protected IMessageManagerEx messageManager;
         //protected CacheManager cacheManager;
         protected DuplicateChecker duplicateChecker;
-        private IApplicationContext applicationContext;
+        private ILifetimeScope lifetimeScope;
         public IResourceManagerEx ResourceManager { get; set; } 
         public virtual IDictionary NioInterfaces
         {
@@ -56,10 +55,10 @@ namespace ACS.Communication.Socket
             set { this.duplicateChecker = value; }
         }
 
-        public virtual IApplicationContext ApplicationContext
+        public virtual ILifetimeScope LifetimeScope
         {
-            get { return this.applicationContext; }
-            set { this.applicationContext = value; }
+            get { return this.lifetimeScope; }
+            set { this.lifetimeScope = value; }
         }
         public virtual void DisplayAll()
         {
@@ -83,7 +82,7 @@ namespace ACS.Communication.Socket
         //public virtual SocketClient GetNioInterface(string name)
         public virtual object GetNioInterface(string name)
         {
-            this.ResourceManager = (IResourceManagerEx)applicationContext.GetObject("ResourceManager");
+            this.ResourceManager = lifetimeScope.Resolve<IResourceManagerEx>();
 
             VehicleEx vehicle = this.ResourceManager.GetVehicle(name);
             SocketClient socketClient = (SocketClient)this.nioInterfaces[vehicle.NioId];
@@ -132,7 +131,7 @@ namespace ACS.Communication.Socket
 
             try
             {
-                IWorkflowManager workflowManager = (IWorkflowManager)this.applicationContext.GetObject(nio.WorkflowManagerName);
+                IWorkflowManager workflowManager = this.lifetimeScope.ResolveNamed<IWorkflowManager>(nio.WorkflowManagerName);
 
                 socketClient.WorkflowManager = workflowManager;
                 socketClient.DuplicateChecker = this.DuplicateChecker;
@@ -182,11 +181,8 @@ namespace ACS.Communication.Socket
 
         public virtual void LoadNioInterface(String applicationName, String name)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("ApplicationName", applicationName));
-            criteria.Add(Restrictions.Eq("Name", name));
-
-            IList nioes = this.PersistentDao.FindByCriteria(criteria);
+            var attrs = new Dictionary<string, object> { {"ApplicationName", applicationName}, {"Name", name} };
+            IList nioes = this.PersistentDao.FindByAttributes(typeof(Nio), attrs);
             if (nioes.Count == 0)
             {
                 logger.Error("nio{" + name + "} does not exist");
@@ -405,7 +401,7 @@ namespace ACS.Communication.Socket
 
         public int GetNioCount()
         {
-            return this.PersistentDao.Count(DetachedCriteria.For(typeof(Nio)));
+            return this.PersistentDao.FindAll(typeof(Nio)).Count;
         }
 
         /**
@@ -418,11 +414,8 @@ namespace ACS.Communication.Socket
 
         public Nio GetNio(string name, string applicationName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("Name", name));
-            criteria.Add(Restrictions.Eq("ApplicationName", applicationName));
-
-            IList niolist = this.PersistentDao.FindByCriteria(criteria);
+            var attrs = new Dictionary<string, object> { {"Name", name}, {"ApplicationName", applicationName} };
+            IList niolist = this.PersistentDao.FindByAttributes(typeof(Nio), attrs);
             if (niolist.Count > 0)
             {
                 return (Nio)niolist[0];
@@ -433,11 +426,8 @@ namespace ACS.Communication.Socket
 
         public Nio GetNioByState(String name, String state)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("Name", name));
-            criteria.Add(Restrictions.Eq("State", state));
-
-            IList niolist = this.PersistentDao.FindByCriteria(criteria);
+            var attrs = new Dictionary<string, object> { {"Name", name}, {"State", state} };
+            IList niolist = this.PersistentDao.FindByAttributes(typeof(Nio), attrs);
             if (niolist.Count > 0)
             {
                 return (Nio)niolist[0];
@@ -516,19 +506,13 @@ namespace ACS.Communication.Socket
 
         public IList GetNioesByApplicationName(string applicationName)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("ApplicationName", applicationName));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(Nio), "ApplicationName", applicationName);
         }
 
 
         public IList GetNioes(string name)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(Nio));
-            criteria.Add(Restrictions.Eq("Name", name));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(Nio), "Name", name);
         }
 
         public IList GetNioByApplicationName(string applicationName)

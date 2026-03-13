@@ -13,14 +13,13 @@ using ACS.Framework.Message.Model;
 using ACS.Framework.Host;
 using ACS.Framework.Logging;
 using System.Xml;
-using Spring.Context;
-using log4net;
+using Autofac;
 
 namespace ACS.Biz.Host
 {
     public class MOVECMD : BaseBizJob
     {
-        protected static ILog logger = LogManager.GetLogger(typeof(MOVECMD));
+        protected static Logger logger = Logger.GetLogger(typeof(MOVECMD));
         protected Logger eventLogger = Logger.GetLogger("EventLogger");
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
@@ -43,12 +42,12 @@ namespace ACS.Biz.Host
 
             XmlDocument MOVECMD = (XmlDocument)args[0];
 
-            InterfaceService = (InterfaceServiceEx)ApplicationContext.GetObject("InterfaceService");
-            ResourceService = (ResourceServiceEx)ApplicationContext.GetObject("ResourceService");
-            MaterialService = (MaterialServiceEx)ApplicationContext.GetObject("MaterialService");
-            TransferService = (TransferServiceEx)ApplicationContext.GetObject("TransferService");
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            HostMessageManager = (IHostMessageManager)ApplicationContext.GetObject("HostMessageManager");
+            InterfaceService = LifetimeScope.Resolve<InterfaceServiceEx>();
+            ResourceService = LifetimeScope.Resolve<ResourceServiceEx>();
+            MaterialService = LifetimeScope.Resolve<MaterialServiceEx>();
+            TransferService = LifetimeScope.Resolve<TransferServiceEx>();
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            HostMessageManager = LifetimeScope.Resolve<IHostMessageManager>();
 
             TransferMessageEx transferMsg = InterfaceService.CreateTransferMessage(MOVECMD);
 

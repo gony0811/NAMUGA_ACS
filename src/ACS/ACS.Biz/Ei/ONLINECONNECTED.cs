@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
-using Spring.Context;
+using Autofac;
 using ACS.Framework.Base;
 using ACS.Service;
 using ACS.Framework.Message.Model;
@@ -30,8 +30,8 @@ namespace ACS.Biz.Ei
 
         public override int ExecuteJob(object[] args)
         {
-            VehicleInterfaceService = (VehicleInterfaceServiceEx)ApplicationContext.GetObject("VehicleInterfaceService");
-            HistoryService = (HistoryServiceEx)ApplicationContext.GetObject("HistoryService");
+            VehicleInterfaceService = LifetimeScope.Resolve<VehicleInterfaceServiceEx>();
+            HistoryService = LifetimeScope.Resolve<HistoryServiceEx>();
 
             Nio nio = (Nio)args[0];
             VehicleInterfaceService.UpdateNioStateConnect(nio);

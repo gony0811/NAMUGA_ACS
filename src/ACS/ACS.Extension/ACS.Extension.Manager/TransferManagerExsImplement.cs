@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using ACS.Manager.Transfer;
 using ACS.Extension.Framework.Transfer;
 using ACS.Framework.Transfer.Model;
-using NHibernate.Criterion;
 using ACS.Extension.Framework.Transfer.Model;
 
 namespace ACS.Extension.Manager

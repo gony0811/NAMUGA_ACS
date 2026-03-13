@@ -5,13 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
-using log4net.Core;
+using Serilog.Events;
 using ACS.Framework.Base.Interface;
 using ACS.Framework.Logging;
 using ACS.Framework.Logging.Model;
 using ACS.Framework.Message;
-using Spring.Core;
-using Spring;
 
 namespace ACS.Framework.Logging.Implement
 {
@@ -67,71 +65,80 @@ namespace ACS.Framework.Logging.Implement
             throw new NotImplementedException();
         }
 
-        public void CreateLogMessage(LoggingEvent loggingEvent)
+        public void CreateLogMessage(LogEvent logEvent)
         {
             try
             {
-                LogMessage logMessage = (LogMessage)loggingEvent.MessageObject;
-
-                if (this.SkipLoggingMessages.Contains(logMessage.MessageName))
+                if (logEvent.Properties.TryGetValue("LogMessage", out var logMessageValue) &&
+                    logMessageValue is ScalarValue scalarValue &&
+                    scalarValue.Value is LogMessage logMessage)
                 {
-                    return;
-                }
-
-                string transactionId = logMessage.TransactionId;
-
-                if (string.IsNullOrEmpty(transactionId) && this.ThreadLocal != null)
-                {
-                    transactionId = this.ThreadLocal.Value != null ? this.ThreadLocal.Value.ToString() : "";
-                    logMessage.TransactionId = transactionId;
-                }
-                logMessage.Time = DateTime.Now;
-                logMessage.ThreadName = loggingEvent.ThreadName;
-                logMessage.OperationName = loggingEvent.LocationInformation.MethodName;
-                logMessage.LogLevel = loggingEvent.Level.Name;
-                ChangeCommunicationMessageName(logMessage);
-
-                string text = logMessage.Text;
-
-                if (string.IsNullOrEmpty(text) || text.Length <= this.TextSizeForInsert)
-                {
-                    logMessage.Text = text;
-
-                    this.PersistentDao.Save(logMessage);
-                }
-                else
-                {
-                    int size = text.Length;
-                    int fieldSize = this.LargeTextSizeForInsert;
-                    int quotient = size / fieldSize;
-                    int startIndex = 0;
-                    int endIndex = 0;
-
-                    for(int index = 0; index <= quotient; index++)
+                    if (this.SkipLoggingMessages.Contains(logMessage.MessageName))
                     {
-                        startIndex = index == 0 ? 0 : index * fieldSize;
-                        endIndex = index == quotient ? size : (index + 1) * fieldSize;
+                        return;
+                    }
 
-                        string largeText = text.Substring(startIndex, endIndex);
-                        if(index == 0)
+                    string transactionId = logMessage.TransactionId;
+
+                    if (string.IsNullOrEmpty(transactionId) && this.ThreadLocal != null)
+                    {
+                        transactionId = this.ThreadLocal.Value != null ? this.ThreadLocal.Value.ToString() : "";
+                        logMessage.TransactionId = transactionId;
+                    }
+                    logMessage.Time = logEvent.Timestamp.DateTime;
+                    logMessage.ThreadName = System.Threading.Thread.CurrentThread.ManagedThreadId.ToString();
+
+                    // Extract method name from source context if available
+                    if (logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
+                    {
+                        logMessage.OperationName = sourceContext.ToString().Trim('"');
+                    }
+
+                    logMessage.LogLevel = logEvent.Level.ToString();
+                    ChangeCommunicationMessageName(logMessage);
+
+                    string text = logMessage.Text;
+
+                    if (string.IsNullOrEmpty(text) || text.Length <= this.TextSizeForInsert)
+                    {
+                        logMessage.Text = text;
+
+                        this.PersistentDao.Save(logMessage);
+                    }
+                    else
+                    {
+                        int size = text.Length;
+                        int fieldSize = this.LargeTextSizeForInsert;
+                        int quotient = size / fieldSize;
+                        int startIndex = 0;
+                        int endIndex = 0;
+
+                        for(int index = 0; index <= quotient; index++)
                         {
-                            if(this.UseFirstIterationLargeLogMessage)
+                            startIndex = index == 0 ? 0 : index * fieldSize;
+                            endIndex = index == quotient ? size : (index + 1) * fieldSize;
+
+                            string largeText = text.Substring(startIndex, endIndex);
+                            if(index == 0)
                             {
-                                logMessage.Text = largeText;
-                            }
-                            else
-                            {
-                                logMessage.Text = "";
+                                if(this.UseFirstIterationLargeLogMessage)
+                                {
+                                    logMessage.Text = largeText;
+                                }
+                                else
+                                {
+                                    logMessage.Text = "";
+                                }
+
+                                this.PersistentDao.Save(logMessage);
                             }
 
-                            this.PersistentDao.Save(logMessage);
+                            LargeLogMessage largeLogMessage = CreateLargeLogMessageInstance(logMessage.PartitionId);
+                            largeLogMessage.Sequence = index;
+                            largeLogMessage.LogMessageId = logMessage.Id;
+                            largeLogMessage.LargeText = largeText;
+                            this.PersistentDao.Save(largeLogMessage);
                         }
-
-                        LargeLogMessage largeLogMessage = CreateLargeLogMessageInstance(logMessage.PartitionId);
-                        largeLogMessage.Sequence = index;
-                        largeLogMessage.LogMessageId = logMessage.Id;
-                        largeLogMessage.LargeText = largeText;
-                        this.PersistentDao.Save(largeLogMessage);
                     }
                 }
             }

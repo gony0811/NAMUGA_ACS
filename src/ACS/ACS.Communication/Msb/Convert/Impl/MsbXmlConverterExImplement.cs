@@ -1,4 +1,5 @@
 ﻿using ACS.Communication.Msb.Convert.Mapping;
+using ACS.Framework.Logging;
 using ACS.Framework.Message.Model;
 using ACS.Utility;
 using System;
@@ -7,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Spring.Objects;
+// ObjectWrapper is in ACS.Utility
 using System.Collections;
 using System.Reflection;
 
@@ -17,7 +18,7 @@ namespace ACS.Communication.Msb.Convert.Implement
 
     public class MsbXmlConverterExImplement : AbstractMsbConverter
     {
-        private static readonly log4net.ILog logger = log4net.LogManager.GetLogger(typeof(MsbXmlConverterExImplement));
+        private static Logger logger = Logger.GetLogger(typeof(MsbXmlConverterExImplement));
         public override Object ConvertToHost(String messageName, AbstractMessage abstractMessage)
         {
             SendMessageMapping sendMessageMapping = (SendMessageMapping)this.SendMessageMappings[messageName];
@@ -165,11 +166,11 @@ namespace ACS.Communication.Msb.Convert.Implement
                                 String propertyValue = GetPropertyValue(beanWrapper, token[0]);
                                 if (string.IsNullOrEmpty(propertyValue))
                                 {
-                                    nodes.InnerText = this.MessageSourceAccessor.GetMessage(value.ToUpper(), "");
+                                    nodes.InnerText = (this.MessageSource != null && this.MessageSource.TryGetValue(value.ToUpper(), out var _msgVal) ? _msgVal : "");
                                 }
                                 else
                                 {
-                                    nodes.InnerText = this.MessageSourceAccessor.GetMessage(value.ToUpper() + "." + propertyValue, "");
+                                    nodes.InnerText = (this.MessageSource != null && this.MessageSource.TryGetValue(value.ToUpper() + "." + propertyValue, out var _msgVal2) ? _msgVal2 : "");
                                 }
                             }
                             else

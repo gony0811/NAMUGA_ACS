@@ -43,7 +43,7 @@ namespace ACS.Communication.Msb.Tibrv.Marker
 
             try
             {
-                if (logger.Log.IsDebugEnabled)
+                if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + ((QueueDestination)this.destination).Name + "}, received message{" + tibrvMsg.ToString() + "}");
                 }

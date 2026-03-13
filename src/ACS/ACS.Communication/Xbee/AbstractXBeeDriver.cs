@@ -6,12 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 //using ACS.Framework.Extension.Resource.Model;
-using log4net;
+using ACS.Framework.Logging;
 namespace ACS.Communication.Xbee
 {
     public class AbstractXBeeDriver
     {
-        public ILog logger = log4net.LogManager.GetLogger(typeof(AbstractXBeeDriver)); 
+        public Logger logger = Logger.GetLogger(typeof(AbstractXBeeDriver));
         //protected WorkflowManager workflowManager;
         private string id;
         protected bool open;

@@ -1,6 +1,4 @@
-﻿using NHibernate.Criterion;
-using NHibernate.Engine;
-using ACS.Framework.Base;
+﻿using ACS.Framework.Base;
 using ACS.Framework.Base.Interface;
 using ACS.Framework.Alarm;
 using ACS.Framework.Alarm.Model;
@@ -397,36 +395,32 @@ namespace ACS.Manager.Path
         {
             if (useCarrierProcessType)
             {
-                DetachedCriteria criteria = DetachedCriteria.For(typeof(LinkEx));
                 if (!isContainDeadNode)
                 {
-                    criteria.Add(Restrictions.Eq("Availability", "0"));
+                    return this.PersistentDao.FindByAttribute(typeof(LinkEx), "Availability", "0");
                 }
-                return this.PersistentDao.FindByCriteria(criteria);
+                return this.PersistentDao.FindAll(typeof(LinkEx));
             }
             return GetLinks(isContainDeadNode);
         }
 
         protected IList GetLinks(bool containDeadNode)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(LinkEx));
             if (!containDeadNode)
             {
-                criteria.Add(Restrictions.Eq("Availability", "0"));
+                return this.PersistentDao.FindByAttribute(typeof(LinkEx), "Availability", "0");
             }
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindAll(typeof(LinkEx));
         }
 
         public IList GetLinkViewsByBayId(bool containDeadNode, String bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(LinkViewEx));
             if (!containDeadNode)
             {
-                criteria.Add(Restrictions.Eq("Availability", "0"));
+                var attributes = new Dictionary<string, object> { { "Availability", "0" }, { "BayId", bayId } };
+                return this.PersistentDao.FindByAttributes(typeof(LinkViewEx), attributes);
             }
-            criteria.Add(Restrictions.Eq("BayId", bayId));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(LinkViewEx), "BayId", bayId);
         }
 
         protected Dictionary<string, List<LinkEx>> ConvertLinksToMapByFromNode(IList links)
@@ -767,36 +761,38 @@ namespace ACS.Manager.Path
         {
             if (useCarrierProcessType)
             {
-                DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
-                return this.PersistentDao.FindByCriteria(criteria, false);
+                return this.PersistentDao.FindAll(typeof(VehicleEx));
             }
             return GetVehicles(isContainUnavailableVehicle);
         }
 
         public IList GetVehicles(String bayId, bool containUnavailableVehicle)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
+            IList vehicleList;
 
             if (!containUnavailableVehicle)
             {
-                criteria.Add(Restrictions.Eq("ConnectionState", "CONNECT"));
-
-                ICriterion idlestate = Restrictions.Eq("ProcessingState", "IDLE");
-                ICriterion parkstate = Restrictions.Eq("ProcessingState", "PARK"); //20200318 LYS PARK Condition Add
-
-                LogicalExpression orAll = (LogicalExpression)Restrictions.Or(idlestate, parkstate);
-                criteria.Add(orAll);
-
-                //criteria.Add(Restrictions.Eq("ProcessingState", "PARK"));
-                criteria.Add(Restrictions.Eq("State", "ALIVE"));
-                criteria.Add(Restrictions.Gt("BatteryVoltage", 23.0F));
-                criteria.Add(Restrictions.Eq("BayId", bayId));
-                criteria.Add(Restrictions.Eq("FullState", "EMPTY"));
-                criteria.Add(Restrictions.Eq("Installed", "T"));
-                criteria.AddOrder(Order.Asc("NodeCheckTime"));
+                var attributes = new Dictionary<string, object>
+                {
+                    { "ConnectionState", "CONNECT" },
+                    { "State", "ALIVE" },
+                    { "BayId", bayId },
+                    { "FullState", "EMPTY" },
+                    { "Installed", "T" }
+                };
+                IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
+                // OR condition: ProcessingState == "IDLE" || ProcessingState == "PARK" (20200318 LYS PARK Condition Add)
+                // Gt: BatteryVoltage > 23.0F
+                // Order: NodeCheckTime ASC
+                vehicleList = allMatches.Cast<VehicleEx>()
+                    .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryVoltage > 23.0F)
+                    .OrderBy(v => v.NodeCheckTime)
+                    .ToList<VehicleEx>();
             }
-
-            IList vehicleList = this.PersistentDao.FindByCriteria(criteria);
+            else
+            {
+                vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
+            }
 
             IList returnList = new List<VehicleEx>();
 
@@ -840,11 +836,11 @@ namespace ACS.Manager.Path
 
         protected List<VehicleEx> GetChargeVehicles(String bayId, bool containUnavailableVehicle)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
+            IList vehicleList;
 
             //KSB
             //RGV구간의 사용하는 BAYID 확인?
-            // - RGV 적용 BAYID 
+            // - RGV 적용 BAYID
             if (bayId.Equals("AMT-LFC(A)", StringComparison.OrdinalIgnoreCase)    ||
                 bayId.Equals("AMT(A)-LFC(A)", StringComparison.OrdinalIgnoreCase) ||
                 bayId.Equals("AMT-LFC(B)", StringComparison.OrdinalIgnoreCase)    ||
@@ -852,17 +848,21 @@ namespace ACS.Manager.Path
             {
                 if (!containUnavailableVehicle)
                 {
-                    criteria.Add(Restrictions.Eq("ConnectionState", "CONNECT"));
-                    criteria.Add(Restrictions.Eq("ProcessingState", "IDLE"));
-                    criteria.Add(Restrictions.Eq("State", "ALIVE"));
-                    //BatteryVoltage 조건 사용하지 않으면 항상 충전으로 보낼수 있음
-                    //criteria.Add(Restrictions.Le("BatteryVoltage", 25.0F));
-                    //criteria.Add(Restrictions.Le("BatteryVoltage", 24.0F));
-                    criteria.Add(Restrictions.Eq("BayId", bayId));
-                    criteria.Add(Restrictions.Eq("FullState", "EMPTY"));
-                    criteria.Add(Restrictions.Eq("Installed", "T"));
-
-                    criteria.AddOrder(Order.Asc("BatteryVoltage"));
+                    var attributes = new Dictionary<string, object>
+                    {
+                        { "ConnectionState", "CONNECT" },
+                        { "ProcessingState", "IDLE" },
+                        { "State", "ALIVE" },
+                        //BatteryVoltage 조건 사용하지 않으면 항상 충전으로 보낼수 있음
+                        { "BayId", bayId },
+                        { "FullState", "EMPTY" },
+                        { "Installed", "T" }
+                    };
+                    vehicleList = this.PersistentDao.FindByAttributesOrderBy(typeof(VehicleEx), attributes, "BatteryVoltage");
+                }
+                else
+                {
+                    vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
                 }
             }
             //AGV 일경우
@@ -870,25 +870,27 @@ namespace ACS.Manager.Path
             {
                 if (!containUnavailableVehicle)
                 {
-                    criteria.Add(Restrictions.Eq("ConnectionState", "CONNECT"));
-                    ICriterion idlestate = Restrictions.Eq("ProcessingState", "IDLE");
-                    ICriterion parkstate = Restrictions.Eq("ProcessingState", "PARK"); //20200525 KKH 충전조건 Park상태도 추가
-                    LogicalExpression orAll = (LogicalExpression)Restrictions.Or(idlestate, parkstate);
-                    criteria.Add(orAll);
-                    //criteria.Add(Restrictions.Eq("ProcessingState", "IDLE"));
-                    criteria.Add(Restrictions.Eq("State", "ALIVE"));
-                    //20190928 KSB 원래 기준은24V 미만인데, V1은 밧데리 노후로 임시로 25V미만일경우 변경함
-                    criteria.Add(Restrictions.Le("BatteryVoltage", 25.0F));
-                    //criteria.Add(Restrictions.Le("BatteryVoltage", 24.0F));
-                    criteria.Add(Restrictions.Eq("BayId", bayId));
-                    criteria.Add(Restrictions.Eq("FullState", "EMPTY"));
-                    criteria.Add(Restrictions.Eq("Installed", "T"));
-
-                    criteria.AddOrder(Order.Asc("BatteryVoltage"));
+                    var attributes = new Dictionary<string, object>
+                    {
+                        { "ConnectionState", "CONNECT" },
+                        { "State", "ALIVE" },
+                        //20190928 KSB 원래 기준은24V 미만인데, V1은 밧데리 노후로 임시로 25V미만일경우 변경함
+                        { "BayId", bayId },
+                        { "FullState", "EMPTY" },
+                        { "Installed", "T" }
+                    };
+                    IList allMatches = this.PersistentDao.FindByAttributesOrderBy(typeof(VehicleEx), attributes, "BatteryVoltage");
+                    // OR condition: ProcessingState == "IDLE" || ProcessingState == "PARK" (20200525 KKH 충전조건 Park상태도 추가)
+                    // Le: BatteryVoltage <= 25.0F
+                    vehicleList = allMatches.Cast<VehicleEx>()
+                        .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryVoltage <= 25.0F)
+                        .ToList<VehicleEx>();
+                }
+                else
+                {
+                    vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
                 }
             }
-
-            IList vehicleList = this.PersistentDao.FindByCriteria(criteria);
 
             List<VehicleEx> returnList = new List<VehicleEx>();
             foreach (var item in vehicleList)
@@ -922,18 +924,27 @@ namespace ACS.Manager.Path
 
         protected IList GetVehicles(bool containUnavailableVehicle)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(VehicleEx));
+            IList vehicleList;
             if (!containUnavailableVehicle)
             {
-                criteria.Add(Restrictions.Eq("ConnectionState", "CONNECT"));
-
-                criteria.Add(Restrictions.Eq("ProcessingState", "IDLE"));
-                criteria.Add(Restrictions.Eq("State", "ALIVE"));
-                criteria.Add(Restrictions.Gt("BatteryVoltage", 23.0F));
-                criteria.Add(Restrictions.Eq("FullState", "EMPTY"));
-                criteria.Add(Restrictions.Eq("Installed", "T"));
+                var attributes = new Dictionary<string, object>
+                {
+                    { "ConnectionState", "CONNECT" },
+                    { "ProcessingState", "IDLE" },
+                    { "State", "ALIVE" },
+                    { "FullState", "EMPTY" },
+                    { "Installed", "T" }
+                };
+                IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
+                // Gt: BatteryVoltage > 23.0F
+                vehicleList = allMatches.Cast<VehicleEx>()
+                    .Where(v => v.BatteryVoltage > 23.0F)
+                    .ToList<VehicleEx>();
             }
-            IList vehicleList = this.PersistentDao.FindByCriteria(criteria);
+            else
+            {
+                vehicleList = this.PersistentDao.FindAll(typeof(VehicleEx));
+            }
 
             IList returnList = new List<VehicleEx>();
             foreach (var item in vehicleList)
@@ -1032,11 +1043,7 @@ namespace ACS.Manager.Path
 
         public IList GetLinkViewsByFromNodeId(String fromNodeId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(LinkViewEx));
-
-            criteria.Add(Restrictions.Eq("FromNodeId", fromNodeId));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            return this.PersistentDao.FindByAttribute(typeof(LinkViewEx), "FromNodeId", fromNodeId);
         }
 
         public IList GetLinkZoneByFromBayId(String bayId)
@@ -1064,24 +1071,24 @@ namespace ACS.Manager.Path
 
         public IList GetChargeLocationViewsByBayId(String bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(LocationViewEx));
-
-            criteria.Add(Restrictions.Eq("Location_Type", "CHARGE"));
-            criteria.Add(Restrictions.Eq("BayId", bayId));
-            criteria.Add(Restrictions.Eq("TransferFlag", "Y"));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object>
+            {
+                { "Location_Type", "CHARGE" },
+                { "BayId", bayId },
+                { "TransferFlag", "Y" }
+            };
+            return this.PersistentDao.FindByAttributes(typeof(LocationViewEx), attributes);
         }
 
         public IList GetStockLocationViewsByBayId(String bayId)
         {
-            DetachedCriteria criteria = DetachedCriteria.For(typeof(LocationViewEx));
-
-            criteria.Add(Restrictions.Eq("Location_Type", "STOCK"));
-            criteria.Add(Restrictions.Eq("BayId", bayId));
-            criteria.Add(Restrictions.Eq("TransferFlag", "Y"));
-
-            return this.PersistentDao.FindByCriteria(criteria);
+            var attributes = new Dictionary<string, object>
+            {
+                { "Location_Type", "STOCK" },
+                { "BayId", bayId },
+                { "TransferFlag", "Y" }
+            };
+            return this.PersistentDao.FindByAttributes(typeof(LocationViewEx), attributes);
         }
 
         public IList GetLocationViewsByBayId(String bayId)

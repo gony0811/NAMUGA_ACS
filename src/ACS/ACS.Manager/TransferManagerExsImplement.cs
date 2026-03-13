@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using ACS.Manager.Transfer;
 using ACS.Framework.Transfer;
 using ACS.Framework.Transfer.Model;
-using NHibernate.Criterion;
 using ACS.Framework.Transfer.Model;
 
 namespace ACS.Manager
@@ -35,7 +34,7 @@ namespace ACS.Manager
         {
             Dictionary<string, object> conditionAttributes = new Dictionary<string, object>();
 
-            conditionAttributes.Add("Id", Id);
+            conditionAttributes.Add("ID", Id);
             conditionAttributes.Add("MessageName", messageName);
             conditionAttributes.Add("ApplicationName", applicationName);
 

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<receive>
+	<!-- MES Request about Job/Command -->
+	<Msg>
+		<Command>TRSJOBREQ</Command>
+		<Header>
+			<DestSubject></DestSubject>
+			<ReplySubject></ReplySubject>
+		</Header>
+		<DataLayer>
+      <CmdType></CmdType>
+      <FinalEQP></FinalEQP>
+			<FinalPort></FinalPort>
+			<JobID></JobID>
+      <CarrID></CarrID>
+      <BatchID></BatchID>
+      <Priority></Priority>
+      <ProductID>-</ProductID>
+      <SourceEQP></SourceEQP>
+			<SourcePort></SourcePort>
+      <TransEQP></TransEQP>
+			<UserID></UserID>
+		</DataLayer>
+	</Msg>
+  
+	<Msg>
+		<Command>MOVECANCEL</Command>
+		<Header>
+			<DestSubject></DestSubject>
+			<ReplySubject></ReplySubject>
+		</Header>
+		<DataLayer>
+			<EqpID></EqpID>
+			<JobID></JobID>
+			<FinalLoc></FinalLoc>
+			<FinalPort></FinalPort>
+			<SourceLoc></SourceLoc>
+			<SourcePort></SourcePort>
+			<DestSubject></DestSubject>
+			<Type></Type>
+			<UserID></UserID>
+		</DataLayer>
+	</Msg>
+	<Msg>
+		<Command>MOVEUPDATE</Command>
+		<Header>
+			<DestSubject></DestSubject>
+			<ReplySubject></ReplySubject>
+		</Header>
+		<DataLayer>
+			<JobID></JobID>
+			<Type></Type>
+			<EqpID></EqpID>
+			<SourceLoc></SourceLoc>
+			<SourcePort></SourcePort>
+			<FinalLoc></FinalLoc>
+			<FinalPort></FinalPort>
+			<UserID></UserID>
+			<Description></Description>
+			<DestSubject></DestSubject>
+		</DataLayer>
+	</Msg>
+</receive>

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Spring.Context;
+using Autofac;
 using System.Threading;
 
 namespace ACS.Workflow
@@ -23,7 +23,7 @@ namespace ACS.Workflow
         public BizProcessManager BizProcessManager { get; set; } //{ return this.BizProcessManager; } set { this.BizProcessManager = value; } }
         public Thread WorkerThread;
         private bool internalIsParallel = false;
-        public IApplicationContext ApplicationContext { get; set; }
+        public ILifetimeScope LifetimeScope { get; set; }
         public WorkflowManagerImpl()
         {
 
@@ -108,7 +108,7 @@ namespace ACS.Workflow
                 //return bizProcessContext.Execute(workflowName, args, !isParallel);
 
                 BizProcessContext bizProcessContext = new BizProcessContext(workflowName, BizFileRepository.InstanceList[workflowName], args, isParallel);
-                bizProcessContext.ApplicationContext = this.BizProcessManager.ApplicationContext;
+                bizProcessContext.LifetimeScope = this.BizProcessManager.LifetimeScope;
                 return bizProcessContext.Execute();
                 //if (BizProcessManager.RequestExecuteJob(bizProcessContext) > 0) return true;
                 //{
@@ -183,7 +183,7 @@ namespace ACS.Workflow
                 //if(!bizProcessContext.CommandJobList.ContainsKey(workflowName))
 
                 BizProcessContext bizprocess = new BizProcessContext(workflowName, BizFileRepository.InstanceList[workflowName], args, isParallel);
-                bizprocess.ApplicationContext = BizProcessManager.ApplicationContext;
+                bizprocess.LifetimeScope = BizProcessManager.LifetimeScope;
                 //if (BizProcessManager.RequestExecuteJob(bizprocess) > 0) return true;  
                 //{
                 //    // LOG : Not exist workflow name

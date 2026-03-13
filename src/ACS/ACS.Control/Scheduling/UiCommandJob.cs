@@ -1,6 +1,7 @@
 ﻿using ACS.Communication.Msb;
 using ACS.Framework.Message;
 using ACS.Framework.Scheduling.Model;
+using Quartz;
 using ACS.Framework.Transfer;
 using System.Collections;
 using System;
@@ -31,7 +32,7 @@ namespace ACS.Control.Scheduling
 
         //protected NioInterfaceManager nioInterfaceManager;
 
-        public override void Execute(Quartz.JobExecutionContext context)
+        public override void ExecuteJob(IJobExecutionContext context)
         {
             try
             {

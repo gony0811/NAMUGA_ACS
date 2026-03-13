@@ -8,14 +8,14 @@ using System.Xml;
 using ACS.Communication.Http.uHttpSharp.Handlers;
 using ACS.Communication.Http.uHttpSharp;
 using ACS.Communication.Http.Handler;
-using log4net;
+using ACS.Framework.Logging;
 using ACS.Workflow;
 
 namespace ACS.Communication.Http.Controllers
 {
     class StringsRestController : IRestController<string>
     {
-        public ILog logger = LogManager.GetLogger(typeof(StringsRestController));
+        public Logger logger = Logger.GetLogger(typeof(StringsRestController));
         private readonly ICollection<string> _collection = new HashSet<string>();
         //public Task<IEnumerable<string>> Get(IHttpRequest request)
         //{
@@ -76,7 +76,7 @@ namespace ACS.Communication.Http.Controllers
             }
             catch(Exception e)
             {
-                logger.InfoFormat("Get Method: Json to Xml Parsing Error - " + e.ToString());
+                logger.Info("Get Method: Json to Xml Parsing Error - " + e.ToString());
                 throw;
             }
 
@@ -117,7 +117,7 @@ namespace ACS.Communication.Http.Controllers
         //    }
         //    catch(Exception e)
         //    {
-        //        logger.InfoFormat("Post Method: Json to Xml Parsing Error - " + e.ToString());
+        //        logger.Info("Post Method: Json to Xml Parsing Error - " + e.ToString());
         //        throw;
         //    }
         //}
@@ -143,7 +143,7 @@ namespace ACS.Communication.Http.Controllers
             }
             catch(Exception e)
             {
-                logger.InfoFormat("Post Method: Json to Xml Parsing Error - " + e.ToString());
+                logger.Info("Post Method: Json to Xml Parsing Error - " + e.ToString());
                 throw;
             }
         }
@@ -180,7 +180,7 @@ namespace ACS.Communication.Http.Controllers
         //    }
         //    catch (Exception e)
         //    {
-        //        logger.InfoFormat("Post Method: Json to Xml Parsing Error - " + e.ToString());
+        //        logger.Info("Post Method: Json to Xml Parsing Error - " + e.ToString());
         //        throw;
         //    }
         //}

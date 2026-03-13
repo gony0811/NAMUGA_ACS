@@ -12,19 +12,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageReference Include="Autofac" Version="8.2.0" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
   </ItemGroup>
 
-    <ItemGroup>
-    <Reference Include="log4net">
-      <HintPath>..\Library/log4net.dll</HintPath>
-    </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\Library/NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="Spring.Core">
-      <HintPath>..\Library/Spring.Core.dll</HintPath>
-    </Reference>
+  <ItemGroup>
     <Reference Include="transceiverxnet">
       <HintPath>..\Library/transceiverxnet.dll</HintPath>
     </Reference>
@@ -33,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
+    <ProjectReference Include="..\ACS.Database\ACS.Database.csproj" />
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
     <ProjectReference Include="..\ACS.Utility\ACS.Utility.csproj" />
     <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
