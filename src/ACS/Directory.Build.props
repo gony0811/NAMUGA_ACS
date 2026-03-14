@@ -6,5 +6,7 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <!-- 중간 빌드 파일은 프로젝트별 obj/ 로 분리 -->
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <!-- Elsa 3.5.3이 .NET 9 Microsoft.Extensions를 참조하지만 .NET 8에서도 호환됨 -->
+    <NoWarn>$(NoWarn);NU1605</NoWarn>
   </PropertyGroup>
 </Project>

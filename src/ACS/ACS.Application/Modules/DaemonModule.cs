@@ -77,6 +77,9 @@ namespace ACS.Application.Modules
                     .As<IAlarmManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired();
+
+            // Elsa Workflows 3 — hybrid bridge (Elsa + legacy WorkflowManagerImpl)
+            builder.RegisterModule<ACS.Elsa.ElsaModule>();
         }
     }
 }

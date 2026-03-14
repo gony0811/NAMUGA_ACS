@@ -25,14 +25,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Application\ACS.Application.csproj" />
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
-    <ProjectReference Include="..\ACS.Compat\ACS.Compat.csproj" />
     <ProjectReference Include="..\ACS.Manager\ACS.Manager.csproj" />
     <ProjectReference Include="..\ACS.Biz\ACS.Biz.csproj" />
-    <ProjectReference Include="..\ACS.Database\ACS.Database.csproj" />
-    <ProjectReference Include="..\ACS.EI\ACS.EI.csproj" />
-    <ProjectReference Include="..\ACS.Scheduling\ACS.Scheduling.csproj" />
     <ProjectReference Include="..\ACS.Service\ACS.Service.csproj" />
-    <ProjectReference Include="..\ACS.Control\ACS.Control.csproj" />
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
   </ItemGroup>

@@ -59,9 +59,12 @@ foreach ($Proc in $Processes) {
     # Copy entire build output
     Copy-Item -Path "$BuildOutput\*" -Destination $ProcDir -Recurse -Force
 
-    # Rename executables: ACS.Builder -> $Name
+    # 네이티브 호스트(apphost) 제거 — DLL명이 하드코딩되어 리네임 불가
+    $appHost = Join-Path $ProcDir "ACS.Builder.exe"
+    if (Test-Path $appHost) { Remove-Item $appHost -Force }
+
+    # Rename DLL/config: ACS.Builder -> $Name
     $renames = @(
-        @{ From="ACS.Builder.exe"; To="$Name.exe" },
         @{ From="ACS.Builder.dll"; To="$Name.dll" },
         @{ From="ACS.Builder.pdb"; To="$Name.pdb" },
         @{ From="ACS.Builder.deps.json"; To="$Name.deps.json" },
@@ -131,5 +134,5 @@ foreach ($Proc in $Processes) {
     }
 }
 Write-Host ""
-Write-Host "Run a process: cd deploy\<NAME> && .\<NAME>.exe"
+Write-Host "Run a process: cd deploy\<NAME> && dotnet <NAME>.dll"
 Write-Host " or: cd deploy\<NAME> && dotnet <NAME>.dll"

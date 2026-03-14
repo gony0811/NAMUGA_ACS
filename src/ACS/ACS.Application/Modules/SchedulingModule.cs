@@ -51,16 +51,16 @@ namespace ACS.Application.Modules
             // Awake 잡 10개: daemon 프로세스에서만 등록
             if (string.Equals(_processType, "daemon", StringComparison.OrdinalIgnoreCase))
             {
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeChargeTransportJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeQueueTransportJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckVehiclesJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckServerTimeJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteUiInformJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.Scheduling");
-                RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeTruncateHistoryJob, ACS.Scheduling");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeChargeTransportJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeQueueTransportJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckVehiclesJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckServerTimeJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteUiInformJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.Application");
+                RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeTruncateHistoryJob, ACS.Application");
             }
         }
 

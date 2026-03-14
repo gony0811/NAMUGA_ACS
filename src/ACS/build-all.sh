@@ -48,10 +48,9 @@ for PROC in "${PROCESSES[@]}"; do
     # 빌드 결과 전체 복사
     cp -R "$BUILD_OUTPUT"/* "$PROC_DIR/"
 
-    # 실행 파일 리네임: ACS.Builder → $NAME
-    if [ -f "$PROC_DIR/ACS.Builder" ]; then
-        mv "$PROC_DIR/ACS.Builder" "$PROC_DIR/$NAME"
-    fi
+    # 네이티브 호스트(apphost) 제거 — DLL명이 하드코딩되어 리네임 불가
+    # dotnet $NAME.dll 로 실행해야 함
+    rm -f "$PROC_DIR/ACS.Builder"
     if [ -f "$PROC_DIR/ACS.Builder.dll" ]; then
         mv "$PROC_DIR/ACS.Builder.dll" "$PROC_DIR/$NAME.dll"
     fi
@@ -110,5 +109,4 @@ for PROC in "${PROCESSES[@]}"; do
     fi
 done
 echo ""
-echo "Run: cd deploy/<NAME> && ./<NAME>"
-echo " or: cd deploy/<NAME> && dotnet <NAME>.dll"
+echo "Run: cd deploy/<NAME> && dotnet <NAME>.dll"

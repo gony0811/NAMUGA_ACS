@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Elsa" Version="3.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
+    <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="elsa-migration.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

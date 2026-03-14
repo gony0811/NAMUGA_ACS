@@ -76,23 +76,16 @@ namespace ACS.Application.Modules
                 .PropertiesAutowired()
                 .OnActivated(e => e.Instance.GetType().GetMethod("Init")?.Invoke(e.Instance, null));
 
-            // Workflow
-            builder.RegisterType<ACS.Workflow.BizProcessManager>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
-
-            builder.RegisterType<ACS.Workflow.WorkflowManagerImpl>()
-                .As<ACS.Workflow.IWorkflowManager>()
-                .SingleInstance()
-                .PropertiesAutowired();
+            // Elsa Workflows 3 — hybrid bridge (Elsa + legacy WorkflowManagerImpl)
+            builder.RegisterModule<ACS.Elsa.ElsaModule>();
 
             // === Host 전용: TCP 게이트웨이 + 브릿지 서비스 ===
 
-            // TCP/IP 게이트웨이 (현재 stub — 실제 구현 시 교체)
-            builder.RegisterType<ACS.Communication.Host.HostTcpGatewayStub>()
+            // TCP/IP 게이트웨이 (Host 듀얼 포트: 수신 3334, 송신 3333)
+            builder.RegisterType<ACS.Communication.Host.HostTcpGateway>()
                 .As<IHostTcpGateway>()
-                .SingleInstance();
+                .SingleInstance()
+                .PropertiesAutowired();
 
             // 브릿지 BackgroundService (TCP ↔ RabbitMQ)
             builder.RegisterType<ACS.Application.Host.HostBridgeService>()

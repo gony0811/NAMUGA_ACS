@@ -2661,7 +2661,7 @@ namespace ACS.Service
                     XmlUtility.SetDataToXml(sendingMessage, "/Msg/DataLayer/CmdType", TransportCommandEx.TYPE_CMDREPLY);
                     sendingMessageTemp = sendingMessage;
 
-                    string dest = ConfigurationManager.AppSettings["HibernateConnectionString"];
+                    string dest = ConfigurationManager.AppSettings["EFConnectionString"];
                     string jobId = transferMessage.TransportCommandId;
                     string carrID = transferMessage.CarrierId;
                     //string transUnit = transferMessage.VehicleId; // 181021 ADS 요청으로 아무 값도 올리지 않음.

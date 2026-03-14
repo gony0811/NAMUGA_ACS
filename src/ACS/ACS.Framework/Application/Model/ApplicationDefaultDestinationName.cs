@@ -10,8 +10,6 @@ namespace ACS.Framework.Application.Model
 {
     public class ApplicationDefaultDestinationName
     {
-        //protected static ILog logger = LogManager.GetLogger(typeof(ApplicationDefaultDestinationName).Name);
-
         public static string APPLICATION_NAME = "@{application}";
 
         private string destinationName;

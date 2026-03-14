@@ -33,7 +33,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
-    <ProjectReference Include="..\ACS.Utility\ACS.Utility.csproj" />
     <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
   </ItemGroup>
 

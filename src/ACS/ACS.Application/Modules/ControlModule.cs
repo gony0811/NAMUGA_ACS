@@ -111,7 +111,6 @@ namespace ACS.Application.Modules
                     // System settings
                     mgr.UseSystemKill = true;
                     mgr.UseSystemGetProcessId = true;
-                    mgr.StartConfigurationFilePath = @"D:\ACS\TS01_P\Config\Startup/startup.xml";
                     mgr.Scripts = new System.Collections.Hashtable
                     {
                         ["TS-START"] = @"D:\ACS\TS01_P\TS01_P.exe",
@@ -137,15 +136,8 @@ namespace ACS.Application.Modules
                     .SingleInstance()
                     .PropertiesAutowired();
 
-            builder.RegisterType<ACS.Workflow.BizProcessManager>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
-
-            builder.RegisterType<ACS.Workflow.WorkflowManagerImpl>()
-                .As<ACS.Workflow.IWorkflowManager>()
-                .SingleInstance()
-                .PropertiesAutowired();
+            // Elsa Workflows 3 — hybrid bridge (Elsa + legacy WorkflowManagerImpl)
+            builder.RegisterModule<ACS.Elsa.ElsaModule>();
         }
     }
 }

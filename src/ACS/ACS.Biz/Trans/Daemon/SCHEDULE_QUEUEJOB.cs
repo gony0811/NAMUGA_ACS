@@ -18,7 +18,6 @@ namespace ACS.Biz.Trans.Daemon
 {
     public class SCHEDULE_QUEUEJOB : BaseBizJob
     {
-        //protected static ILog logger = LogManager.GetLogger(typeof(SCHEDULE_QUEUEJOB));
         public InterfaceServiceEx InterfaceService;
         public ResourceServiceEx ResourceService;
         public MaterialServiceEx MaterialService;

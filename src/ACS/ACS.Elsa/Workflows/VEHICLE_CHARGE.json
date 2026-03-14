@@ -1,0 +1,329 @@
+{
+  "id": "vehicle-charge-workflow",
+  "definitionId": "vehicle-charge",
+  "name": "VEHICLE_CHARGE",
+  "description": "Vehicle charging workflow — searches for a suitable recharge station, creates transport command, assigns vehicle, and sends destination message.",
+  "version": 1,
+  "isPublished": true,
+  "isLatest": true,
+  "root": {
+    "type": "Elsa.Sequence",
+    "id": "sequence-root",
+    "name": "VehicleChargeSequence",
+    "activities": [
+      {
+        "type": "Elsa.SetVariable",
+        "id": "set-search-result",
+        "name": "Init SearchResult",
+        "customProperties": {
+          "variableId": "searchResult"
+        },
+        "input": {
+          "value": {
+            "typeName": "Boolean",
+            "expression": {
+              "type": "Literal",
+              "value": false
+            }
+          }
+        }
+      },
+      {
+        "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+        "id": "search-recharge-station",
+        "name": "Search Recharge Station",
+        "description": "ResourceServiceEx.SearchSuitableRechargeStation — finds empty charging station for vehicle",
+        "input": {
+          "serviceTypeName": {
+            "typeName": "String",
+            "expression": {
+              "type": "Literal",
+              "value": "ACS.Service.ResourceServiceEx, ACS.Service"
+            }
+          },
+          "methodName": {
+            "typeName": "String",
+            "expression": {
+              "type": "Literal",
+              "value": "SearchSuitableRechargeStation"
+            }
+          },
+          "argument": {
+            "typeName": "Object",
+            "expression": {
+              "type": "JavaScript",
+              "value": "getVariable('vehicleMessage')"
+            }
+          }
+        }
+      },
+      {
+        "type": "Elsa.If",
+        "id": "check-station-found",
+        "name": "Station Found?",
+        "description": "Branch: proceed if a suitable recharge station was found",
+        "input": {
+          "condition": {
+            "typeName": "Boolean",
+            "expression": {
+              "type": "JavaScript",
+              "value": "getLastResult()"
+            }
+          }
+        },
+        "then": {
+          "type": "Elsa.Sequence",
+          "id": "sequence-charge-steps",
+          "name": "Execute Charge Steps",
+          "activities": [
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "create-recharge-command",
+              "name": "Create Recharge Transport Command",
+              "description": "TransferServiceEx.CreateRechargeTransportCommand — creates R+vehicleId+timestamp command",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.TransferServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "CreateRechargeTransportCommand"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "change-vehicle-id",
+              "name": "Change Transfer Command Vehicle ID",
+              "description": "TransferServiceEx.ChangeTransferCommandVehicleId",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.TransferServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ChangeTransferCommandVehicleId"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "change-vehicle-tcid",
+              "name": "Change Vehicle Transport Command ID",
+              "description": "ResourceServiceEx.ChangeVehicleTransportCommandId",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.ResourceServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ChangeVehicleTransportCommandId"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "set-state-assigned",
+              "name": "Set Command State: Assigned",
+              "description": "TransferServiceEx.ChangeTransportCommandStateToAssigned",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.TransferServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ChangeTransportCommandStateToAssigned"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "update-vehicle-tc",
+              "name": "Update Vehicle Transport Command",
+              "description": "TransferServiceEx.UpdateVehicleTransportCommand",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.TransferServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "UpdateVehicleTransportCommand"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "send-transport-dest",
+              "name": "Send Transport Message (Dest)",
+              "description": "InterfaceServiceEx.SendTransportMessageDest — sends destination to vehicle/ES",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.InterfaceServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "SendTransportMessageDest"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            },
+            {
+              "type": "ACS.Elsa.Activities.ServiceMethodActivity",
+              "id": "update-dest-node",
+              "name": "Update Vehicle Dest Node ID",
+              "description": "TransferServiceEx.UpdateVehicleAcsDestNodeId",
+              "input": {
+                "serviceTypeName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "ACS.Service.TransferServiceEx, ACS.Service"
+                  }
+                },
+                "methodName": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "UpdateVehicleAcsDestNodeId"
+                  }
+                },
+                "argument": {
+                  "typeName": "Object",
+                  "expression": {
+                    "type": "JavaScript",
+                    "value": "getVariable('vehicleMessage')"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "else": {
+          "type": "Elsa.Sequence",
+          "id": "sequence-no-station",
+          "name": "No Station Available",
+          "activities": [
+            {
+              "type": "Elsa.WriteLine",
+              "id": "log-no-station",
+              "name": "Log: No Station Found",
+              "input": {
+                "text": {
+                  "typeName": "String",
+                  "expression": {
+                    "type": "Literal",
+                    "value": "VEHICLE_CHARGE: No suitable recharge station found. Terminate function needed."
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "variables": [
+    {
+      "id": "vehicleMessage",
+      "name": "vehicleMessage",
+      "typeName": "Object",
+      "isArray": false
+    },
+    {
+      "id": "searchResult",
+      "name": "searchResult",
+      "typeName": "Boolean",
+      "isArray": false
+    }
+  ],
+  "inputs": [
+    {
+      "name": "vehicleMessage",
+      "type": "Object",
+      "description": "The VehicleMessageEx object containing vehicle and transport information."
+    }
+  ]
+}

@@ -130,15 +130,8 @@ namespace ACS.Application.Modules
                     .SingleInstance()
                     .PropertiesAutowired();
 
-            builder.RegisterType<ACS.Workflow.BizProcessManager>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
-
-            builder.RegisterType<ACS.Workflow.WorkflowManagerImpl>()
-                .As<ACS.Workflow.IWorkflowManager>()
-                .SingleInstance()
-                .PropertiesAutowired();
+            // Elsa Workflows 3 — hybrid bridge (Elsa + legacy WorkflowManagerImpl)
+            builder.RegisterModule<ACS.Elsa.ElsaModule>();
         }
     }
 }

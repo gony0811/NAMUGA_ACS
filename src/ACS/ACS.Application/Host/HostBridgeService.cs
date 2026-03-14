@@ -58,9 +58,34 @@ namespace ACS.Application.Host
         {
             try
             {
-                _logger.Info($"[Bridge] Received from host TCP: {e.MessageName}");
-                // TODO: XML 파싱 → AbstractMessage 변환 → WorkflowManager.Execute() 호출
-                // 현재 TCP stub이므로 로그만 출력
+                _logger.Info($"[Bridge] Received from host TCP: {e.MessageName}, body length={e.MessageBody?.Length ?? 0}");
+
+                switch (e.MessageName?.ToUpperInvariant())
+                {
+                    case "MOVECMD":
+                        _logger.Info($"[Bridge] Processing MOVECMD from Host");
+                        // TODO: XML → TransportCommand 생성 → 워크플로우 실행
+                        break;
+
+                    case "ACTIONCMD":
+                        _logger.Info($"[Bridge] Processing ACTIONCMD from Host");
+                        // TODO: XML → Action 처리 → 워크플로우 실행
+                        break;
+
+                    case "LOAD_COMPLETED":
+                        _logger.Info($"[Bridge] Processing LOAD_COMPLETED from Host");
+                        // TODO: 로드 완료 처리
+                        break;
+
+                    case "UNLOAD_COMPLETED":
+                        _logger.Info($"[Bridge] Processing UNLOAD_COMPLETED from Host");
+                        // TODO: 언로드 완료 처리
+                        break;
+
+                    default:
+                        _logger.Info($"[Bridge] Received host message: {e.MessageName}");
+                        break;
+                }
             }
             catch (Exception ex)
             {
