@@ -9,11 +9,14 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using ACS.Communication.Http.Handler;
+using ACS.Communication.Http.Handlers;
 using ACS.Communication.Http.uHttpSharp.Handlers;
 using System.Dynamic;
 using ACS.Communication.Http.Controllers;
 using ACS.Communication.Http.uHttpSharp.Handlers.Compression;
 using ACS.Core.Logging;
+using ACS.Core.Resource;
+using ACS.Core.Transfer;
 using ACS.Core.Workflow;
 
 namespace ACS.Communication.Http
@@ -26,6 +29,8 @@ namespace ACS.Communication.Http
         public string httpServerListenPort { get; set; }
 
         public IWorkflowManager WorkflowManager { get; set; }
+        public IResourceManagerEx ResourceManager { get; set; }
+        public ITransferManagerEx TransferManager { get; set; }
 
 
         //public HostHttpInterfaceServiceEx HostHttpInterfaceService { get; set; }
@@ -47,13 +52,25 @@ namespace ACS.Communication.Http
                 //compression
                 httpServer.Use(new CompressionHandler(DeflateCompressor.Default, GZipCompressor.Default));
 
-                //authorization 
+                //authorization
                 //httpServer.Use(new BasicAuthenticationHandler("Hohoho", "username", "password5"));
 
                 //control
                 //httpServer.Use(new ControllerHandler(new DerivedController(), new ModelBinder(new ObjectActivator()), new JsonView()));
                 //httpServer.Use(new ControllerHandler(new BaseController(), new JsonModelBinder(), new JsonView(), StringComparer.OrdinalIgnoreCase));
-                httpServer.Use(new HttpRouter().With("acs_mod", new RestHandler<string>(new StringsRestController(WorkflowManager), JsonResponseProvider.Default)));
+                var router = new HttpRouter();
+
+                if (WorkflowManager != null)
+                {
+                    router.With("acs_mod", new RestHandler<string>(new StringsRestController(WorkflowManager), JsonResponseProvider.Default));
+                }
+
+                if (ResourceManager != null && TransferManager != null)
+                {
+                    router.With("api", new ApiRequestHandler(ResourceManager, TransferManager));
+                }
+
+                httpServer.Use(router);
 
                 //Error : Client Request Message Error (Not Found Handler)
                 httpServer.Use(new ErrorHandler());

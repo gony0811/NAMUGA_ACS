@@ -12,6 +12,7 @@ using ACS.Core.Logging;
 using ACS.Core.Cache;
 using ACS.Core.DependencyInjection;
 using ACS.Communication.Msb;
+using ACS.Communication.Http;
 using ACS.Control;
 using ACS.Core.Workflow;
 using ACS.Utility;
@@ -34,6 +35,7 @@ namespace ACS.App
         public const string TYPE_RS = "report";
         public const string TYPE_HS = "host";
         public const string TYPE_EMULATOR = "emulator";
+        public const string TYPE_UI = "ui";
 
         private readonly ILogManager _logManager;
         private readonly IApplicationManager _applicationManager;
@@ -151,13 +153,20 @@ namespace ACS.App
                 DisplayDataSource();
                 InvokeStartWorkflow(application, "COMMON-START-HOST");
             }
+            else if (executor.Type.Equals(TYPE_UI))
+            {
+                application = CreateOrUpdateApplication(executor);
+                SynchronizeCache();
+                DisplayDataSource();
+                StartHttpApiServer();
+            }
             else if (executor.Type.Equals(TYPE_EMULATOR))
             {
                 // emulator: no initialization needed
             }
             else
             {
-                string message = "please check process type, it should be(trans|ei|daemon|control|host|emulator|report|query)";
+                string message = "please check process type, it should be(trans|ei|daemon|control|host|emulator|report|query|ui)";
                 throw new ApplicationException(message);
             }
         }
@@ -433,6 +442,22 @@ namespace ACS.App
             catch (Exception e)
             {
                 throw e;
+            }
+        }
+
+        private void StartHttpApiServer()
+        {
+            try
+            {
+                var httpServer = _scope.Resolve<HttpCommServer>();
+                httpServer.httpServerListenIP = _configuration["Acs:Api:ListenIP"] ?? "any";
+                httpServer.httpServerListenPort = _configuration["Acs:Api:ListenPort"] ?? "5100";
+                httpServer.Start();
+                logger.Info("HTTP API server started on port " + httpServer.httpServerListenPort);
+            }
+            catch (Exception e)
+            {
+                logger.Error("Failed to start HTTP API server", e);
             }
         }
 

@@ -25,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
+    <ProjectReference Include="..\ACS.Manager\ACS.Manager.csproj" />
+    <ProjectReference Include="..\ACS.Service\ACS.Service.csproj" />
     <ProjectReference Include="..\ACS.Elsa\ACS.Elsa.csproj" />
     <ProjectReference Include="..\ACS.Activity\ACS.Activity.csproj" />
   </ItemGroup>
@@ -34,5 +36,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
 
 </Project>

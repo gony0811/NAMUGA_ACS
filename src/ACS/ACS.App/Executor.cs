@@ -223,6 +223,9 @@ namespace ACS.App
                 case "host":
                     builder.RegisterModule<HostModule>();
                     break;
+                case "ui":
+                    builder.RegisterModule<UiModule>();
+                    break;
                 default:
                     throw new ApplicationException($"Unknown process type: {processType}");
             }
