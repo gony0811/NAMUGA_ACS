@@ -173,7 +173,8 @@ namespace ACS.Communication.Msb.RabbitMQ
 
         public virtual void OnRequest(object sender, BasicDeliverEventArgs ea)
         {
-            IModel session = sender as IModel;
+            // sender는 EventingBasicConsumer이므로 Model 속성에서 IModel을 가져옴
+            IModel session = ((EventingBasicConsumer)sender).Model;
             var body = ea.Body.ToArray();
             var props = ea.BasicProperties;
             var replyProps = session.CreateBasicProperties();

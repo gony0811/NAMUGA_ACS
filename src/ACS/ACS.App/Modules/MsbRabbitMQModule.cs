@@ -29,12 +29,18 @@ namespace ACS.App.Modules
         protected override void Load(ContainerBuilder builder)
         {
             // IConfiguration의 "Destination" 섹션에서 NameValueCollection 빌드
+            // 중첩된 JSON 구조를 점(.) 구분 소문자 키로 재귀 평탄화
+            // 예: Destination:Server:Domain:ConnectUrl → server.domain.connecturl
             var dest = new NameValueCollection();
             var destSection = _configuration.GetSection("Destination");
-            foreach (var child in destSection.GetChildren())
-            {
-                dest[child.Key] = child.Value;
-            }
+            FlattenSection(destSection, "", dest);
+
+            // 하위 호환성: ${server.domain} placeholder가 "VM/DEMO" 등 DomainValue를 참조하도록
+            // (JSON 구조에서 Server:Domain은 섹션이므로 값이 없고, Server:DomainValue에 실제 값 존재)
+            if (dest["server.domain"] == null && dest["server.domainvalue"] != null)
+                dest["server.domain"] = dest["server.domainvalue"];
+            if (dest["host.domain"] == null && dest["host.domainvalue"] != null)
+                dest["host.domain"] = dest["host.domainvalue"];
 
             // ${...} placeholder 치환
             dest = ResolvePlaceholders(dest);
@@ -55,6 +61,7 @@ namespace ACS.App.Modules
                 case "query":
                 case "report":
                 case "host":
+                case "ui":
                     RegisterTransMsb(builder, dest, serverConnectUrl, serverUserName, serverPassword, serverStationMode,
                         hostConnectUrl, hostUserName, hostPassword, hostStationMode, xpathOfMessageName);
                     break;
@@ -68,6 +75,12 @@ namespace ACS.App.Modules
                     RegisterControlMsb(builder, dest, serverConnectUrl, serverUserName, serverPassword, serverStationMode, xpathOfMessageName);
                     break;
             }
+        }
+
+        private void RegisterHostMsb(ContainerBuilder builder, NameValueCollection dest, string serverUrl,
+            string serverUser, string serverPass, string serverStation, string xpathOfMessageName)
+        {
+            RegisterDefaultDestination(builder, dest["server.host.ts.sender.destination"]);
         }
 
         private void RegisterTransMsb(ContainerBuilder builder, NameValueCollection dest,
@@ -175,6 +188,10 @@ namespace ACS.App.Modules
             var uiSenderDest = CreateChannelDestination(dest["server.control.ui.sender.destination"]);
             var csListenerDest = CreateApplicationNameChannelDestination(dest["server.control.control.listener.destination"]);
 
+            // HeartBeat RPC 전용 destination (prefix만 사용, 실제 queue는 동적)
+            var domainValue = dest["server.domainvalue"] ?? "VM/DEMO";
+            var heartbeatDest = CreateChannelDestination(domainValue + "/CONTROL/AGENT");
+
             // Listener
             RegisterWorkflowListener(builder, "CsListener", "CsListener", csListenerDest, "UNICAST",
                 serverUrl, serverUser, serverPass, serverStation, xpathOfMessageName);
@@ -185,9 +202,36 @@ namespace ACS.App.Modules
 
             RegisterSender(builder, "CsSenderToUi", "CsSender", uiSenderDest, "MULTICAST",
                 serverUrl, serverUser, serverPass, serverStation);
+
+            // HeartBeat RPC sender — ISynchronousMessageAgent를 RPCCLIENT로 등록
+            RegisterSender(builder, "HeartBeatRpcSender", "HeartBeatRpcSender", heartbeatDest, "RPCCLIENT",
+                serverUrl, serverUser, serverPass, serverStation);
         }
 
         // --- Helper methods ---
+
+        /// <summary>
+        /// IConfiguration 섹션을 재귀적으로 탐색하여 점(.) 구분 소문자 키로 NameValueCollection에 추가.
+        /// 예: Server:Domain:ConnectUrl → server.domain.connecturl = "localhost"
+        /// </summary>
+        private void FlattenSection(IConfigurationSection section, string prefix, NameValueCollection dest)
+        {
+            foreach (var child in section.GetChildren())
+            {
+                string key = string.IsNullOrEmpty(prefix)
+                    ? child.Key.ToLowerInvariant()
+                    : prefix + "." + child.Key.ToLowerInvariant();
+
+                if (child.Value != null)
+                {
+                    // 리프 노드 — 값 저장
+                    dest[key] = child.Value;
+                }
+
+                // 하위 섹션이 있으면 재귀 탐색 (리프여도 자식이 있을 수 있으므로 항상 탐색)
+                FlattenSection(child, key, dest);
+            }
+        }
 
         /// <summary>
         /// ${key} 형식의 placeholder를 동일 NameValueCollection 내 값으로 치환.
@@ -237,7 +281,11 @@ namespace ACS.App.Modules
 
         private ApplicationNameChannelDestination CreateApplicationNameChannelDestination(string name)
         {
-            var d = new ApplicationNameChannelDestination { Name = name ?? "" };
+            // .NET 8에서는 ConfigurationManager.AppSettings가 작동하지 않으므로
+            // IConfiguration에서 프로세스 이름을 가져와 @{application} 치환
+            string processName = _configuration["Acs:Process:Name"] ?? "";
+            string resolvedName = (name ?? "").Replace("@{application}", processName);
+            var d = new ApplicationNameChannelDestination { Name = resolvedName };
             d.Init();
             return d;
         }
@@ -284,7 +332,7 @@ namespace ACS.App.Modules
                 listener.MessageManager = c.ResolveOptional<IMessageManagerEx>();
                 listener.Destination = destination;
                 listener.Name = "ApplicationControlAgentListener";
-                listener.CastOption = "UNICAST";
+                listener.CastOption = "RPCSERVER";
                 listener.DefaultTTL = 60000;
                 listener.Init();
                 return listener;
@@ -316,6 +364,7 @@ namespace ACS.App.Modules
             })
             .Named<IMessageAgent>(registrationName)
             .As<IMessageAgent>()
+            .As<ISynchronousMessageAgent>()
             .SingleInstance();
         }
     }

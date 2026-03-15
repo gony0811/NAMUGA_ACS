@@ -388,7 +388,7 @@ namespace ACS.Communication.Msb.RabbitMQ
         {
             string replyMessage = Request(document.InnerXml, dest, timeout, useCommunicationMessageNameForLogging, communicationMessageName);
 
-            if (string.ReferenceEquals(replyMessage, null))
+            if (string.IsNullOrEmpty(replyMessage))
             {
                 return null;
             }

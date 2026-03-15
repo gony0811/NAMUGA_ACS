@@ -19,9 +19,8 @@ namespace ACS.Communication.Host
         /// </summary>
         public static async Task WriteMessageAsync(NetworkStream stream, string xml, CancellationToken ct = default)
         {
+            byte[] header = BitConverter.GetBytes(xml.Length);
             byte[] body = Encoding.UTF8.GetBytes(xml);
-            // little-endian: 하위 바이트가 먼저
-            byte[] header = BitConverter.GetBytes(body.Length);
 
             await stream.WriteAsync(header, 0, 4, ct).ConfigureAwait(false);
             await stream.WriteAsync(body, 0, body.Length, ct).ConfigureAwait(false);

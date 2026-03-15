@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AvaloniaProject">
+    <option name="projectPerEditor">
+      <map>
+        <entry key="ACS.UI/App.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/AppManagementView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/ApplicationRibbonView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/DashboardView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/DataViewRibbonView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/HostCommunicationView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/MainWindow.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/MapView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/NioView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/SummaryView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/VehicleListView.axaml" value="ACS.UI/ACS.UI.csproj" />
+      </map>
+    </option>
+  </component>
+</project>

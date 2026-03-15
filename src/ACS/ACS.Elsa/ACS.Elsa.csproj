@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <None Include="elsa-migration.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Workflows\Json\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

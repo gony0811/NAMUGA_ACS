@@ -125,6 +125,10 @@ namespace ACS.Database
             var prop = entity?.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop != null && prop.CanWrite)
             {
+                // PostgreSQL timestamp with time zone는 UTC만 허용
+                if (value is DateTime dt && dt.Kind == DateTimeKind.Local)
+                    value = dt.ToUniversalTime();
+
                 prop.SetValue(entity, value);
             }
         }

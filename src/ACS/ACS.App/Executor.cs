@@ -37,8 +37,14 @@ namespace ACS.App
                 string exe = Process.GetCurrentProcess().MainModule.FileName;
                 string exeDir = Path.GetDirectoryName(exe);
 
+                // dotnet 명령으로 실행 시 exeDir이 SDK 경로를 가리킬 수 있으므로
+                // appsettings.json이 exeDir에 없으면 CWD를 basePath로 사용
+                string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
+                    ? exeDir
+                    : initialStartUpPath;
+
                 var configuration = new ConfigurationBuilder()
-                    .SetBasePath(exeDir)
+                    .SetBasePath(basePath)
                     .AddJsonFile("appsettings.json", optional: true)
                     .Build();
 
@@ -52,7 +58,7 @@ namespace ACS.App
 
                 if (string.IsNullOrEmpty(StartUpPath))
                 {
-                    StartUpPath = exeDir;
+                    StartUpPath = basePath;
                 }
 
                 this.HardwareType = configuration["Acs:Process:HardwareType"];
@@ -222,6 +228,9 @@ namespace ACS.App
                     break;
                 case "host":
                     builder.RegisterModule<HostModule>();
+                    break;
+                case "ui":
+                    builder.RegisterModule<UiModule>();
                     break;
                 default:
                     throw new ApplicationException($"Unknown process type: {processType}");

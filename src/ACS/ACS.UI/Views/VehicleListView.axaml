@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:conv="using:ACS.UI.Converters"
+             x:Class="ACS.UI.Views.VehicleListView"
+             x:DataType="vm:VehicleListViewModel">
+
+    <UserControl.Resources>
+        <conv:StateToColorConverter x:Key="StateToColor" />
+        <conv:BatteryToColorConverter x:Key="BatteryToColor" />
+    </UserControl.Resources>
+
+    <Border Padding="8">
+        <Grid RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0"
+                       Text="Vehicles"
+                       FontSize="15"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource AcsTextPrimaryBrush}"
+                       Margin="5,5,5,8" />
+
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding Vehicles}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserReorderColumns="True"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="1"
+                      BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                      FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID"
+                                        Binding="{Binding Id}"
+                                        Width="70" />
+                    <DataGridTemplateColumn Header="State" Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding State}"
+                                           Foreground="{Binding State, Converter={StaticResource StateToColor}}"
+                                           VerticalAlignment="Center"
+                                           Margin="5,0" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Conn"
+                                        Binding="{Binding ConnectionState}"
+                                        Width="80" />
+                    <DataGridTemplateColumn Header="Battery" Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid Margin="5,2">
+                                    <ProgressBar Minimum="0" Maximum="100"
+                                                 Value="{Binding BatteryRate}"
+                                                 Foreground="{Binding BatteryRate, Converter={StaticResource BatteryToColor}}"
+                                                 Height="14" />
+                                    <TextBlock Text="{Binding BatteryRate, StringFormat='{}{0}%'}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontSize="10"
+                                               Foreground="White" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Node"
+                                        Binding="{Binding CurrentNodeId}"
+                                        Width="70" />
+                    <DataGridTextColumn Header="Command"
+                                        Binding="{Binding TransportCommandId}"
+                                        Width="80" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Border>
+
+</UserControl>

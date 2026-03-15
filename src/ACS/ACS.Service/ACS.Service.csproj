@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ACS.App\ACS.App.csproj" />
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
     <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
     <ProjectReference Include="..\ACS.Manager\ACS.Manager.csproj" />

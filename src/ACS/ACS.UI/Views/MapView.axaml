@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:ACS.UI.Controls"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.MapView"
+             x:DataType="vm:MapViewModel">
+
+    <controls:MapCanvas />
+
+</UserControl>

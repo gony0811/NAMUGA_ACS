@@ -1,0 +1,45 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ACS.UI.App"
+             RequestedThemeVariant="Light">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- ACS Color Palette (from ACS.StartUp) -->
+        <Color x:Key="AcsHeaderColor">#1a3a5c</Color>
+        <Color x:Key="AcsTabBarColor">#e8edf2</Color>
+        <Color x:Key="AcsTabBorderColor">#b0bec5</Color>
+        <Color x:Key="AcsActiveTabColor">#1565c0</Color>
+        <Color x:Key="AcsPrimaryBlue">#0d47a1</Color>
+        <Color x:Key="AcsInfoBlue">#42a5f5</Color>
+        <Color x:Key="AcsLightBlue">#4fc3f7</Color>
+        <Color x:Key="AcsWarningOrange">#fb8c00</Color>
+        <Color x:Key="AcsAlarmGreen">#43a047</Color>
+        <Color x:Key="AcsAlarmRed">#e53935</Color>
+        <Color x:Key="AcsDashGradientStart">#dce8f4</Color>
+        <Color x:Key="AcsDashGradientEnd">#c4d6ea</Color>
+        <Color x:Key="AcsSectionBorder">#b0c4d8</Color>
+        <Color x:Key="AcsStatBorder">#90caf9</Color>
+        <Color x:Key="AcsTextPrimary">#333333</Color>
+        <Color x:Key="AcsTextSecondary">#555555</Color>
+        <Color x:Key="AcsTextMuted">#777777</Color>
+
+        <SolidColorBrush x:Key="AcsHeaderBrush" Color="{StaticResource AcsHeaderColor}" />
+        <SolidColorBrush x:Key="AcsTabBarBrush" Color="{StaticResource AcsTabBarColor}" />
+        <SolidColorBrush x:Key="AcsActiveTabBrush" Color="{StaticResource AcsActiveTabColor}" />
+        <SolidColorBrush x:Key="AcsSectionBorderBrush" Color="{StaticResource AcsSectionBorder}" />
+        <SolidColorBrush x:Key="AcsStatBorderBrush" Color="{StaticResource AcsStatBorder}" />
+        <SolidColorBrush x:Key="AcsTextPrimaryBrush" Color="{StaticResource AcsTextPrimary}" />
+        <SolidColorBrush x:Key="AcsTextSecondaryBrush" Color="{StaticResource AcsTextSecondary}" />
+        <SolidColorBrush x:Key="AcsTextMutedBrush" Color="{StaticResource AcsTextMuted}" />
+        <SolidColorBrush x:Key="AcsWarningBrush" Color="{StaticResource AcsWarningOrange}" />
+        <SolidColorBrush x:Key="AcsAlarmGreenBrush" Color="{StaticResource AcsAlarmGreen}" />
+        <SolidColorBrush x:Key="AcsAlarmRedBrush" Color="{StaticResource AcsAlarmRed}" />
+        <SolidColorBrush x:Key="AcsInfoBlueBrush" Color="{StaticResource AcsInfoBlue}" />
+        <SolidColorBrush x:Key="AcsPrimaryBlueBrush" Color="{StaticResource AcsPrimaryBlue}" />
+        <SolidColorBrush x:Key="AcsLightBlueBrush" Color="{StaticResource AcsLightBlue}" />
+    </Application.Resources>
+</Application>

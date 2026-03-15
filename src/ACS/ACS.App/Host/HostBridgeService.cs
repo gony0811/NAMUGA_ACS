@@ -56,7 +56,7 @@ namespace ACS.App.Host
         {
             try
             {
-                _logger.Info($"[Bridge] Received from host: {e.MessageName}, length={e.MessageBody?.Length ?? 0}");
+                _logger.Info($"[Bridge] Received from host: {e.MessageName}, length={e.MessageBody?.Length ?? 0}\n---- RAW MESSAGE ----\n{e.MessageBody}\n---- END MESSAGE ----");
 
                 var xmlDoc = ParseXml(e.MessageBody);
                 if (xmlDoc == null)

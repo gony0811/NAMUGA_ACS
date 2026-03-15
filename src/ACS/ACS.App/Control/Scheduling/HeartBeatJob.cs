@@ -159,7 +159,7 @@ namespace ACS.Control.Scheduling
         {
             bool result = false;
 
-            DateTime date = DateTime.Now;
+            DateTime date = DateTime.UtcNow;
 
             //logger.info("result timeout{" + timeout + sec}");
             XmlDocument replyDocument = controlServerManager.SynchronousMessageAgent.Request(document, controlServerManager.GetDestinationName(application.Name), timeout);

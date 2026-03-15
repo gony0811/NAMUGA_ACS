@@ -35,7 +35,6 @@ builder.Services
         .UseWorkflowsApi()
         .AddActivitiesFrom<Program>()
         .AddActivitiesFrom<ACS.Elsa.Activities.ReflectionActivityBase>()
-        .AddActivitiesFrom<ACS.Activity.Activities.SearchSuitableRechargeStation>()
         .AddWorkflowsFrom<Program>()
     );
 

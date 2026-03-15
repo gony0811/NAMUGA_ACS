@@ -19,7 +19,7 @@ namespace ACS.Control.Scheduling
 
             // logger.info("myself{" + applicationName + "} will be checked");
 
-            controlServerManager.ApplicationManager.UpdateApplicationCheckTime(applicationName, DateTime.Now);
+            controlServerManager.ApplicationManager.UpdateApplicationCheckTime(applicationName, DateTime.UtcNow);
 
             controlServerManager.DisplayTriggers();
         }

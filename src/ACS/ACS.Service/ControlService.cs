@@ -10,9 +10,7 @@ using ACS.Core.Application;
 using ACS.Core.Message.Model.Control;
 using ACS.Communication.Msb;
 using ACS.Control;
-using ACS.App;
 using System.Configuration;
-using ACS.Core.Base;
 
 namespace ACS.Service
 {

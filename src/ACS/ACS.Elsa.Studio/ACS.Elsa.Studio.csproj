@@ -30,7 +30,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Elsa.Studio.Client\ACS.Elsa.Studio.Client.csproj" />
     <ProjectReference Include="..\ACS.Elsa\ACS.Elsa.csproj" />
-    <ProjectReference Include="..\ACS.Activity\ACS.Activity.csproj" />
   </ItemGroup>
 
 </Project>

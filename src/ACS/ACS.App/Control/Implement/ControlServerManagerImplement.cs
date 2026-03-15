@@ -220,19 +220,23 @@ namespace ACS.Control
 
         public string GetDestinationName(string applicationName)
         {
-            string destinationName = DestinationNamePrefix + "." + applicationName;
             ACS.Core.Application.Model.Application application = this.ApplicationManager.GetApplication(applicationName);
+            string msb = application?.Msb ?? "";
 
-            if(application != null)
+            // RabbitMQ / Highway101: '/' 구분자, TIBCO: '.' 구분자
+            string separator = msb.Equals("rabbitmq", StringComparison.OrdinalIgnoreCase)
+                            || msb.Equals("highway101", StringComparison.OrdinalIgnoreCase)
+                            ? "/" : ".";
+
+            string destinationName = DestinationNamePrefix + separator + applicationName;
+
+            if (msb.Equals("rabbitmq", StringComparison.OrdinalIgnoreCase)
+                || msb.Equals("highway101", StringComparison.OrdinalIgnoreCase))
             {
-                if(application.Msb.Equals("highway101"))
+                destinationName = destinationName.Replace(".", "/");
+                if (!destinationName.StartsWith("/"))
                 {
-                    destinationName = destinationName.Replace(".", "/");
-                    if (!destinationName.StartsWith("/"))
-                    {
-                        destinationName = "/" + destinationName;
-                    }
-                    return destinationName;
+                    destinationName = "/" + destinationName;
                 }
             }
 
@@ -548,6 +552,7 @@ namespace ACS.Control
             jobData.Put("ApplicationName", applicationName);
             jobData.Put("Document", document);
             jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
+            jobData.Put("Configuration", this.Configuration);
 
             IJobDetail jobDetail = JobBuilder.Create(jobType)
                 .WithIdentity(applicationName, HeartBeatJob.GROUP_HEARTBEAT)

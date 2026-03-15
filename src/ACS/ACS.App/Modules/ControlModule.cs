@@ -73,6 +73,7 @@ namespace ACS.App.Modules
                 .OnActivated(e =>
                 {
                     var mgr = (ControlServerManagerImplement)e.Instance;
+                    mgr.Init();
                     // Scheduling job types (protected Type — set via reflection)
                     void SetProtected(string name, object value)
                     {
@@ -80,15 +81,18 @@ namespace ACS.App.Modules
                             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                         prop?.SetValue(mgr, value);
                     }
-                    SetProtected("SimpleHeartBeatJobType", Type.GetType("ACS.Control.Scheduling.SimpleHeartBeatJob, ACS.Control"));
-                    SetProtected("HeartBeatJobType", Type.GetType("ACS.Control.Scheduling.HeartBeatJob, ACS.Control"));
-                    SetProtected("UiTransportJobType", Type.GetType("ACS.Control.Scheduling.UiTransportJob, ACS.Control"));
-                    SetProtected("UiApplicationManagerJobType", Type.GetType("ACS.Control.Scheduling.UiApplicationManagerJob, ACS.Control"));
-                    SetProtected("RescheduleHeartBeatJobType", Type.GetType("ACS.Control.Scheduling.RescheduleHeartBeatJob, ACS.Control"));
-                    SetProtected("UiCommandJobType", Type.GetType("ACS.Control.Scheduling.UiCommandJob, ACS.Control"));
+                    // Job Type은 ControlServerManagerImplement.Init()에서 typeof()로 설정됨.
+                    // 이전에 Type.GetType("..., ACS.Control")로 덮어쓰던 코드 제거 —
+                    // ACS.Control 어셈블리가 존재하지 않아(실제: ACS.App) null을 반환하여
+                    // HeartBeat/Reschedule/SimpleHeartBeat 스케줄링이 모두 실패했음.
                     SetProtected("WindowRedirectFilePath", "log/server/control/start");
+                    // HeartBeat 전송 대상 큐의 prefix 설정 (예: VM/DEMO/CONTROL/AGENT)
+                    // ${server.domain} placeholder는 MsbRabbitMQModule에서 이미 치환되지 않으므로
+                    // IConfiguration에서 직접 조합
+                    var domainValue = mgr.Configuration?["Destination:Server:DomainValue"] ?? "VM/DEMO";
+                    SetProtected("DestinationNamePrefix", domainValue + "/CONTROL/AGENT");
                     // Feature toggles
-                    mgr.UseHeartBeat = false;
+                    mgr.UseHeartBeat = true;
                     mgr.UseUiTransport = true;
                     mgr.UseUiCommand = true;
                     mgr.UseUiApplicationManager = false;

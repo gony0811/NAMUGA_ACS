@@ -82,13 +82,37 @@ namespace ACS.Elsa.Bridge
         }
 
         /// <summary>
-        /// ACS.Activity 어셈블리에서 WorkflowBase 구현체를 스캔하여 DefinitionId로 등록.
+        /// ACS.Elsa 어셈블리에서 WorkflowBase 구현체를 스캔하여 등록.
+        /// 또한 JSON 워크플로우 파일도 로드하여 레지스트리에 추가.
         /// </summary>
         private void ScanWorkflows()
         {
+            // 1. ACS.Elsa 어셈블리에서 C# 워크플로우 스캔
+            ScanWorkflowsFromAssembly(typeof(ElsaWorkflowManagerBridge).Assembly, "ACS.Elsa");
+
+            // 2. JSON 워크플로우 로드
             try
             {
-                var asm = Assembly.Load("ACS.Activity");
+                var jsonWorkflows = Workflows.JsonWorkflowLoader.LoadFromDirectory();
+                foreach (var kvp in jsonWorkflows)
+                {
+                    var jsonWorkflow = new Workflows.JsonBackedWorkflow(kvp.Value);
+                    _workflowRegistry[kvp.Key] = jsonWorkflow;
+                    logger.Info($"JSON workflow registered: {kvp.Key}");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"Failed to load JSON workflows: {ex.Message}");
+            }
+
+            logger.Info($"Total {_workflowRegistry.Count} workflow(s) registered.");
+        }
+
+        private void ScanWorkflowsFromAssembly(Assembly asm, string assemblyLabel)
+        {
+            try
+            {
                 var workflowBaseType = typeof(WorkflowBase);
 
                 foreach (var type in asm.GetExportedTypes())
@@ -98,25 +122,18 @@ namespace ACS.Elsa.Bridge
                     try
                     {
                         var instance = (WorkflowBase)Activator.CreateInstance(type);
-
-                        // Build()를 호출하여 DefinitionId를 확인하기 위해 IWorkflowBuilder 사용
-                        // WorkflowBase.Build(builder)에서 builder.DefinitionId가 설정됨
-                        // → IWorkflow로 캐스팅하면 Elsa가 Build()를 호출하므로 인스턴스만 보관
                         _workflowRegistry[type.Name] = instance;
-
-                        logger.Info($"Workflow registered: {type.Name}");
+                        logger.Info($"Workflow registered: {type.Name} (from {assemblyLabel})");
                     }
                     catch (Exception ex)
                     {
                         logger.Warn($"Failed to instantiate workflow {type.Name}: {ex.Message}");
                     }
                 }
-
-                logger.Info($"Total {_workflowRegistry.Count} workflow(s) scanned from ACS.Activity.");
             }
             catch (Exception ex)
             {
-                logger.Warn($"Failed to scan workflows from ACS.Activity: {ex.Message}");
+                logger.Warn($"Failed to scan workflows from {assemblyLabel}: {ex.Message}");
             }
         }
 
