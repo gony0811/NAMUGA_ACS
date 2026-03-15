@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using System.Xml;
 using ACS.Communication;
 using ACS.Communication.Msb;
-using ACS.Framework.Message;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message;
+using ACS.Core.Message.Model;
 using ACS.Manager.Message;
 using ACS.Utility;
 

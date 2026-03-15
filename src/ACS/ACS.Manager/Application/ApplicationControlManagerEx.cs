@@ -7,17 +7,17 @@ using System.Threading.Tasks;
 using System.Data;
 using ACS.Communication;
 using ACS.Communication.Msb;
-using ACS.Framework.Base;
-using ACS.Framework.Application;
-using ACS.Framework.Application.Model;
-using ACS.Framework.Reload;
-using ACS.Framework.Message.Model.Control;
+using ACS.Core.Base;
+using ACS.Core.Application;
+using ACS.Core.Application.Model;
+using ACS.Core.Reload;
+using ACS.Core.Message.Model.Control;
 using ACS.Communication.Socket;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using ACS.Utility;
 using Autofac;
 using System.Configuration;
-using ACS.Framework.Cache;
+using ACS.Core.Cache;
 
 namespace ACS.Manager.Application
 {    
@@ -263,7 +263,7 @@ namespace ACS.Manager.Application
 
             try
             {
-                ACS.Framework.Application.Model.Application application = this.ApplicationManager.GetApplication(applicationName);
+                ACS.Core.Application.Model.Application application = this.ApplicationManager.GetApplication(applicationName);
                 if (application != null)
                 {
                     application.State = "inactive";
@@ -281,7 +281,7 @@ namespace ACS.Manager.Application
             return true;
         }
 
-        public void InvokeStopWorkflow(ACS.Framework.Application.Model.Application application)
+        public void InvokeStopWorkflow(ACS.Core.Application.Model.Application application)
         {
             if (this.WorkflowManager != null)
             {
@@ -290,7 +290,7 @@ namespace ACS.Manager.Application
             }
         }
 
-        private string GetStopWorkflowName(Framework.Application.Model.Application application)
+        private string GetStopWorkflowName(Core.Application.Model.Application application)
         {
             String stopWorkflowName = "";
             if (application.Type.Equals("trans"))

@@ -5,7 +5,7 @@
 // Assembly location: D:\ACS\ACS\trunk\Bin\ACS.Communication.dll
 
 using ACS.Communication.Msb.Highway101.Message;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using System;
 using System.Runtime.Serialization;
 using System.Text;

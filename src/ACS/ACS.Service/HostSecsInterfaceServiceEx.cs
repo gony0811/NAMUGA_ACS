@@ -5,24 +5,24 @@ using System.Text;
 using System.Collections.Generic;
 
 using System.Threading.Tasks;
-using ACS.Framework.Base;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message.Model.Ui;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Transfer;
-using ACS.Framework.Material.Model;
-using ACS.Framework.Path.Model;
-using ACS.Framework.Resource;
-using ACS.Framework.Application;
-using ACS.Framework.Material;
+using ACS.Core.Base;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Message.Model;
+using ACS.Core.Message.Model.Ui;
+using ACS.Core.Resource.Model;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Transfer;
+using ACS.Core.Material.Model;
+using ACS.Core.Path.Model;
+using ACS.Core.Resource;
+using ACS.Core.Application;
+using ACS.Core.Material;
 using System.Collections;
 using System.Threading;
-using ACS.Framework.Message;
+using ACS.Core.Message;
 using System.Xml;
-using ACS.Framework.Logging;
-using ACS.Framework.Base;
+using ACS.Core.Logging;
+using ACS.Core.Base;
 
 namespace ACS.Service
 {

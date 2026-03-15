@@ -1,7 +1,7 @@
-﻿using ACS.Framework.Base;
-using ACS.Framework.Material.Model;
-using ACS.Framework.Material;
-using ACS.Framework.Resource;
+﻿using ACS.Core.Base;
+using ACS.Core.Material.Model;
+using ACS.Core.Material;
+using ACS.Core.Resource;
 using System;
 using System.Collections;
 using System.Collections.Generic;

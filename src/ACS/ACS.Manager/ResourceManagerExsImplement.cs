@@ -6,23 +6,23 @@ using System.Resources;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Base;
-using ACS.Framework.Resource;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
+using ACS.Core.Base;
+using ACS.Core.Resource;
 using ACS.Manager.Resource;
 
-using ACS.Framework.Path;
-using ACS.Framework.Path.Model;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Path.Model;
-using ACS.Framework.Cache;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Transfer;
-using ACS.Framework.Alarm;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Message;
+using ACS.Core.Path;
+using ACS.Core.Path.Model;
+using ACS.Core.Resource.Model;
+using ACS.Core.Path.Model;
+using ACS.Core.Cache;
+using ACS.Core.Message.Model;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Transfer;
+using ACS.Core.Alarm;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Message;
 
 
 namespace ACS.Manager

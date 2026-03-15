@@ -1,6 +1,6 @@
 using System;
-using ACS.Framework.Host;
-using ACS.Framework.Logging;
+using ACS.Core.Host;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Host
 {

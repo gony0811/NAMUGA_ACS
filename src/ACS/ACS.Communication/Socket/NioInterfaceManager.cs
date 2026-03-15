@@ -1,4 +1,4 @@
-﻿using ACS.Framework.Base;
+﻿using ACS.Core.Base;
 using Autofac;
 using System;
 using System.Collections;
@@ -6,13 +6,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Message;
+using ACS.Core.Message;
 using ACS.Communication.Socket;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
-using ACS.Workflow;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Resource;
+using ACS.Core.Workflow;
+using ACS.Core.Resource.Model;
+using ACS.Core.Resource;
 using ACS.Utility;
 //using Client;
 

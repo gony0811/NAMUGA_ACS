@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ACS.Manager.Transfer;
-using ACS.Framework.Transfer;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Transfer.Model;
+using ACS.Core.Transfer;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Transfer.Model;
 
 namespace ACS.Manager
 {

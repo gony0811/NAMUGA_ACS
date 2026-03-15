@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Base;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Resource.Model;
+using ACS.Core.Base;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Message.Model;
+using ACS.Core.Resource.Model;
 using System.Collections;
-using ACS.Framework.Logging;
-using ACS.Framework.Base;
-using ACS.Framework.History.Model;
-using ACS.Framework.Path.Model;
+using ACS.Core.Logging;
+using ACS.Core.Base;
+using ACS.Core.History.Model;
+using ACS.Core.Path.Model;
 
 namespace ACS.Service
 {

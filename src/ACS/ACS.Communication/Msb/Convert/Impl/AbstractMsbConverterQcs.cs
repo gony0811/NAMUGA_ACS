@@ -6,7 +6,7 @@ using System.Xml;
 using System.Diagnostics;
 using ACS.Communication.Msb.Convert.Mapping;
 using ACS.Communication.Msb.Convert;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 using System.Reflection;
 using System.Configuration;
@@ -51,7 +51,7 @@ namespace ACS.Communication.Msb.Convert.Impl
             else
             {
                 XmlDocument sendMessageTemplate = new XmlDocument();
-                SendMessageTemplateFilePath = SendMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Framework.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                SendMessageTemplateFilePath = SendMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Core.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
                 string path = SystemUtility.GetFullPathName(SendMessageTemplateFilePath);
                 sendMessageTemplate.Load(path);
 

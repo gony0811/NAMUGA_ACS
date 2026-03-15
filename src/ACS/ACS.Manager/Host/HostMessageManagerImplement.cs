@@ -5,11 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
-using ACS.Framework.Host;
-using ACS.Framework.Base;
+using ACS.Core.Host;
+using ACS.Core.Base;
 using ACS.Communication;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message;
+using ACS.Core.Message.Model;
+using ACS.Core.Message;
 using ACS.Communication.Msb;
 using System.IO;
 

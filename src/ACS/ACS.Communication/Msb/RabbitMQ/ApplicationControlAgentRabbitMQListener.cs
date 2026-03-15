@@ -5,10 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using ACS.Communication.Msb.Highway101.Message;
-using ACS.Framework.Application;
-using ACS.Framework.Message;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message.Model.Control;
+using ACS.Core.Application;
+using ACS.Core.Message;
+using ACS.Core.Message.Model;
+using ACS.Core.Message.Model.Control;
 
 namespace ACS.Communication.Msb.RabbitMQ
 {

@@ -1,5 +1,5 @@
 ﻿using ACS.Communication.Msb.Convert.Mapping;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 using System;
 using System.Collections.Generic;

@@ -29,7 +29,7 @@ using ACS.Communication.Http.uHttpSharp.Clients;
 using ACS.Communication.Http.uHttpSharp.Headers;
 using ACS.Communication.Http.uHttpSharp.RequestProviders;
 //using ACS.Communication.Http.uHttpSharp.Logging;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Http.uHttpSharp
 {

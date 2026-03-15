@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Communication;
 
 namespace ACS.Communication.Msb

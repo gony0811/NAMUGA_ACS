@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ACS.Communication.Msb;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Msb.Highway101
 {

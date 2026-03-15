@@ -1,5 +1,5 @@
-﻿using ACS.Framework.Application;
-using ACS.Framework.Logging;
+﻿using ACS.Core.Application;
+using ACS.Core.Logging;
 using System;
 using System.Collections.Generic;
 using System.Configuration;

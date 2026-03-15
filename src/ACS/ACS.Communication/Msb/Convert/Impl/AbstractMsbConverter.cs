@@ -6,10 +6,10 @@ using System.Xml;
 using System.Diagnostics;
 using ACS.Communication.Msb.Convert.Mapping;
 using ACS.Communication.Msb.Convert;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 using System.Reflection;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using System.Configuration;
 
 namespace ACS.Communication.Msb.Convert.Implement
@@ -76,7 +76,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             else
             {
                 XmlDocument sendMessageTemplate = new XmlDocument();
-                SendMessageTemplateFilePath = SendMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Framework.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                SendMessageTemplateFilePath = SendMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Core.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
                 string path = SystemUtility.GetFullPathName(SendMessageTemplateFilePath);
                 sendMessageTemplate.Load(path);
 
@@ -122,7 +122,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             else
             {
                 XmlDocument receiveMessageTemplate = new XmlDocument();
-                ReceiveMessageTemplateFilePath = ReceiveMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Framework.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                ReceiveMessageTemplateFilePath = ReceiveMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Core.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
                 string path = SystemUtility.GetFullPathName(ReceiveMessageTemplateFilePath);
                 
                 receiveMessageTemplate.Load(path);
@@ -167,7 +167,7 @@ namespace ACS.Communication.Msb.Convert.Implement
             else
             {
                 string path = SystemUtility.GetFullPathName(MessagesMappingFilePath);
-                path = path.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Framework.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                path = path.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Core.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
                 XmlDocument messageNamesDocument = new XmlDocument();
                 messageNamesDocument.Load(path);
                 if (messageNamesDocument == null)

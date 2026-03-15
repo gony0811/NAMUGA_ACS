@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Xml;
 using System.Text.Json;
-using Autofac;
-using Elsa.Workflows.Runtime;
-using Elsa.Workflows.Runtime.Contracts;
-using Elsa.Workflows.Runtime.Messages;
-using Elsa.Workflows.Runtime.Requests;
-using ACS.Framework.Logging;
-using ACS.Workflow;
+using Elsa.Workflows;
+using Elsa.Workflows.Options;
+using ACS.Core.Logging;
+using ACS.Core.Workflow;
 
 namespace ACS.Elsa.Bridge
 {
@@ -17,7 +16,7 @@ namespace ACS.Elsa.Bridge
     /// Hybrid IWorkflowManager: routes commands to Elsa or legacy WorkflowManagerImpl
     /// based on elsa-migration.json configuration.
     ///
-    /// Commands listed in "ElsaCommands" are dispatched to Elsa workflow engine.
+    /// Commands listed in "ElsaCommands" are run via IWorkflowRunner (동기 실행).
     /// All other commands fall through to the original WorkflowManagerImpl.
     /// This enables gradual migration without breaking existing functionality.
     /// </summary>
@@ -26,20 +25,27 @@ namespace ACS.Elsa.Bridge
         private static readonly Logger logger = Logger.GetLogger(typeof(ElsaWorkflowManagerBridge));
 
         private readonly WorkflowManagerImpl _legacyManager;
-        private readonly IWorkflowDispatcher _workflowDispatcher;
+        private readonly IWorkflowRunner _workflowRunner;
         private HashSet<string> _elsaCommands;
         private readonly string _configPath;
 
+        /// <summary>
+        /// DefinitionId → IWorkflow 인스턴스 매핑.
+        /// WorkflowBase의 Build()에서 설정한 DefinitionId로 워크플로우를 찾음.
+        /// </summary>
+        private readonly Dictionary<string, IWorkflow> _workflowRegistry = new(StringComparer.OrdinalIgnoreCase);
+
         public ElsaWorkflowManagerBridge(
             WorkflowManagerImpl legacyManager,
-            IWorkflowDispatcher workflowDispatcher)
+            IWorkflowRunner workflowRunner)
         {
             _legacyManager = legacyManager;
-            _workflowDispatcher = workflowDispatcher;
+            _workflowRunner = workflowRunner;
 
             // Config file next to the running executable
             _configPath = Path.Combine(AppContext.BaseDirectory, "elsa-migration.json");
             LoadConfig();
+            ScanWorkflows();
         }
 
         private void LoadConfig()
@@ -75,35 +81,107 @@ namespace ACS.Elsa.Bridge
             }
         }
 
+        /// <summary>
+        /// ACS.Activity 어셈블리에서 WorkflowBase 구현체를 스캔하여 DefinitionId로 등록.
+        /// </summary>
+        private void ScanWorkflows()
+        {
+            try
+            {
+                var asm = Assembly.Load("ACS.Activity");
+                var workflowBaseType = typeof(WorkflowBase);
+
+                foreach (var type in asm.GetExportedTypes())
+                {
+                    if (type.IsAbstract || !workflowBaseType.IsAssignableFrom(type)) continue;
+
+                    try
+                    {
+                        var instance = (WorkflowBase)Activator.CreateInstance(type);
+
+                        // Build()를 호출하여 DefinitionId를 확인하기 위해 IWorkflowBuilder 사용
+                        // WorkflowBase.Build(builder)에서 builder.DefinitionId가 설정됨
+                        // → IWorkflow로 캐스팅하면 Elsa가 Build()를 호출하므로 인스턴스만 보관
+                        _workflowRegistry[type.Name] = instance;
+
+                        logger.Info($"Workflow registered: {type.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Warn($"Failed to instantiate workflow {type.Name}: {ex.Message}");
+                    }
+                }
+
+                logger.Info($"Total {_workflowRegistry.Count} workflow(s) scanned from ACS.Activity.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"Failed to scan workflows from ACS.Activity: {ex.Message}");
+            }
+        }
+
         private bool IsElsaCommand(string workflowName)
         {
             return _elsaCommands.Contains(workflowName);
         }
 
-        private bool DispatchToElsa(string workflowName, object[] args)
+        /// <summary>
+        /// IWorkflowRunner.RunAsync로 워크플로우를 동기(inline) 실행.
+        /// DispatchAsync와 달리 현재 스레드에서 실행되므로 디버깅/브레이크포인트 가능.
+        /// </summary>
+        private bool RunElsaWorkflow(string workflowName, object[] args)
         {
             try
             {
+                logger.Info($"Elsa running '{workflowName}' with {args?.Length ?? 0} argument(s)...");
+
+                // DefinitionId 또는 클래스명으로 워크플로우 찾기
+                IWorkflow workflow = null;
+
+                // 1. elsa-migration.json의 ElsaCommands에 매핑된 워크플로우 클래스명 찾기
+                //    예: "MOVECMD" → HostMoveCmdWorkflow
+                //    규칙: "Host{CommandName}Workflow" 패턴으로 검색
+                var candidates = new[]
+                {
+                    $"Host{workflowName}Workflow",          // HostMoveCmdWorkflow
+                    $"{workflowName}Workflow",              // MOVECMDWorkflow
+                    workflowName                            // 직접 클래스명
+                };
+
+                foreach (var candidate in candidates)
+                {
+                    if (_workflowRegistry.TryGetValue(candidate, out workflow))
+                        break;
+                }
+
+                if (workflow == null)
+                {
+                    logger.Warn($"Elsa workflow not found for '{workflowName}'. " +
+                                $"Searched: {string.Join(", ", candidates)}. " +
+                                $"Available: {string.Join(", ", _workflowRegistry.Keys)}");
+                    return false;
+                }
+
                 var input = new Dictionary<string, object>
                 {
                     ["CommandName"] = workflowName,
                     ["Arguments"] = args
                 };
 
-                var request = new DispatchWorkflowDefinitionRequest(workflowName)
+                var options = new RunWorkflowOptions
                 {
                     Input = input
                 };
 
-                var result = _workflowDispatcher.DispatchAsync(request)
+                var result = _workflowRunner.RunAsync(workflow, options)
                     .GetAwaiter().GetResult();
 
-                logger.Info($"Elsa dispatch for '{workflowName}': success");
+                logger.Info($"Elsa workflow '{workflowName}' completed. Status={result.WorkflowState.Status}");
                 return true;
             }
             catch (Exception ex)
             {
-                logger.Error($"Elsa dispatch for '{workflowName}' failed: {ex.Message}", ex);
+                logger.Error($"Elsa workflow '{workflowName}' failed: {ex.Message}", ex);
                 return false;
             }
         }
@@ -113,77 +191,77 @@ namespace ACS.Elsa.Bridge
         public bool Execute(string workflowName, object paramObject)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new[] { paramObject });
+                return RunElsaWorkflow(workflowName, new[] { paramObject });
             return _legacyManager.Execute(workflowName, paramObject);
         }
 
         public bool Execute(string workflowName, object paramObject, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new[] { paramObject });
+                return RunElsaWorkflow(workflowName, new[] { paramObject });
             return _legacyManager.Execute(workflowName, paramObject, isParallel);
         }
 
         public bool Execute(string workflowName, XmlDocument document)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new object[] { document });
+                return RunElsaWorkflow(workflowName, new object[] { document });
             return _legacyManager.Execute(workflowName, document);
         }
 
         public bool Execute(string workflowName, XmlDocument document, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new object[] { document });
+                return RunElsaWorkflow(workflowName, new object[] { document });
             return _legacyManager.Execute(workflowName, document, isParallel);
         }
 
         public bool Execute(string workflowName, object[] args)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, args);
+                return RunElsaWorkflow(workflowName, args);
             return _legacyManager.Execute(workflowName, args);
         }
 
         public bool Execute(string workflowName, object[] args, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, args);
+                return RunElsaWorkflow(workflowName, args);
             return _legacyManager.Execute(workflowName, args, isParallel);
         }
 
         public bool Execute(string transactionId, string workflowName, XmlDocument document)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new object[] { document });
+                return RunElsaWorkflow(workflowName, new object[] { document });
             return _legacyManager.Execute(transactionId, workflowName, document);
         }
 
         public bool Execute(string transactionId, string workflowName, XmlDocument document, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new object[] { document });
+                return RunElsaWorkflow(workflowName, new object[] { document });
             return _legacyManager.Execute(transactionId, workflowName, document, isParallel);
         }
 
         public bool Execute(string transactionId, string workflowName, object paramObject)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new[] { paramObject });
+                return RunElsaWorkflow(workflowName, new[] { paramObject });
             return _legacyManager.Execute(transactionId, workflowName, paramObject);
         }
 
         public bool Execute(string transactionId, string workflowName, object paramObject, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, new[] { paramObject });
+                return RunElsaWorkflow(workflowName, new[] { paramObject });
             return _legacyManager.Execute(transactionId, workflowName, paramObject, isParallel);
         }
 
         public bool Execute(string transactionId, string workflowName, object[] args, bool isParallel)
         {
             if (IsElsaCommand(workflowName))
-                return DispatchToElsa(workflowName, args);
+                return RunElsaWorkflow(workflowName, args);
             return _legacyManager.Execute(transactionId, workflowName, args, isParallel);
         }
 

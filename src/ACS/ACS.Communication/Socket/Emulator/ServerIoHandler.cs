@@ -2,8 +2,8 @@
 using Mina.Core.Session;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
-using ACS.Framework.Logging;
-using ACS.Workflow;
+using ACS.Core.Logging;
+using ACS.Core.Workflow;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

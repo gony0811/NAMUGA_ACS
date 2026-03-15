@@ -10,7 +10,7 @@ using ACS.Communication.Msb.Util;
 using System.Xml;
 using ACS.Communication.Util;
 using ACS.Utility;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Communication.Msb.Highway101.Message;
 
 namespace ACS.Communication.Msb.Highway101.Marker

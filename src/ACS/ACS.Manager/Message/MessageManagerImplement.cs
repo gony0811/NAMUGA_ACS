@@ -1,7 +1,7 @@
-﻿using ACS.Framework.Base;
-using ACS.Framework.Message;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message.Model.Control;
+﻿using ACS.Core.Base;
+using ACS.Core.Message;
+using ACS.Core.Message.Model;
+using ACS.Core.Message.Model.Control;
 using System;
 using System.Collections.Generic;
 using System.Linq;

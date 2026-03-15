@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Base;
-using ACS.Framework.Application.Model;
-using ACS.Framework.Message.Model.Server;
-using ACS.Framework.Resource.Model.Factory.Unit;
-using ACS.Framework.Resource;
-using ACS.Framework.Material;
-using ACS.Framework.History;
-using ACS.Framework.History.Model;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Resource.Model.Factory.Machine;
+using ACS.Core.Base;
+using ACS.Core.Application.Model;
+using ACS.Core.Message.Model.Server;
+using ACS.Core.Resource.Model.Factory.Unit;
+using ACS.Core.Resource;
+using ACS.Core.Material;
+using ACS.Core.History;
+using ACS.Core.History.Model;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Message.Model;
+using ACS.Core.Resource.Model;
+using ACS.Core.Resource.Model.Factory.Machine;
 using System.Collections;
 namespace ACS.Manager.History
 {
@@ -138,7 +138,7 @@ namespace ACS.Manager.History
             return null;
         }
 
-        public ApplicationHistoryEx CreateApplicationHistory(ACS.Framework.Application.Model.Application application) //lys20180713 Application??
+        public ApplicationHistoryEx CreateApplicationHistory(ACS.Core.Application.Model.Application application) //lys20180713 Application??
         {
             return null;
         }
@@ -150,7 +150,7 @@ namespace ACS.Manager.History
             return null;
         }
 
-        public HeartBeatFailHistoryEx CreateHeartBeatFailHistory(ACS.Framework.Application.Model.Application application) //lys20180713 Application??
+        public HeartBeatFailHistoryEx CreateHeartBeatFailHistory(ACS.Core.Application.Model.Application application) //lys20180713 Application??
         {
             return null;
         }

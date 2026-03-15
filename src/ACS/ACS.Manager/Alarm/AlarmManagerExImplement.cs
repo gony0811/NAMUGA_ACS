@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Base;
-using ACS.Framework.Alarm;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.History;
+using ACS.Core.Base;
+using ACS.Core.Alarm;
+using ACS.Core.Alarm.Model;
+using ACS.Core.History;
 using System.Runtime.Serialization;
 
 namespace ACS.Manager.Alarm

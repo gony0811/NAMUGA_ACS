@@ -5,7 +5,7 @@ using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Elsa.Activities
 {

@@ -4,7 +4,7 @@ using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using RabbitMQ.Client;
 
 namespace ACS.Communication.Msb.RabbitMQ

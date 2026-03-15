@@ -1,5 +1,5 @@
 ﻿using ACS.Communication.Msb;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using ACS.Communication.Msb.Tibrv;
 using System;
 using System.Collections.Generic;

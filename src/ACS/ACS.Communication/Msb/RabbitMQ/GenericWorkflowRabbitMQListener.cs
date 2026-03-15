@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using ACS.Workflow;
-using ACS.Framework.Message.Model;
+using ACS.Core.Workflow;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 
 namespace ACS.Communication.Msb.RabbitMQ

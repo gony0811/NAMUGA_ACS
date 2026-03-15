@@ -1,20 +1,20 @@
 ﻿using ACS.Communication;
 using ACS.Communication.Msb;
-using ACS.Framework.Base;
-using ACS.Framework.Material;
-using ACS.Framework.Material.Model;
-using ACS.Framework.Message;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message.Model.Control;
-using ACS.Framework.Message.Model.Server;
-using ACS.Framework.Message.Model.Ui;
-using ACS.Framework.Message.Model.Host;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Transfer;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Application.Model;
-using ACS.Framework.Application;
+using ACS.Core.Base;
+using ACS.Core.Material;
+using ACS.Core.Material.Model;
+using ACS.Core.Message;
+using ACS.Core.Message.Model;
+using ACS.Core.Message.Model.Control;
+using ACS.Core.Message.Model.Server;
+using ACS.Core.Message.Model.Ui;
+using ACS.Core.Message.Model.Host;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
+using ACS.Core.Transfer;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Application.Model;
+using ACS.Core.Application;
 using ACS.Communication.Socket;
 using ACS.Communication.Socket.Model;
 using ACS.Utility;
@@ -2877,7 +2877,7 @@ namespace ACS.Manager.Message
 
                     IList nioList = this.nioInterfaceManager.GetNioesByApplicationName(rfServerName);
 
-                    ACS.Framework.Application.Model.Application application = this.ApplicationManager.GetApplication(rfServerName);
+                    ACS.Core.Application.Model.Application application = this.ApplicationManager.GetApplication(rfServerName);
 
                     if ((nioList != null) && (nioList.Count > 0))
                     {
@@ -2936,7 +2936,7 @@ namespace ACS.Manager.Message
                     return;
                 }
 
-                ACS.Framework.Application.Model.Application application = this.ApplicationManager.GetApplication(rfServerName);
+                ACS.Core.Application.Model.Application application = this.ApplicationManager.GetApplication(rfServerName);
 
                 if ((application == null) || (application.State.Equals("inactive")))
                 {
@@ -3036,7 +3036,7 @@ namespace ACS.Manager.Message
             //    if (nio != null)
             //    {
             //        String esName = nio.ApplicationName;
-            //        ACS.Framework.Application.Model.Application application = this.applicationManager.GetApplication(esName);
+            //        ACS.Core.Application.Model.Application application = this.applicationManager.GetApplication(esName);
             //        if ((application == null) || (application.State.Equals("inactive")))
             //        {
             //            logger.Warn("Can Not sendMessageToAcsEs(" + esName + ") is Not Active or not define application");
@@ -3491,7 +3491,7 @@ namespace ACS.Manager.Message
         //181213 WIFI RF ZIGBEE available
         public void SendMessageToAcsEsByWifiZigbee(IList listNio, XmlDocument document)
         {
-            ACS.Framework.Application.Model.Application application;
+            ACS.Core.Application.Model.Application application;
 
             if ((listNio != null) && (listNio.Count > 0))
             {

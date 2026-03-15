@@ -3,7 +3,7 @@ using com.miracom.transceiverx.session;
 using ACS.Communication.Msb.Highway101.Message;
 using ACS.Communication.Msb.Util;
 using ACS.Communication.Util;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 
 using System;

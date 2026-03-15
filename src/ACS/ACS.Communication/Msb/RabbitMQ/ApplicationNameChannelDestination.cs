@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
-using ACS.Framework.Application;
+using ACS.Core.Application;
 
 namespace ACS.Communication.Msb.RabbitMQ
 {

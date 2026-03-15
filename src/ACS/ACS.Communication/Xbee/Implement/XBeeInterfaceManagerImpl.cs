@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
-using ACS.Framework.Base;
-//using ACS.Framework.Extension.Resource.Model;
+using ACS.Core.Base;
+//using ACS.Core.Extension.Resource.Model;
 
 namespace ACS.Communication.Xbee.Implement
 {

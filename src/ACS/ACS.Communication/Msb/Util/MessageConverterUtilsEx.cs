@@ -1,6 +1,6 @@
 ﻿using ACS.Communication.Msb;
 using ACS.Communication.Msb.Util;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using System;
 using System.Collections.Generic;
 using System.IO;

@@ -6,18 +6,18 @@ using System.Resources;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Path;
-using ACS.Framework.Resource;
-using ACS.Framework.Path.Model;
-using ACS.Framework.Base;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Alarm;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Path.Model;
+using ACS.Core.Path;
+using ACS.Core.Resource;
+using ACS.Core.Path.Model;
+using ACS.Core.Base;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
+using ACS.Core.Alarm;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Path.Model;
 using ACS.Manager.Resource;
-using ACS.Framework.Path.Comparator;
-using ACS.Framework.Alarm.Model;
+using ACS.Core.Path.Comparator;
+using ACS.Core.Alarm.Model;
 
 namespace ACS.Manager
 {

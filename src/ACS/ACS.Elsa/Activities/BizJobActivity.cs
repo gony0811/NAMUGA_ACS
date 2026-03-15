@@ -6,7 +6,7 @@ using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
 using Elsa.Workflows.UIHints;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Elsa.Activities
 {
@@ -80,7 +80,7 @@ namespace ACS.Elsa.Activities
         private object ResolveBizJob(ActivityExecutionContext context, string commandName)
         {
             // Resolve from BizFileRepository via command name
-            var bizFileRepo = context.GetService<ACS.Workflow.BizFileRepository>();
+            var bizFileRepo = context.GetService<ACS.Core.Workflow.BizFileRepository>();
             if (bizFileRepo != null && bizFileRepo.InstanceList.ContainsKey(commandName))
             {
                 var tuple = bizFileRepo.InstanceList[commandName];

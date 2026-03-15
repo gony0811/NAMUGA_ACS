@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Socket
 {

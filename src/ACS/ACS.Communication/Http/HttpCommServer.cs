@@ -13,8 +13,8 @@ using ACS.Communication.Http.uHttpSharp.Handlers;
 using System.Dynamic;
 using ACS.Communication.Http.Controllers;
 using ACS.Communication.Http.uHttpSharp.Handlers.Compression;
-using ACS.Framework.Logging;
-using ACS.Workflow;
+using ACS.Core.Logging;
+using ACS.Core.Workflow;
 
 namespace ACS.Communication.Http
 {

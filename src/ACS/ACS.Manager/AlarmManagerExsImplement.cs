@@ -1,8 +1,8 @@
 ﻿using System;
 using ACS.Manager.Alarm;
-using ACS.Framework.Alarm;
-using ACS.Framework.Alarm.Model;
-using ACS.Framework.Resource.Model;
+using ACS.Core.Alarm;
+using ACS.Core.Alarm.Model;
+using ACS.Core.Resource.Model;
 using System.Collections;
 
 namespace ACS.Manager

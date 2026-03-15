@@ -1,7 +1,7 @@
 ﻿using com.miracom.transceiverx;
 using ACS.Communication.Msb.Highway101.Message;
 using ACS.Communication.Msb.Util;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using ACS.Utility;
 using System;
 using System.Collections;

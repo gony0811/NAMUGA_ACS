@@ -1,5 +1,5 @@
 ﻿using ACS.Communication.Msb.Highway101;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using ACS.Communication.Msb;
 using System;
 using System.Collections;

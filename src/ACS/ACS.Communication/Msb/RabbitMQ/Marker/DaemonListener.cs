@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 using System.Xml;
 using RabbitMQ.Client.Events;

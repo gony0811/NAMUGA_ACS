@@ -1,4 +1,4 @@
-﻿using ACS.Framework.Message.Model;
+﻿using ACS.Core.Message.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;

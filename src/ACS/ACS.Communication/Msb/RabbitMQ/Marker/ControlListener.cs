@@ -8,7 +8,7 @@ using System.Xml;
 using RabbitMQ.Client;
 using ACS.Communication.Msb.Util;
 using RabbitMQ.Client.Events;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Communication.Msb.RabbitMQ.Message;
 
 namespace ACS.Communication.Msb.RabbitMQ.Marker

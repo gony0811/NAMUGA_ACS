@@ -1,12 +1,12 @@
-﻿using ACS.Framework.Resource.Model;
+﻿using ACS.Core.Resource.Model;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-//using ACS.Framework.Extension.Resource.Model;
-using ACS.Framework.Logging;
+//using ACS.Core.Extension.Resource.Model;
+using ACS.Core.Logging;
 namespace ACS.Communication.Xbee
 {
     public class AbstractXBeeDriver

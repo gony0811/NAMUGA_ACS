@@ -15,8 +15,8 @@ using Mina.Transport.Socket;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
 using ACS.Communication;
-using ACS.Workflow;
-using ACS.Framework.Logging;
+using ACS.Core.Workflow;
+using ACS.Core.Logging;
 namespace ACS.Communication.Socket
 {
     public class SocketClient : AbstractSocketService, IControllable

@@ -1,0 +1,27 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using ACS.Core.Base.Interface;
+using ACS.Core.Path.Model;
+
+namespace ACS.Core.Path.Comparator
+{
+    public class WeightComparator : IComparer
+    {
+        public int Compare(object object1, object object2)
+        {
+            PathEx path01 = (PathEx)object1;
+            PathEx path02 = (PathEx)object2;
+
+            int result = path01.Cost - path02.Cost;
+            if (result == 0)
+            {
+                result = path01.NodeIds.Count - path02.NodeIds.Count;
+            }
+            return result;
+        }
+    }
+}

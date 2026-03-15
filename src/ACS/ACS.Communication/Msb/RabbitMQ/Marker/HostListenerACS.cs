@@ -2,7 +2,7 @@
 using RabbitMQ.Client.Events;
 using ACS.Communication.Msb.RabbitMQ.Message;
 using ACS.Communication.Msb.Util;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Utility;
 using System;
 using System.Collections.Generic;

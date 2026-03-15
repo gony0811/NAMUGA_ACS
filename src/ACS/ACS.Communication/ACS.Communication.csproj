@@ -18,32 +18,27 @@
 
   <ItemGroup>
     <Reference Include="Mina.NET">
-      <HintPath>..\Library/Mina.NET.dll</HintPath>
+      <HintPath>..\Library\Mina.NET.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\Library/Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\Library\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="TIBCO.Rendezvous">
-      <HintPath>..\Library/TIBCO.Rendezvous.dll</HintPath>
+      <HintPath>..\Library\TIBCO.Rendezvous.dll</HintPath>
     </Reference>
     <Reference Include="transceiverxnet">
-      <HintPath>..\Library/transceiverxnet.dll</HintPath>
+      <HintPath>..\Library\transceiverxnet.dll</HintPath>
     </Reference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ACS.Framework\ACS.Framework.csproj" />
-    <ProjectReference Include="..\ACS.Workflow\ACS.Workflow.csproj" />
+    <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="*.bak" />
     <Compile Remove="**\*.Designer.cs" Condition="'$(EnableDefaultCompileItems)' == 'true'" />
     <Compile Include="**\*.Designer.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Host\" />
   </ItemGroup>
 
 </Project>

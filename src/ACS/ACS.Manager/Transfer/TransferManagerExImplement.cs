@@ -5,16 +5,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
 using System.Runtime.Serialization;
-using ACS.Framework.Base;
-using ACS.Framework.History;
-using ACS.Framework.Material;
-using ACS.Framework.Application;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Resource;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Transfer;
+using ACS.Core.Base;
+using ACS.Core.History;
+using ACS.Core.Material;
+using ACS.Core.Application;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Resource;
+using ACS.Core.Message.Model;
+using ACS.Core.Transfer;
 using ACS.Utility;
-using ACS.Framework.Transfer.Model;
+using ACS.Core.Transfer.Model;
 
 namespace ACS.Manager.Transfer
 {

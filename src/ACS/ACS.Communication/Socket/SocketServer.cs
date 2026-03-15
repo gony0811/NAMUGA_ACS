@@ -1,7 +1,7 @@
-﻿using ACS.Framework.Logging;
+﻿using ACS.Core.Logging;
 using Mina.Core.Service;
 using ACS.Communication;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using System;
 using System.Collections.Generic;
 using System.IO;

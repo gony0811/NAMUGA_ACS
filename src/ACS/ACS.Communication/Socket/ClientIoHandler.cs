@@ -9,8 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
-using ACS.Framework.Logging;
-using ACS.Workflow;
+using ACS.Core.Logging;
+using ACS.Core.Workflow;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
 

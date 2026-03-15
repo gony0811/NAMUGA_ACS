@@ -8,8 +8,8 @@ using System.Xml;
 using ACS.Communication.Http.uHttpSharp.Handlers;
 using ACS.Communication.Http.uHttpSharp;
 using ACS.Communication.Http.Handler;
-using ACS.Framework.Logging;
-using ACS.Workflow;
+using ACS.Core.Logging;
+using ACS.Core.Workflow;
 
 namespace ACS.Communication.Http.Controllers
 {

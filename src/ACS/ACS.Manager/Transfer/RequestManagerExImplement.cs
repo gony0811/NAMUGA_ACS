@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections;
-using ACS.Framework.Base;
-using ACS.Framework.Base.Interface;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Transfer;
+using ACS.Core.Base;
+using ACS.Core.Base.Interface;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Transfer;
 
 namespace ACS.Manager.Transfer
 {

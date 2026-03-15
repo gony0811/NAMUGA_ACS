@@ -1,6 +1,6 @@
-﻿using ACS.Framework.Message.Model;
+﻿using ACS.Core.Message.Model;
 using ACS.Utility;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using System;
 using System.Collections.Generic;
 using System.Linq;

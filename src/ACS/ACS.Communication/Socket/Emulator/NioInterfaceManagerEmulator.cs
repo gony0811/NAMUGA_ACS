@@ -1,11 +1,11 @@
 ﻿using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
-using ACS.Framework.Base;
-using ACS.Framework.Message;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model;
+using ACS.Core.Base;
+using ACS.Core.Message;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
 using ACS.Utility;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using Autofac;
 using System;
 using System.Collections;

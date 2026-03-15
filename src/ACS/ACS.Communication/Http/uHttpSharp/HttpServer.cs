@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 using ACS.Communication.Http.uHttpSharp.Listeners;
 using ACS.Communication.Http.uHttpSharp.RequestProviders;
 //using ACS.Communication.Http.uHttpSharp.Logging;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Http.uHttpSharp
 {

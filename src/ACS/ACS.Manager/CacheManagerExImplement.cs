@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Path;
-using ACS.Framework.Cache;
-using ACS.Framework.Path.Model;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model;
-using ACS.Framework.Base;
+using ACS.Core.Path;
+using ACS.Core.Cache;
+using ACS.Core.Path.Model;
+using ACS.Core.Resource.Model;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
+using ACS.Core.Base;
 
 namespace ACS.Manager
 {

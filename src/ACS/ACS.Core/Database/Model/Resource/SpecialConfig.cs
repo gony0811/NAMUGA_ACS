@@ -1,0 +1,65 @@
+using ACS.Core.Database.Model.Base;
+
+namespace ACS.Core.Database.Model.Resource;
+
+public class SpecialConfig : Entity
+{
+    public static char VALUE_DELIMITER = ',';
+
+    public static string SPECIAL_CHARGE_BAY = "SPECIAL_CHARGE_BAY";
+    public static string SPECIAL_INTERSECTION_BAY = "INTERSECTION_BAY";
+    public static string SPECIAL_IDLE_OVER_TIME = "IDLEOVERTIME";
+    public static string SPECIAL_ODER_BAY = "ORDERBAY";
+    public static string SPECIAL_STOP_BAY = "STOPBAY";
+    public static string SPECIAL_LONGPREASSIGNED_BAY = "LONGPREASSIGN";
+    public static string SPECIAL_DIVIDEPATH = "DIVIDEPATH";
+    public static string SPECIAL_SPEEDCONTROL = "SPEEDCONTROL";
+    public static string SPECIAL_MISMATCHANDFLY = "MISMATCHANDFLY";
+    public static string SPECIAL_CROSSWAITHISTORY = "CROSSWAITHISTORY";
+
+    public virtual string Name { get; set; }
+    public virtual string Values { get; set; }
+
+    public override string ToString()
+    {
+        return "SpecialConfig [c_name=" + Name + ", c_values=" + Values
+                + ", id=" + Id + "]";
+    }
+
+    public virtual bool ContainsValue(string value)
+    {
+        bool contains = false;
+
+        if (!string.IsNullOrEmpty(value))
+        {
+            if (Values.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            if (Values.Contains(VALUE_DELIMITER))
+            {
+                string[] valueArr = Values.Split(VALUE_DELIMITER);
+
+                if (valueArr != null & valueArr.Length > 0)
+                {
+                    foreach (string tempValue in valueArr)
+                    {
+                        if (value.Equals(tempValue, StringComparison.OrdinalIgnoreCase))
+                        {
+                            contains = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (value.Equals(Values, StringComparison.OrdinalIgnoreCase))
+                {
+                    contains = true;
+                }
+            }
+        }
+        return contains;
+    }
+}

@@ -1,5 +1,5 @@
 ﻿using ACS.Communication.Msb.Tibrv;
-using ACS.Framework.Application;
+using ACS.Core.Application;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TIBCO.Rendezvous;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Msb.Tibrv
 {

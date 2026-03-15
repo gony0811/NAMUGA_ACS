@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 using System.IO;
 namespace ACS.Communication.Socket
 {

@@ -7,7 +7,7 @@ using System.Xml;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using ACS.Framework.Message.Model;
+using ACS.Core.Message.Model;
 using ACS.Communication.Msb.Highway101;
 using ACS.Communication.Msb.RabbitMQ.Message;
 using ACS.Communication.Msb.Util;

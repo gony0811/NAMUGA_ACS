@@ -1,9 +1,9 @@
-﻿using ACS.Framework.Application;
-using ACS.Framework.Message;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Message.Model.Control;
+﻿using ACS.Core.Application;
+using ACS.Core.Message;
+using ACS.Core.Message.Model;
+using ACS.Core.Message.Model.Control;
 using ACS.Utility;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using System;
 using System.Collections.Generic;
 using System.Linq;

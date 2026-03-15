@@ -1,4 +1,4 @@
-﻿using ACS.Framework.Base;
+﻿using ACS.Core.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,4 +1,4 @@
-﻿using ACS.Framework.Logging;
+﻿using ACS.Core.Logging;
 using Mina.Core.Filterchain;
 using Mina.Core.Service;
 using Mina.Filter.Codec;
@@ -7,7 +7,7 @@ using Mina.Transport.Socket;
 using ACS.Communication;
 using ACS.Communication.Socket.Checker;
 using ACS.Communication.Socket.Model;
-using ACS.Workflow;
+using ACS.Core.Workflow;
 using System;
 using System.Collections.Generic;
 using System.IO;

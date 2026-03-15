@@ -5,14 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
-using ACS.Framework.Base;
-using ACS.Framework.Application;
-using ACS.Framework.Message.Model.Control;
+using ACS.Core.Base;
+using ACS.Core.Application;
+using ACS.Core.Message.Model.Control;
 using ACS.Communication.Msb;
 using ACS.Control;
-using ACS.Application;
+using ACS.App;
 using System.Configuration;
-using ACS.Framework.Base;
+using ACS.Core.Base;
 
 namespace ACS.Service
 {

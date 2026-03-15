@@ -36,7 +36,7 @@ namespace ACS.Communication.Msb.Convert.Impl
             else
             {
                 XmlDocument sendHttpMessageTemplate = new XmlDocument();
-                SendHttpMessageTemplateFilePath = SendHttpMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Framework.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
+                SendHttpMessageTemplateFilePath = SendHttpMessageTemplateFilePath.Replace("@{site}", ConfigurationManager.AppSettings[ACS.Core.Application.Settings.SYSTEM_PROPERTY_KEY_SITE_VALUE]);
                 string path = SystemUtility.GetFullPathName(SendHttpMessageTemplateFilePath);
                 sendHttpMessageTemplate.Load(path);
 

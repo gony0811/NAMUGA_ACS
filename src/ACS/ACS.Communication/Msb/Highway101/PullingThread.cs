@@ -4,7 +4,7 @@ using com.miracom.transceiverx.session;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
-using ACS.Framework.Logging;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Msb.Highway101
 {

@@ -1,8 +1,8 @@
 ﻿using ACS.Communication.Msb;
 using ACS.Communication.Msb.Highway101;
 using ACS.Communication.Msb.Util;
-using ACS.Framework.Logging;
-using ACS.Framework.Message.Model;
+using ACS.Core.Logging;
+using ACS.Core.Message.Model;
 using ACS.Communication.Msb.Tibrv;
 using System;
 using System.Collections.Generic;

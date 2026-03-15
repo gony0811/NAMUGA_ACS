@@ -1,4 +1,4 @@
-﻿using ACS.Framework.Logging;
+﻿using ACS.Core.Logging;
 using Mina.Core.Buffer;
 using Mina.Core.Session;
 using Mina.Filter.Codec;

@@ -1,0 +1,39 @@
+using System.Text;
+
+namespace ACS.Core.Database.Model.History;
+
+public class VehicleCrossWaitHistory : AbstractHistory
+{
+    public VehicleCrossWaitHistory()
+    {
+        this.PartitionId = CreatePartitionIdByDate();
+    }
+
+    public VehicleCrossWaitHistory(int partitionId)
+    {
+        this.PartitionId = partitionId;
+    }
+
+    public virtual string VehicleId { get; set; }
+    public virtual string NodeId { get; set; }
+    public virtual string State { get; set; }
+    public virtual DateTime CreateTime { get; set; }
+    public virtual DateTime PermitTime { get; set; }
+    public virtual int CrossWaitSeconds { get; set; }
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append("vehicleCrossWaitHistory{");
+        sb.Append("id=").Append(this.Id);
+        sb.Append(", vehicleId=").Append(this.VehicleId);
+        sb.Append(", nodeId=").Append(this.NodeId);
+        sb.Append(", state=").Append(this.State);
+        sb.Append(", createTime=").Append(this.CreateTime);
+        sb.Append(", permitTime=").Append(this.PermitTime);
+        sb.Append(", crossWaitSeconds=").Append(this.CrossWaitSeconds);
+        sb.Append(", time=").Append(this.Time);
+        sb.Append("}");
+        return sb.ToString();
+    }
+}

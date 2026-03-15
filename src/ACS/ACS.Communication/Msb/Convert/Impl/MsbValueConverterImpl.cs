@@ -4,16 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
-using ACS.Framework.Transfer;
-using ACS.Framework.Transfer.Model;
-using ACS.Framework.Resource;
-using ACS.Framework.Resource.Model.Factory.Machine;
-using ACS.Framework.Resource.Model.Factory.Zone;
-using ACS.Framework.Resource.Model.Factory.Unit;
-using ACS.Framework.Application;
-using ACS.Framework.Material.Model;
-using ACS.Framework.Message.Model;
-using ACS.Framework.Logging;
+using ACS.Core.Transfer;
+using ACS.Core.Transfer.Model;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model.Factory.Machine;
+using ACS.Core.Resource.Model.Factory.Zone;
+using ACS.Core.Resource.Model.Factory.Unit;
+using ACS.Core.Application;
+using ACS.Core.Material.Model;
+using ACS.Core.Message.Model;
+using ACS.Core.Logging;
 
 namespace ACS.Communication.Msb.Convert.Implement
 {
