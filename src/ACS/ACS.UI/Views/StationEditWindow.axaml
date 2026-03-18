@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.StationEditWindow"
+        Title="Modify Station"
+        Width="380" Height="320"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
+
+        <!-- ID / Type -->
+        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="ID / Type" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="IdTextBox"
+                             FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Link ID:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="LinkIdTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="TypeComboBox"
+                              FontSize="11" Height="30" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="ACQUIRE" />
+                        <ComboBoxItem Content="DEPOSIT" />
+                        <ComboBoxItem Content="BOTH" />
+                    </ComboBox>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Detail -->
+        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Detail" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Distance:" VerticalAlignment="Center" FontSize="11" />
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="DistanceNumeric"
+                                   Minimum="0" Maximum="999999" Increment="100"
+                                   FontSize="11" Height="28" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Direction:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="DirectionTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- OK / Cancel -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Content="OK" Width="80" Height="28" x:Name="OkButton" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

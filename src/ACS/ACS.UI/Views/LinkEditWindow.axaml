@@ -1,0 +1,180 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:ACS.UI.Models"
+        x:Class="ACS.UI.Views.LinkEditWindow"
+        Title="Modify Link"
+        Width="960" Height="520"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="*,Auto" Margin="12">
+
+        <!-- 상단: 3-panel -->
+        <Grid Grid.Row="0" ColumnDefinitions="220,*,Auto,*">
+
+            <!-- 왼쪽: Link 속성 입력 -->
+            <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,8,0">
+
+                <!-- ID / From / To -->
+                <Border BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                        Padding="10,8">
+                    <StackPanel>
+                        <TextBlock Text="Link Info" FontWeight="SemiBold" FontSize="11"
+                                   Margin="0,0,0,6" />
+                        <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" FontSize="11" />
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="IdTextBox"
+                                     FontSize="11" Height="28" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="From Node ID:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="FromNodeIdTextBox"
+                                     FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="To Node ID:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="ToNodeIdTextBox"
+                                     FontSize="11" Height="28" Margin="0,6,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 속성 -->
+                <Border BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                        Padding="10,8">
+                    <StackPanel>
+                        <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="11"
+                                   Margin="0,0,0,6" />
+                        <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Left Branch:" VerticalAlignment="Center" FontSize="11" />
+                            <NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="LeftBranchNumeric"
+                                           Minimum="0" Maximum="99" Increment="1"
+                                           FontSize="11" Height="28" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Speed:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="SpeedNumeric"
+                                           Minimum="0" Maximum="99999" Increment="10"
+                                           FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Distance:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="DistanceNumeric"
+                                           Minimum="0" Maximum="999999" Increment="1"
+                                           FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Availability:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <ComboBox Grid.Row="3" Grid.Column="1" x:Name="AvailabilityComboBox"
+                                      FontSize="11" Height="30" Margin="0,6,0,0"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="0 - AVAILABLE" />
+                                <ComboBoxItem Content="1 - UNAVAILABLE" />
+                                <ComboBoxItem Content="2 - BANNED" />
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Load:" VerticalAlignment="Center"
+                                       FontSize="11" Margin="0,6,0,0" />
+                            <NumericUpDown Grid.Row="4" Grid.Column="1" x:Name="LoadNumeric"
+                                           Minimum="0" Maximum="99999" Increment="1"
+                                           FontSize="11" Height="28" Margin="0,6,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 가운데: Zone 목록 -->
+            <Border Grid.Column="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                    Padding="8" Margin="0,0,4,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="Zone" FontWeight="SemiBold"
+                               FontSize="11" Margin="0,0,0,6" />
+                    <DataGrid Grid.Row="1"
+                              x:Name="ZoneDataGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserResizeColumns="True"
+                              GridLinesVisibility="All"
+                              Background="White"
+                              FontSize="10"
+                              RowHeight="22"
+                              HeadersVisibility="Column">
+                        <DataGrid.Styles>
+                            <Style Selector="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#DCE6F5" />
+                                <Setter Property="Foreground" Value="#D32F2F" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="FontSize" Value="10" />
+                                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                <Setter Property="Padding" Value="4,2" />
+                            </Style>
+                            <Style Selector="DataGridRow:nth-child(2n)">
+                                <Setter Property="Background" Value="#E8EEF7" />
+                            </Style>
+                        </DataGrid.Styles>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id, DataType=models:ZoneDto}" Width="110" />
+                            <DataGridTextColumn Header="BAYID" Binding="{Binding BayId, DataType=models:ZoneDto}" Width="110" />
+                            <DataGridTextColumn Header="DESCRIPTION" Binding="{Binding Description, DataType=models:ZoneDto}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- > < 버튼 -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="8" Margin="4,0">
+                <Button Content="&gt;" Width="32" Height="28" FontWeight="Bold"
+                        HorizontalContentAlignment="Center"
+                        Click="OnAddLinkZoneClick" ToolTip.Tip="Add to LinkZone" />
+                <Button Content="&lt;" Width="32" Height="28" FontWeight="Bold"
+                        HorizontalContentAlignment="Center"
+                        Click="OnRemoveLinkZoneClick" ToolTip.Tip="Remove from LinkZone" />
+            </StackPanel>
+
+            <!-- 오른쪽: LinkZone 목록 -->
+            <Border Grid.Column="3" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                    Padding="8" Margin="4,0,0,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="LinkZone" FontWeight="SemiBold"
+                               FontSize="11" Margin="0,0,0,6" />
+                    <DataGrid Grid.Row="1"
+                              x:Name="LinkZoneDataGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserResizeColumns="True"
+                              GridLinesVisibility="All"
+                              Background="White"
+                              FontSize="10"
+                              RowHeight="22"
+                              HeadersVisibility="Column">
+                        <DataGrid.Styles>
+                            <Style Selector="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#DCE6F5" />
+                                <Setter Property="Foreground" Value="#D32F2F" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="FontSize" Value="10" />
+                                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                <Setter Property="Padding" Value="4,2" />
+                            </Style>
+                            <Style Selector="DataGridRow:nth-child(2n)">
+                                <Setter Property="Background" Value="#E8EEF7" />
+                            </Style>
+                        </DataGrid.Styles>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id, DataType=models:LinkZoneDto}" Width="150" />
+                            <DataGridTextColumn Header="ZONEID" Binding="{Binding ZoneId, DataType=models:LinkZoneDto}" Width="100" />
+                            <DataGridTextColumn Header="TRANSFERFLAG" Binding="{Binding TransferFlag, DataType=models:LinkZoneDto}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 하단: OK / Cancel -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12"
+                    Margin="0,12,0,0">
+            <Button Content="OK" Width="80" Height="28" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

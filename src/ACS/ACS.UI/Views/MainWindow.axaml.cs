@@ -28,16 +28,7 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel vm)
         {
-            await vm.StartPollingAsync();
+            await vm.LoadInitialDataAsync();
         }
-    }
-
-    protected override void OnClosing(WindowClosingEventArgs e)
-    {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.StopPolling();
-        }
-        base.OnClosing(e);
     }
 }

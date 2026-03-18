@@ -8,5 +8,7 @@ namespace ACS.Communication.Http.Models
         public string Availability { get; set; }
         public int Length { get; set; }
         public int Speed { get; set; }
+        public int LeftBranch { get; set; }
+        public int Load { get; set; }
     }
 }

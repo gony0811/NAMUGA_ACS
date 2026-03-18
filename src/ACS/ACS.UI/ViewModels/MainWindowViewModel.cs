@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,7 +12,6 @@ namespace ACS.UI.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IAcsApiService _apiService;
-    private CancellationTokenSource _cts;
     private readonly Dictionary<string, Window> _popupWindows = new();
 
     [ObservableProperty]
@@ -42,6 +40,21 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private HostCommunicationViewModel _hostCommunicationViewModel;
+
+    [ObservableProperty]
+    private NodeViewModel _nodeViewModel;
+
+    [ObservableProperty]
+    private StationViewModel _stationViewModel;
+
+    [ObservableProperty]
+    private LinkViewModel _linkViewModel;
+
+    [ObservableProperty]
+    private BayViewModel _bayViewModel;
+
+    [ObservableProperty]
+    private ZoneViewModel _zoneViewModel;
 
     [ObservableProperty]
     private string _connectionStatus = "Disconnected";
@@ -89,6 +102,11 @@ public partial class MainWindowViewModel : ObservableObject
         _appManagementViewModel = new AppManagementViewModel();
         _nioViewModel = new NioViewModel();
         _hostCommunicationViewModel = new HostCommunicationViewModel(_apiService);
+        _nodeViewModel = new NodeViewModel(_apiService);
+        _stationViewModel = new StationViewModel(_apiService);
+        _linkViewModel = new LinkViewModel(_apiService);
+        _bayViewModel = new BayViewModel(_apiService);
+        _zoneViewModel = new ZoneViewModel(_apiService);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -112,6 +130,11 @@ public partial class MainWindowViewModel : ObservableObject
             "AppManagement" => ("Application Management", (Control)new AppManagementView { DataContext = AppManagementViewModel }),
             "Nio" => ("NIO", (Control)new NioView { DataContext = NioViewModel }),
             "HostCommunication" => ("Host Communication - TCP", (Control)new HostCommunicationView { DataContext = HostCommunicationViewModel }),
+            "Node" => ("Node", (Control)new NodeView { DataContext = NodeViewModel }),
+            "Station" => ("Station", (Control)new StationView { DataContext = StationViewModel }),
+            "Link" => ("Link", (Control)new LinkView { DataContext = LinkViewModel }),
+            "Bay" => ("Bay", (Control)new BayView { DataContext = BayViewModel }),
+            "Zone" => ("Zone", (Control)new ZoneView { DataContext = ZoneViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -127,87 +150,53 @@ public partial class MainWindowViewModel : ObservableObject
         window.Closed += (_, _) => _popupWindows.Remove(viewName);
         _popupWindows[viewName] = window;
         window.Show();
+
+        // 뷰별 초기 데이터 로드
+        if (viewName == "Node")
+            _ = NodeViewModel.LoadNodesAsync();
+        if (viewName == "Station")
+            _ = StationViewModel.LoadStationsAsync();
+        if (viewName == "Link")
+            _ = LinkViewModel.LoadLinksAsync();
+        if (viewName == "Bay")
+            _ = BayViewModel.LoadBaysAsync();
+        if (viewName == "Zone")
+            _ = ZoneViewModel.LoadZonesAsync();
     }
 
-    public async Task StartPollingAsync()
-    {
-        _cts = new CancellationTokenSource();
+    public async Task LoadInitialDataAsync() => await RefreshAsync();
 
-        // Load static data (nodes, links) once
-        await LoadStaticDataAsync();
-
-        // Start periodic polling for dynamic data
-        _ = PollDynamicDataAsync(_cts.Token);
-    }
-
-    public void StopPolling()
-    {
-        _cts?.Cancel();
-    }
-
-    private async Task LoadStaticDataAsync()
+    [RelayCommand]
+    private async Task RefreshAsync()
     {
         try
         {
             var nodes = await _apiService.GetNodesAsync();
             var links = await _apiService.GetLinksAsync();
+            var vehicles = await _apiService.GetVehiclesAsync();
+            var commands = await _apiService.GetTransportCommandsAsync();
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 MapViewModel.UpdateNodes(nodes);
                 MapViewModel.UpdateLinks(links);
+                MapViewModel.UpdateVehicles(vehicles);
                 DashboardViewModel.UpdateFromLinks(links);
+                DashboardViewModel.UpdateFromVehicles(vehicles);
+                DashboardViewModel.UpdateFromCommands(commands);
                 SummaryViewModel.UpdateFromLinks(links);
+                SummaryViewModel.UpdateFromVehicles(vehicles);
+                SummaryViewModel.UpdateFromCommands(commands);
+                VehicleListViewModel.UpdateVehicles(vehicles);
+                SummaryViewModel.UpdateConnectionState("Connected");
+                LastUpdateTime = DateTime.Now.ToString("HH:mm:ss");
+                ConnectionStatus = "Connected";
             });
-
-            ConnectionStatus = "Connected";
-            SummaryViewModel.UpdateConnectionState("Connected");
         }
         catch (Exception ex)
         {
             ConnectionStatus = "Error: " + ex.Message;
             SummaryViewModel.UpdateConnectionState("Error");
-        }
-    }
-
-    private async Task PollDynamicDataAsync(CancellationToken ct)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                await timer.WaitForNextTickAsync(ct);
-
-                var vehicles = await _apiService.GetVehiclesAsync();
-                var commands = await _apiService.GetTransportCommandsAsync();
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    VehicleListViewModel.UpdateVehicles(vehicles);
-                    MapViewModel.UpdateVehicles(vehicles);
-                    DashboardViewModel.UpdateFromVehicles(vehicles);
-                    DashboardViewModel.UpdateFromCommands(commands);
-                    SummaryViewModel.UpdateFromVehicles(vehicles);
-                    SummaryViewModel.UpdateFromCommands(commands);
-                    SummaryViewModel.UpdateConnectionState("Connected");
-                    LastUpdateTime = DateTime.Now.ToString("HH:mm:ss");
-                    ConnectionStatus = "Connected";
-                });
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    ConnectionStatus = "Error: " + ex.Message;
-                    SummaryViewModel.UpdateConnectionState("Error");
-                });
-            }
         }
     }
 }

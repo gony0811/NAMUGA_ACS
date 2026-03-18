@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ACS.Host.Test.ViewModels"
+        x:Class="ACS.Host.Test.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="ACS Host Communication Tester"
+        Width="800" Height="750"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <Style Selector="HeaderedContentControl">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="{TemplateBinding Header}" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                            <ContentPresenter Content="{TemplateBinding Content}"/>
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.action">
+            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Width" Value="80"/>
+            <Setter Property="Foreground" Value="#555"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,*">
+
+        <!-- Row 0: Connection Settings -->
+        <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="label" Text="Listen Port:" />
+                    <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding !IsConnected}"/>
+                    <TextBlock Text="(ACS JOBREPORT 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="label" Text="Send Host:" />
+                    <TextBox Width="120" Text="{Binding SendHost}" IsEnabled="{Binding !IsConnected}"/>
+                    <TextBlock Classes="label" Text="Send Port:" Width="70"/>
+                    <TextBox Width="80" Text="{Binding SendPort}" IsEnabled="{Binding !IsConnected}"/>
+                    <TextBlock Text="(ACS Listen에 접속)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <Button Classes="action" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" Background="#1565c0" Foreground="White"/>
+                    <Button Classes="action" Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" Background="#e53935" Foreground="White"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="16,0,0,0" VerticalAlignment="Center">
+                        <Ellipse Width="10" Height="10" Fill="Gray" Name="StatusIndicator"/>
+                        <TextBlock Text="{Binding ConnectionStatus}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </HeaderedContentControl>
+
+        <!-- Row 1: Job Report 송신 -->
+        <HeaderedContentControl Grid.Row="1" Header="Job Report 송신 테스트 (Host → ACS)">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding JobId}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AmrId:"/>
+                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding AmrId}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AcsId:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AcsId}" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding MaterialType}" Margin="0,4,0,0"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="SourcePort:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SourcePort}" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="FinalPort:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding FinalPort}" Margin="0,4,0,0"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button Classes="action" Content="RECEIVE" Command="{Binding SendReceiveCommand}" Background="#43a047" Foreground="White"/>
+                    <Button Classes="action" Content="START" Command="{Binding SendStartCommand}" Background="#1565c0" Foreground="White"/>
+                    <Button Classes="action" Content="ARRIVED" Command="{Binding SendArrivedCommand}" Background="#fb8c00" Foreground="White"/>
+                    <Button Classes="action" Content="COMPLETED" Command="{Binding SendCompletedCommand}" Background="#7b1fa2" Foreground="White" MinWidth="110"/>
+                </StackPanel>
+            </StackPanel>
+        </HeaderedContentControl>
+
+        <!-- Row 2: MOVECMD / ACTIONCMD 송신 -->
+        <HeaderedContentControl Grid.Row="2" Header="Command 송신 테스트 (Host → ACS)">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Classes="action" Content="Send MOVECMD" Command="{Binding SendMoveCmdCommand}" Background="#0d47a1" Foreground="White" MinWidth="130"/>
+                <Button Classes="action" Content="Send ACTIONCMD" Command="{Binding SendActionCmdCommand}" Background="#e65100" Foreground="White" MinWidth="140"/>
+            </StackPanel>
+        </HeaderedContentControl>
+
+        <!-- Row 3: Communication Log (Border+DockPanel 직접 사용 — StackPanel 기반 HeaderedContentControl은 높이 제약을 전달하지 못해 스크롤 불가) -->
+        <Border Grid.Row="3" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                    <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
+                </StackPanel>
+                <TextBox Name="LogTextBox"
+                         Text="{Binding LogText}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Consolas, Menlo, monospace"
+                         FontSize="11"
+                         ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+            </DockPanel>
+        </Border>
+
+    </Grid>
+</Window>

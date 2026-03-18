@@ -21,6 +21,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflow", "Workflow", "{2C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.UI", "ACS.UI\ACS.UI.csproj", "{09815035-1B1E-439A-81A9-D9AE4059538B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Host.Test", "ACS.Host.Test\ACS.Host.Test.csproj", "{9169F3B2-4D4C-4771-A042-4B156BA23485}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{09815035-1B1E-439A-81A9-D9AE4059538B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{09815035-1B1E-439A-81A9-D9AE4059538B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{09815035-1B1E-439A-81A9-D9AE4059538B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B37E2B28-F90B-4B40-B3C3-BBF10BB6C10E} = {2CA8FF9E-BE2F-46D7-AC70-07752417A20D}

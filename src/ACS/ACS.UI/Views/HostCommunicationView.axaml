@@ -1,0 +1,139 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.HostCommunicationView"
+             x:DataType="vm:HostCommunicationViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Row 0: Toolbar — 타이틀 + Clear + 연결 상태 -->
+        <Border Grid.Row="0" Background="{StaticResource AcsTabBarBrush}"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <DockPanel>
+                <!-- 왼쪽: 타이틀 + Clear -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4">
+                    <StackPanel.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="Padding" Value="8,4" />
+                            <Setter Property="FontSize" Value="11" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                    </StackPanel.Styles>
+                    <TextBlock Text="Host Communication - TCP"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource AcsTextPrimaryBrush}"
+                               VerticalAlignment="Center" Margin="4,0,12,0" />
+                    <Button Content="🗑 Clear" Command="{Binding ClearLogsCommand}" />
+                </StackPanel>
+
+                <!-- 오른쪽: 연결 상태 2개 (Listen / Sender) -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16"
+                            VerticalAlignment="Center" Margin="0,0,8,0">
+                    <!-- Listen Port (MES → ACS) -->
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                 Classes.connected="{Binding IsListenConnected}">
+                            <Ellipse.Styles>
+                                <Style Selector="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource AcsAlarmRedBrush}" />
+                                </Style>
+                                <Style Selector="Ellipse.connected">
+                                    <Setter Property="Fill" Value="{StaticResource AcsAlarmGreenBrush}" />
+                                </Style>
+                            </Ellipse.Styles>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ListenState, StringFormat='Listen: {0}'}"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{StaticResource AcsTextSecondaryBrush}" />
+                    </StackPanel>
+                    <!-- Sender Port (ACS → MES) -->
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                 Classes.connected="{Binding IsSenderConnected}">
+                            <Ellipse.Styles>
+                                <Style Selector="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource AcsAlarmRedBrush}" />
+                                </Style>
+                                <Style Selector="Ellipse.connected">
+                                    <Setter Property="Fill" Value="{StaticResource AcsAlarmGreenBrush}" />
+                                </Style>
+                            </Ellipse.Styles>
+                        </Ellipse>
+                        <TextBlock Text="{Binding SenderState, StringFormat='Sender: {0}'}"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{StaticResource AcsTextSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- 빈 공간 채움 -->
+                <Panel />
+            </DockPanel>
+        </Border>
+
+        <!-- Row 1: Job Report 버튼 영역 -->
+        <Border Grid.Row="1" Background="White"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <StackPanel.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Padding" Value="10,4" />
+                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                </StackPanel.Styles>
+                <TextBlock Text="Job Report:"
+                           FontSize="11" FontWeight="SemiBold"
+                           Foreground="{StaticResource AcsTextPrimaryBrush}"
+                           VerticalAlignment="Center" Margin="4,0,6,0" />
+                <Button Content="📥 Receive"
+                        Command="{Binding SendJobReportCommand}"
+                        CommandParameter="Receive" />
+                <Button Content="▶ Start"
+                        Command="{Binding SendJobReportCommand}"
+                        CommandParameter="Start" />
+                <Button Content="📍 Arrived"
+                        Command="{Binding SendJobReportCommand}"
+                        CommandParameter="Arrived" />
+                <Button Content="✅ Completed"
+                        Command="{Binding SendJobReportCommand}"
+                        CommandParameter="Completed" />
+            </StackPanel>
+        </Border>
+
+        <!-- Row 2: Communication Log DataGrid -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Logs}"
+                  SelectedItem="{Binding SelectedLog}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
+                  CanUserReorderColumns="True"
+                  GridLinesVisibility="All"
+                  BorderThickness="0"
+                  Background="White"
+                  FontSize="11"
+                  RowHeight="26"
+                  HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="TIME"
+                                    Binding="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}"
+                                    Width="100" />
+                <DataGridTextColumn Header="DIRECTION"
+                                    Binding="{Binding Direction}"
+                                    Width="90" />
+                <DataGridTextColumn Header="REMOTE"
+                                    Binding="{Binding RemoteEndPoint}"
+                                    Width="150" />
+                <DataGridTextColumn Header="LENGTH"
+                                    Binding="{Binding Length}"
+                                    Width="70" />
+                <DataGridTextColumn Header="MESSAGE"
+                                    Binding="{Binding Message}"
+                                    Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

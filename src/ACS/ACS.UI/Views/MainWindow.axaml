@@ -181,11 +181,17 @@
                                FontSize="11" />
                 </StackPanel>
 
-                <TextBlock Grid.Column="2"
-                           Text="{Binding LastUpdateTime, StringFormat='Last Update: {0}'}"
-                           Foreground="{StaticResource AcsTextSecondaryBrush}"
-                           VerticalAlignment="Center"
-                           FontSize="11" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LastUpdateTime, StringFormat='Last Update: {0}'}"
+                               Foreground="{StaticResource AcsTextSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               FontSize="11" />
+                    <Button Content="&#x1F504;" ToolTip.Tip="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            Width="22" Height="22" Padding="0" FontSize="11"
+                            Background="Transparent" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

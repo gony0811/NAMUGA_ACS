@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.ApplicationRibbonView"
+             x:DataType="vm:ApplicationViewModel">
+
+    <!-- Application 리본 - Application Management 카테고리 -->
+    <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+            BorderThickness="1"
+            Margin="4"
+            MaxHeight="160"
+            Background="White">
+
+        <StackPanel Orientation="Horizontal">
+            <StackPanel.Styles>
+                <!-- 카테고리 버튼 공통 스타일 -->
+                <Style Selector="Border.ribbon-category">
+                    <Setter Property="BorderBrush" Value="{StaticResource AcsSectionBorderBrush}" />
+                    <Setter Property="BorderThickness" Value="0,0,1,0" />
+                    <Setter Property="MinWidth" Value="90" />
+                    <Setter Property="Padding" Value="8,6" />
+                </Style>
+                <Style Selector="Border.ribbon-category:pointerover">
+                    <Setter Property="Background" Value="#10000000" />
+                </Style>
+
+                <!-- 메뉴 아이템 스타일 -->
+                <Style Selector="MenuItem">
+                    <Setter Property="Padding" Value="10,5" />
+                    <Setter Property="FontSize" Value="12" />
+                </Style>
+            </StackPanel.Styles>
+
+            <!-- Application 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6"
+                            Command="{Binding SelectMenuCommand}"
+                            CommandParameter="Application">
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <!-- 테이블 아이콘 -->
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Application" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- NIO 카테고리 -->
+            <Border Classes="ribbon-category" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6"
+                            Command="{Binding SelectMenuCommand}"
+                            CommandParameter="NIO">
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <!-- 테이블 아이콘 -->
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="NIO" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 섹션 라벨: Application Management -->
+            <Border Padding="12,0" VerticalAlignment="Bottom" Margin="0,0,0,4">
+                <TextBlock Text="Application Management" FontSize="11"
+                           Foreground="{StaticResource AcsTextMutedBrush}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Bottom" />
+            </Border>
+
+            <!-- 선택된 메뉴 표시 -->
+            <Border Padding="12,8" VerticalAlignment="Center"
+                    IsVisible="{Binding SelectedMenu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Selected:" FontSize="11"
+                               Foreground="{StaticResource AcsTextMutedBrush}"
+                               VerticalAlignment="Center" />
+                    <Border Background="{StaticResource AcsActiveTabBrush}"
+                            CornerRadius="3" Padding="8,3">
+                        <TextBlock Text="{Binding SelectedMenu}" FontSize="11"
+                                   Foreground="White" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</UserControl>

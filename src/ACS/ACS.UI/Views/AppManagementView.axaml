@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:models="using:ACS.UI.Models"
+             xmlns:conv="using:ACS.UI.Converters"
+             x:Class="ACS.UI.Views.AppManagementView"
+             x:DataType="vm:AppManagementViewModel">
+
+    <UserControl.Resources>
+        <conv:ProcessStateToColorConverter x:Key="ProcessStateToColor" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ① Toolbar -->
+        <Border Grid.Row="0" Background="{StaticResource AcsTabBarBrush}"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <StackPanel.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                </StackPanel.Styles>
+
+                <TextBlock Text="Application Management"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource AcsTextPrimaryBrush}"
+                           VerticalAlignment="Center" Margin="4,0,12,0" />
+
+                <Button Content="🗑 Delete" Command="{Binding DeleteCommand}" />
+                <Button Content="🔄 Refresh" Command="{Binding RefreshCommand}" />
+                <Button Content="⟳ Auto Refresh" Command="{Binding ToggleAutoRefreshCommand}" />
+
+            </StackPanel>
+        </Border>
+
+        <!-- ② 메인 영역: Primary | Secondary | Properties -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,1.5*">
+
+            <!-- Primary 서버 트리 -->
+            <Border Grid.Column="0"
+                    BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Background="{StaticResource AcsHeaderBrush}" Padding="8,4">
+                        <TextBlock Text="Primary" Foreground="White"
+                                   FontSize="12" FontWeight="SemiBold" />
+                    </Border>
+                    <TreeView Grid.Row="1"
+                              ItemsSource="{Binding PrimaryProcesses}"
+                              SelectedItem="{Binding SelectedProcess}"
+                              Background="White" Padding="4">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}"
+                                              x:DataType="models:ProcessNodeModel">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="10" Height="10"
+                                             Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
+                                    <TextBlock Text="{Binding Name}" FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </Border>
+
+            <!-- Secondary 서버 트리 -->
+            <Border Grid.Column="1"
+                    BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Background="{StaticResource AcsHeaderBrush}" Padding="8,4">
+                        <TextBlock Text="Secondary" Foreground="White"
+                                   FontSize="12" FontWeight="SemiBold" />
+                    </Border>
+                    <TreeView Grid.Row="1"
+                              ItemsSource="{Binding SecondaryProcesses}"
+                              SelectedItem="{Binding SelectedProcess}"
+                              Background="White" Padding="4">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}"
+                                              x:DataType="models:ProcessNodeModel">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="10" Height="10"
+                                             Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
+                                    <TextBlock Text="{Binding Name}" FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </Border>
+
+            <!-- Properties 패널 -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="{StaticResource AcsHeaderBrush}" Padding="8,4">
+                    <TextBlock Text="Properties" Foreground="White"
+                               FontSize="12" FontWeight="SemiBold" />
+                </Border>
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding SelectedProperties}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserResizeColumns="True"
+                          CanUserSortColumns="False"
+                          GridLinesVisibility="All"
+                          BorderThickness="0"
+                          Background="White"
+                          FontSize="12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Property"
+                                            Binding="{Binding Property}"
+                                            Width="180" />
+                        <DataGridTextColumn Header="Value"
+                                            Binding="{Binding Value}"
+                                            Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+
+        </Grid>
+    </Grid>
+</UserControl>

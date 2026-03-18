@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.BayEditWindow"
+        Title="Modify Bay"
+        Width="400" Height="440"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
+
+        <!-- ID / 기본 정보 -->
+        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Bay Info" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="IdTextBox"
+                             FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Floor:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="FloorNumeric"
+                                   Minimum="0" Maximum="99" Increment="1"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="DescriptionTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="AGV Type:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="AgvTypeTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 충전/전압/유휴 + 기타 -->
+        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Charge Voltage:" VerticalAlignment="Center" FontSize="11" />
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="ChargeVoltageNumeric"
+                                   Minimum="0" Maximum="99999" Increment="0.1" FormatString="F1"
+                                   FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Limit Voltage:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="LimitVoltageNumeric"
+                                   Minimum="0" Maximum="99999" Increment="0.1" FormatString="F1"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Idle Time:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="IdleTimeNumeric"
+                                   Minimum="0" Maximum="999999" Increment="1"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Zone Move:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="ZoneMoveTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Traffic:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="4" Grid.Column="1" x:Name="TrafficTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Stop Out:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="5" Grid.Column="1" x:Name="StopOutTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- OK / Cancel -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Content="OK" Width="80" Height="28" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,411 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.DataViewRibbonView"
+             x:DataType="vm:DataViewViewModel">
+
+    <!-- Data View 리본 - 카테고리 버튼 + 드롭다운 메뉴 -->
+    <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+            BorderThickness="1"
+            Margin="4"
+            MaxHeight="160"
+            Background="White">
+
+        <StackPanel Orientation="Horizontal">
+            <StackPanel.Styles>
+                <!-- 카테고리 버튼 공통 스타일 -->
+                <Style Selector="Border.ribbon-category">
+                    <Setter Property="BorderBrush" Value="{StaticResource AcsSectionBorderBrush}" />
+                    <Setter Property="BorderThickness" Value="0,0,1,0" />
+                    <Setter Property="MinWidth" Value="90" />
+                    <Setter Property="Padding" Value="8,6" />
+                </Style>
+                <Style Selector="Border.ribbon-category:pointerover">
+                    <Setter Property="Background" Value="#10000000" />
+                </Style>
+
+                <!-- 메뉴 아이템 스타일 -->
+                <Style Selector="MenuItem">
+                    <Setter Property="Padding" Value="10,5" />
+                    <Setter Property="FontSize" Value="12" />
+                </Style>
+            </StackPanel.Styles>
+
+            <!-- Transfer 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="TrCmd View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="TrCmd View" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <!-- 테이블 아이콘 -->
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <!-- 드롭다운 화살표 -->
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Transfer" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Layout 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="Node View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Node View" />
+                                <MenuItem Header="Station View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Station View" />
+                                <MenuItem Header="Port View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Port View" />
+                                <MenuItem Header="Link View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Link View" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Layout" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Area 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="Bay View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Bay View" />
+                                <MenuItem Header="LinkZone View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="LinkZone View" />
+                                <MenuItem Header="Zone View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Zone View" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Area" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Device 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="Vehicle View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Vehicle View" />
+                                <MenuItem Header="Vehicle CrossWait View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Vehicle CrossWait View" />
+                                <MenuItem Header="Alarm View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Alarm View" />
+                                <MenuItem Header="Alarm Spec View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Alarm Spec View" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Device" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Assign/Route 카테고리 -->
+            <Border Classes="ribbon-category">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="Assign View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Assign View" />
+                                <MenuItem Header="Route View"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="Route View" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Assign/Route" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Host 카테고리 -->
+            <Border Classes="ribbon-category" BorderThickness="0">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="TCP"
+                                          Command="{Binding SelectMenuCommand}"
+                                          CommandParameter="TCP" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <Grid RowDefinitions="1*,1*,1*" ColumnDefinitions="1*,1*"
+                                      Margin="4">
+                                    <Border Grid.Row="0" Grid.Column="0"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="0" Grid.Column="1"
+                                            Background="{StaticResource AcsPrimaryBlueBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="1" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="0"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                    <Border Grid.Row="2" Grid.Column="1"
+                                            Background="{StaticResource AcsActiveTabBrush}"
+                                            Margin="0.5" CornerRadius="1" />
+                                </Grid>
+                            </Grid>
+                            <TextBlock Text="&#x25BC;" FontSize="7"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="Host" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 선택된 메뉴 표시 영역 -->
+            <Border Padding="12,8" VerticalAlignment="Center"
+                    IsVisible="{Binding SelectedMenu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Selected:" FontSize="11"
+                               Foreground="{StaticResource AcsTextMutedBrush}"
+                               VerticalAlignment="Center" />
+                    <Border Background="{StaticResource AcsActiveTabBrush}"
+                            CornerRadius="3" Padding="8,3">
+                        <TextBlock Text="{Binding SelectedMenu}" FontSize="11"
+                                   Foreground="White" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</UserControl>

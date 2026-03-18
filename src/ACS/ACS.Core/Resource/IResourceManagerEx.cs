@@ -42,6 +42,7 @@ namespace ACS.Core.Resource
         void UpdateLocation(LocationEx paramLocation);
         void DeleteLocation(LocationEx paramLocation);
         int DeleteLocation(string paramString);
+        void CreateNode(NodeEx paramNode);
         NodeEx GetNode(string paramString);
         IList GetNodes();
         IList GetNodesByType(string paramString);
@@ -139,8 +140,12 @@ namespace ACS.Core.Resource
         string GetBayIdByStationId(string paramString);
         string GetBayIdByLocationId(string paramString);
         LinkZoneEx GetLinkZoneByLinkId(string paramString);
+        IList GetLinkZonesByLinkId(string paramString);
         IList GetLinkZonesByZoneId(string paramString);
         IList GetLinkZonesByZoneIdTransferFlag(string paramString1, string paramString2);
+        void CreateLinkZone(LinkZoneEx paramLinkZone);
+        void DeleteLinkZone(LinkZoneEx paramLinkZone);
+        int DeleteLinkZone(string paramString);
         Machine GetMachineByName(string machineName);
         Unit GetUnitByName(string unitName, string machineName);
         int UpdateVehicleState(VehicleEx vehicle, String State, String messageName);

@@ -1,0 +1,247 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.SummaryView"
+             x:DataType="vm:SummaryViewModel"
+             Width="250">
+
+    <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+            BorderThickness="0,0,1,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="0">
+
+                <!-- Summary Header -->
+                <Border Background="{StaticResource AcsHeaderBrush}"
+                        Padding="10,6">
+                    <TextBlock Text="Summary" Foreground="White"
+                               FontSize="12" FontWeight="SemiBold" />
+                </Border>
+
+                <!-- Site Info -->
+                <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,0,1" Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Site Info" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+                        <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                              Margin="0,4,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Site"
+                                       FontSize="10" Foreground="{StaticResource AcsTextMutedBrush}" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SiteName}"
+                                       FontSize="10" Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                       FontWeight="SemiBold" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Server Ver."
+                                       FontSize="10" Foreground="{StaticResource AcsTextMutedBrush}"
+                                       Margin="0,2,0,0" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ServerVersion}"
+                                       FontSize="10" Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                       Margin="0,2,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Client Ver."
+                                       FontSize="10" Foreground="{StaticResource AcsTextMutedBrush}"
+                                       Margin="0,2,0,0" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ClientVersion}"
+                                       FontSize="10" Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                       Margin="0,2,0,0" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Connection"
+                                       FontSize="10" Foreground="{StaticResource AcsTextMutedBrush}"
+                                       Margin="0,2,0,0" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ConnectionState}"
+                                       FontSize="10" Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                       FontWeight="SemiBold" Margin="0,2,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Vehicle Info -->
+                <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,0,1" Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Vehicle Info" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+
+                        <!-- Total -->
+                        <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsStatBorderBrush}"
+                                BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,4,0,4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Total Vehicles" FontSize="11"
+                                           Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding VehicleTotal}"
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{StaticResource AcsActiveTabBrush}" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Status Grid -->
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto"
+                              Margin="0,2,0,0">
+                            <Grid.Styles>
+                                <Style Selector="Border.info-cell">
+                                    <Setter Property="Padding" Value="6,3" />
+                                    <Setter Property="Margin" Value="1" />
+                                    <Setter Property="CornerRadius" Value="2" />
+                                    <Setter Property="Background" Value="#0A000000" />
+                                </Style>
+                            </Grid.Styles>
+
+                            <Border Classes="info-cell" Grid.Row="0" Grid.Column="0">
+                                <StackPanel>
+                                    <TextBlock Text="Working" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleWorking}" FontSize="13"
+                                               FontWeight="Bold" Foreground="#43a047" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="info-cell" Grid.Row="0" Grid.Column="1">
+                                <StackPanel>
+                                    <TextBlock Text="Idle" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleIdle}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsInfoBlueBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="info-cell" Grid.Row="1" Grid.Column="0">
+                                <StackPanel>
+                                    <TextBlock Text="Charging" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleCharging}" FontSize="13"
+                                               FontWeight="Bold" Foreground="#e6a700" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="info-cell" Grid.Row="1" Grid.Column="1">
+                                <StackPanel>
+                                    <TextBlock Text="Down" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleDown}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsAlarmRedBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="info-cell" Grid.Row="2" Grid.Column="0">
+                                <StackPanel>
+                                    <TextBlock Text="Online" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleOnline}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsAlarmGreenBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="info-cell" Grid.Row="2" Grid.Column="1">
+                                <StackPanel>
+                                    <TextBlock Text="Offline" FontSize="9"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding VehicleOffline}" FontSize="13"
+                                               FontWeight="Bold" Foreground="Gray" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Transfer Info -->
+                <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,0,1" Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Transfer Info" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+
+                        <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsStatBorderBrush}"
+                                BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,4,0,4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Total Commands" FontSize="11"
+                                           Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding TransferTotal}"
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{StaticResource AcsActiveTabBrush}" />
+                            </Grid>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*,*" Margin="0,2,0,0">
+                            <Grid.Styles>
+                                <Style Selector="Border.tr-cell">
+                                    <Setter Property="Padding" Value="6,3" />
+                                    <Setter Property="Margin" Value="1" />
+                                    <Setter Property="CornerRadius" Value="2" />
+                                    <Setter Property="Background" Value="#0A000000" />
+                                </Style>
+                            </Grid.Styles>
+
+                            <Border Classes="tr-cell" Grid.Column="0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Active" FontSize="9" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding TransferActive}" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="Bold" Foreground="#43a047" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="tr-cell" Grid.Column="1">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Queued" FontSize="9" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding TransferQueued}" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsWarningBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="tr-cell" Grid.Column="2">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Done" FontSize="9" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding TransferCompleted}" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsInfoBlueBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Link Info -->
+                <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,0,1" Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Link Info" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+
+                        <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                            <Border Padding="6,3" Margin="1" CornerRadius="2" Background="#0A000000">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Total" FontSize="9" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding LinkTotal}" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsActiveTabBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Padding="6,3" Margin="1" CornerRadius="2" Background="#0A000000">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Disabled" FontSize="9" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource AcsTextMutedBrush}" />
+                                    <TextBlock Text="{Binding LinkDisabled}" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="Bold" Foreground="{StaticResource AcsAlarmRedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mini Map (placeholder) -->
+                <Border Padding="10,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Mini Map" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+                        <Border Background="#08000000" CornerRadius="3"
+                                Height="120" Margin="0,4,0,0">
+                            <TextBlock Text="(Mini Map)" FontSize="10"
+                                       Foreground="{StaticResource AcsTextMutedBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

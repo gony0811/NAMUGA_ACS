@@ -1249,6 +1249,29 @@ namespace ACS.Manager.Resource
             return (LinkZoneEx)linkZone[0];
         }
 
+        public IList GetLinkZonesByLinkId(String linkId)
+        {
+            Dictionary<string, object> attributes = new Dictionary<string, object>();
+            attributes.Add("LinkId", linkId);
+            return this.PersistentDao.FindByAttributes(typeof(LinkZoneEx), attributes);
+        }
+
+        public void CreateLinkZone(LinkZoneEx linkZone)
+        {
+            this.PersistentDao.Save(linkZone);
+        }
+
+        public void DeleteLinkZone(LinkZoneEx linkZone)
+        {
+            this.PersistentDao.Delete(linkZone);
+        }
+
+        public int DeleteLinkZone(String linkZoneId)
+        {
+            StringBuilder sbId = new StringBuilder(linkZoneId);
+            return this.PersistentDao.Delete(typeof(LinkZoneEx), sbId);
+        }
+
         public IList GetLinkZonesByZoneId(String zoneId)
         {
             Dictionary<string, object> attributes = new Dictionary<string, object>();

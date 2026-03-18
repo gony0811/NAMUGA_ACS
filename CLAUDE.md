@@ -61,6 +61,9 @@ ACS.UI (Avalonia 데스크탑 클라이언트)
 - `src/ACS/ACS.Elsa/ACS.Elsa.claude.md`
 - `src/ACS/ACS.UI/ACS.UI.claude.md`
 
+## 프로젝트 작업 일정 및 TO DO List
+- 'src/ACS/docs/todo.md'
+
 ## 작업 내역 및 결정 기록
 
 작업 이력, 설계 결정, 미완료 항목은 `docs/memory.md` 참조. 새 작업 완료 시 해당 파일에 기록할 것.
