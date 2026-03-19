@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.LocationEditWindow"
+        Title="Add Location"
+        Width="380"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
+
+        <!-- ID / Station -->
+        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Location Info" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Location ID:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="LocationIdTextBox"
+                             FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Station ID:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="StationIdComboBox"
+                              FontSize="11" Height="30" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Properties -->
+        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" VerticalAlignment="Center" FontSize="11" />
+                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TypeComboBox"
+                              FontSize="11" Height="30" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="BUFFER" />
+                        <ComboBoxItem Content="CHARGE" />
+                        <ComboBoxItem Content="VBUFFER" />
+                        <ComboBoxItem Content="EQP" />
+                        <ComboBoxItem Content="STOCK" />
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Carrier Type:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="CarrierTypeTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="State:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="StateTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Direction:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="3" Grid.Column="1" x:Name="DirectionComboBox"
+                              FontSize="11" Height="30" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="LEFT" />
+                        <ComboBoxItem Content="LEFTBACK" />
+                        <ComboBoxItem Content="RIGHT" />
+                        <ComboBoxItem Content="RIGHTBACK" />
+                    </ComboBox>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- OK / Cancel -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Content="OK" Width="80" Height="28" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -60,10 +60,12 @@ namespace ACS.App.Modules
                 case "trans":
                 case "query":
                 case "report":
-                case "host":
                 case "ui":
                     RegisterTransMsb(builder, dest, serverConnectUrl, serverUserName, serverPassword, serverStationMode,
                         hostConnectUrl, hostUserName, hostPassword, hostStationMode, xpathOfMessageName);
+                    break;
+                case "host":
+                    RegisterHostMsb(builder, dest, hostConnectUrl, hostUserName, hostPassword, hostStationMode, xpathOfMessageName);
                     break;
                 case "ei":
                     RegisterEiMsb(builder, dest, serverConnectUrl, serverUserName, serverPassword, serverStationMode, xpathOfMessageName);
@@ -77,10 +79,28 @@ namespace ACS.App.Modules
             }
         }
 
-        private void RegisterHostMsb(ContainerBuilder builder, NameValueCollection dest, string serverUrl,
-            string serverUser, string serverPass, string serverStation, string xpathOfMessageName)
+        private void RegisterHostMsb(ContainerBuilder builder, NameValueCollection dest,
+            string hostUrl, string hostUser, string hostPass, string hostStation,
+            string xpathOfMessageName)
         {
-            RegisterDefaultDestination(builder, dest["server.host.ts.sender.destination"]);
+            // Host XPath: /Msg/Command
+            string hostXpath = dest["server.trans.xpathofmessagename.host"] ?? "/Msg/Command";
+
+            // Default destination = TS Listener (Host가 보내는 곳)
+            RegisterDefaultDestination(builder, dest["server.ts.host.listener.destination"]);
+
+            // Sender dest: TS의 Host Listener 큐 (Host → TS)
+            var senderDest = CreateChannelDestination(dest["server.ts.host.listener.destination"]);
+            // Listener dest: TS의 Host Sender 큐 (TS → Host)
+            var listenerDest = CreateChannelDestination(dest["server.ts.host.sender.destination"]);
+
+            // Listener: TS가 보낸 메시지 수신
+            RegisterWorkflowListener(builder, "HostListener", "HOSTLISTENER", listenerDest, "UNICAST",
+                hostUrl, hostUser, hostPass, hostStation, hostXpath);
+
+            // Sender: TS로 메시지 전송
+            RegisterSender(builder, "HostAgentSender", "HOSTSENDER", senderDest, "UNICAST",
+                hostUrl, hostUser, hostPass, hostStation);
         }
 
         private void RegisterTransMsb(ContainerBuilder builder, NameValueCollection dest,
@@ -170,11 +190,11 @@ namespace ACS.App.Modules
             RegisterControlAgentListener(builder, appControlDest,
                 serverUrl, serverUser, serverPass, serverStation);
 
-            // Senders
-            RegisterSender(builder, "TsAgentSender", "TsAgentSender", acsSenderDest, "UNICAST",
+            // Senders — TsAgentSender를 마지막에 등록하여 단일 IMessageAgent resolve 시 반환되도록 함
+            RegisterSender(builder, "UiAgentSender", "UiAgentSender", uiSenderDest, "UNICAST",
                 serverUrl, serverUser, serverPass, serverStation);
 
-            RegisterSender(builder, "UiAgentSender", "UiAgentSender", uiSenderDest, "UNICAST",
+            RegisterSender(builder, "TsAgentSender", "TsAgentSender", acsSenderDest, "UNICAST",
                 serverUrl, serverUser, serverPass, serverStation);
         }
 

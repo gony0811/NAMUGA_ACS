@@ -290,6 +290,46 @@ public class AcsApiService : IAcsApiService
         }
     }
 
+    public async Task<List<LocationDto>> GetLocationsAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<List<LocationDto>>("/api/locations")
+               ?? new List<LocationDto>();
+    }
+
+    public async Task<bool> CreateLocationAsync(LocationDto location)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(location);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/api/locations", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> UpdateLocationAsync(LocationDto location)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(location);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PutAsync("/api/locations", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeleteLocationAsync(string locationId)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"/api/locations/{locationId}");
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
     public async Task<List<LinkZoneDto>> GetLinkZonesByLinkIdAsync(string linkId)
     {
         return await _httpClient.GetFromJsonAsync<List<LinkZoneDto>>($"/api/linkzones/{linkId}")

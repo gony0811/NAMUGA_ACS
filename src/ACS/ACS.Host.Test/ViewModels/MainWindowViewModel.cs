@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using ACS.Communication.Host;
+using ACS.Communication.Host.Models;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,10 +14,10 @@ using CommunityToolkit.Mvvm.Input;
 namespace ACS.Host.Test.ViewModels;
 
 /// <summary>
-/// Host(MES) 시뮬레이터 ViewModel.
-/// ACS.App의 HostTcpGateway와 반대 역할:
-///   - Listen Server: ACS가 SendToHost로 보내는 메시지 수신 (ACS SendPort에 대응)
-///   - Send Client: ACS의 ListenPort에 접속하여 MOVECMD 등 전송
+/// MES 시뮬레이터 ViewModel.
+/// MES 관점에서 동작:
+///   - Send Client (3334): ACS로 MOVECMD/MOVECANCEL/ACTIONCMD 송신
+///   - Listen Server (3333): ACS로부터 JOBREPORT 수신
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
@@ -26,26 +28,46 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private string _connectionStatus = "Disconnected";
 
-    // ── Job Report Fields ──
-    [ObservableProperty] private string _jobId = "JOB001";
-    [ObservableProperty] private string _amrId = "AMR01";
-    [ObservableProperty] private string _acsId = "ACS01";
-    [ObservableProperty] private string _materialType = "MAGAZINE";
-    [ObservableProperty] private string _sourcePort = "P01";
-    [ObservableProperty] private string _finalPort = "P02";
+    // ── Command Type 선택 ──
+    public List<string> CommandTypes { get; } = new() { "MOVECMD", "MOVECANCEL", "ACTIONCMD" };
+    [ObservableProperty] private string _selectedCommandType = "MOVECMD";
+
+    // ── Command DataLayer 필드 (전체 통합) ──
+    [ObservableProperty] private string _cmdAcsId = "ACS01";
+    [ObservableProperty] private string _cmdJobId = "JOB001";
+    [ObservableProperty] private string _cmdSourceLoc = "";
+    [ObservableProperty] private string _cmdSourcePort = "";
+    [ObservableProperty] private string _cmdDestLoc = "";
+    [ObservableProperty] private string _cmdDestPort = "";
+    [ObservableProperty] private string _cmdTargetLoc = "";
+    [ObservableProperty] private string _cmdTargetPort = "";
+    [ObservableProperty] private string _cmdActionType = "";
+    [ObservableProperty] private string _cmdMaterialType = "MAGAZINE";
+    [ObservableProperty] private string _cmdUserId = "MES01";
+
+    // ── 필드 가시성 (Command Type에 따라) ──
+    [ObservableProperty] private bool _showMoveFields = true;
+    [ObservableProperty] private bool _showActionFields;
+
+    // ── Last Received Report ──
+    [ObservableProperty] private string _lastReceivedCommand = "-";
+    [ObservableProperty] private string _lastReceivedJobId = "-";
+    [ObservableProperty] private string _lastReceivedDetail = "-";
 
     // ── Log ──
     [ObservableProperty] private string _logText = "";
 
     // ── TCP ──
-    private TcpListener _listener;
-    private TcpClient _sendClient;
-    private NetworkStream _sendStream;
-    private CancellationTokenSource _cts;
-    private readonly object _sendLock = new();
-
+    private TcpListener? _listener;
+    private CancellationTokenSource? _cts;
     private volatile bool _isListening;
-    private volatile bool _isSendConnected;
+
+    partial void OnSelectedCommandTypeChanged(string value)
+    {
+        // MOVECMD / MOVECANCEL → Source/Dest 필드, ACTIONCMD → Target 필드
+        ShowMoveFields = value == "MOVECMD" || value == "MOVECANCEL";
+        ShowActionFields = value == "ACTIONCMD";
+    }
 
     // ========================================================
     //  Connect / Disconnect
@@ -59,13 +81,13 @@ public partial class MainWindowViewModel : ObservableObject
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
 
-        // Listen 서버 시작 (ACS의 JOBREPORT 수신)
+        // Listen 서버 시작 (ACS로부터 JOBREPORT 수신)
         try
         {
             _listener = new TcpListener(IPAddress.Any, ListenPort);
             _listener.Start();
             _isListening = true;
-            AppendLog($"[INFO] Listen 서버 시작: port {ListenPort}");
+            AppendLog($"[INFO] Listen 서버 시작: port {ListenPort} (ACS JOBREPORT 수신 대기)");
             _ = Task.Run(() => AcceptLoopAsync(ct), ct);
         }
         catch (Exception ex)
@@ -73,9 +95,6 @@ public partial class MainWindowViewModel : ObservableObject
             AppendLog($"[ERROR] Listen 서버 시작 실패: {ex.Message}");
             return;
         }
-
-        // Send 클라이언트 연결 (ACS의 ListenPort에 접속)
-        _ = Task.Run(() => SendConnectLoopAsync(ct), ct);
 
         IsConnected = true;
         ConnectionStatus = "Connected";
@@ -89,13 +108,8 @@ public partial class MainWindowViewModel : ObservableObject
         _cts?.Cancel();
 
         try { _listener?.Stop(); } catch { }
-        try { _sendStream?.Close(); } catch { }
-        try { _sendClient?.Close(); } catch { }
 
         _isListening = false;
-        _isSendConnected = false;
-        _sendStream = null;
-        _sendClient = null;
 
         IsConnected = false;
         ConnectionStatus = "Disconnected";
@@ -103,7 +117,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // ========================================================
-    //  Listen Server (ACS → Host: JOBREPORT 등 수신)
+    //  Listen Server (ACS → MES: JOBREPORT 수신)
     // ========================================================
 
     private async Task AcceptLoopAsync(CancellationToken ct)
@@ -112,7 +126,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             try
             {
-                var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                var client = await _listener!.AcceptTcpClientAsync().ConfigureAwait(false);
                 var ep = client.Client.RemoteEndPoint as IPEndPoint;
                 AppendLog($"[INFO] ACS 접속 수신: {ep?.Address}:{ep?.Port}");
                 _ = Task.Run(() => ReceiveLoopAsync(client, ct), ct);
@@ -140,7 +154,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    string xml = await HostMessageProtocol.ReadMessageAsync(stream, ct).ConfigureAwait(false);
+                    string? xml = await HostMessageProtocol.ReadMessageAsync(stream, ct).ConfigureAwait(false);
                     if (xml == null)
                     {
                         AppendLog($"[INFO] ACS 연결 끊김: {ep?.Address}:{ep?.Port}");
@@ -150,6 +164,8 @@ public partial class MainWindowViewModel : ObservableObject
                     string msgName = HostMessageProtocol.ExtractMessageName(xml);
                     AppendLog($"[RECV] {msgName} ({xml.Length} bytes)");
                     AppendLog(FormatXml(xml));
+
+                    ParseReceivedMessage(msgName, xml);
                 }
             }
         }
@@ -161,156 +177,155 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    // ========================================================
-    //  Send Client (Host → ACS: MOVECMD 등 전송)
-    // ========================================================
-
-    private async Task SendConnectLoopAsync(CancellationToken ct)
+    private void ParseReceivedMessage(string msgName, string xml)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            if (!_isSendConnected)
+            string jobId = "-";
+            string detail = "-";
+
+            if (msgName == "JOBREPORT")
             {
-                try
-                {
-                    var client = new TcpClient();
-                    await client.ConnectAsync(SendHost, SendPort).ConfigureAwait(false);
-                    lock (_sendLock)
-                    {
-                        _sendClient = client;
-                        _sendStream = client.GetStream();
-                        _isSendConnected = true;
-                    }
-                    AppendLog($"[INFO] ACS 전송 연결 성공: {SendHost}:{SendPort}");
-                }
-                catch (Exception ex)
-                {
-                    if (!ct.IsCancellationRequested)
-                        AppendLog($"[INFO] ACS 전송 연결 대기중 ({SendHost}:{SendPort}): {ex.Message}");
-                }
+                var msg = HostXmlSerializer.Deserialize<HostMessage<JobReportData>>(xml);
+                var d = msg.DataLayer;
+                jobId = d.JobID ?? "-";
+
+                detail = $"AcsId: {d.AcsId}\n" +
+                         $"Type: {d.Type}\n" +
+                         $"AmrId: {d.AmrId}\n" +
+                         $"ActionType: {d.ActionType}\n" +
+                         $"MaterialType: {d.MaterialType}\n" +
+                         $"UserID: {d.UserID}";
+            }
+            else
+            {
+                detail = $"(알 수 없는 메시지: {msgName})";
             }
 
-            try { await Task.Delay(5000, ct).ConfigureAwait(false); }
-            catch (OperationCanceledException) { break; }
+            Dispatcher.UIThread.Post(() =>
+            {
+                LastReceivedCommand = msgName;
+                LastReceivedJobId = jobId;
+                LastReceivedDetail = detail;
+            });
         }
-    }
-
-    private void SendMessage(string xml)
-    {
-        lock (_sendLock)
+        catch (Exception ex)
         {
-            if (_sendStream == null || !_isSendConnected)
-            {
-                AppendLog("[WARN] ACS 전송 연결이 없습니다.");
-                return;
-            }
-
-            try
-            {
-                HostMessageProtocol.WriteMessageAsync(_sendStream, xml).GetAwaiter().GetResult();
-                string msgName = HostMessageProtocol.ExtractMessageName(xml);
-                AppendLog($"[SEND] {msgName} ({xml.Length} bytes)");
-                AppendLog(FormatXml(xml));
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"[ERROR] 전송 실패: {ex.Message}");
-                _isSendConnected = false;
-                try { _sendStream?.Close(); } catch { }
-                try { _sendClient?.Close(); } catch { }
-                _sendStream = null;
-                _sendClient = null;
-            }
+            AppendLog($"[WARN] 메시지 파싱 실패: {ex.Message}");
         }
     }
 
     // ========================================================
-    //  Job Report 전송 (RECEIVE / START / ARRIVED / COMPLETED)
+    //  Command 송신 (MES → ACS: MOVECMD / MOVECANCEL / ACTIONCMD)
     // ========================================================
 
     [RelayCommand]
-    private void SendReceive() => SendJobReport("RECEIVE");
-
-    [RelayCommand]
-    private void SendStart() => SendJobReport("START");
-
-    [RelayCommand]
-    private void SendArrived() => SendJobReport("ARRIVED");
-
-    [RelayCommand]
-    private void SendCompleted() => SendJobReport("COMPLETED");
-
-    private void SendJobReport(string reportType)
+    private void SendCommand()
     {
-        string xml = HostMessageProtocol.BuildMessage(
-            "TRSJOBREPORT",
-            "/HQ/MES01",
-            "/HQ/ACS01",
-            dataLayer =>
-            {
-                var doc = dataLayer.OwnerDocument;
-
-                AddElement(doc, dataLayer, "ACSName", AcsId);
-                AddElement(doc, dataLayer, "CmdType", reportType);
-                AddElement(doc, dataLayer, "ErrCode", "0");
-                AddElement(doc, dataLayer, "ErrMsg", "");
-                AddElement(doc, dataLayer, "JobID", JobId);
-                AddElement(doc, dataLayer, "AmrId", AmrId);
-                AddElement(doc, dataLayer, "MatType", MaterialType);
-                AddElement(doc, dataLayer, "SourcePort", SourcePort);
-                AddElement(doc, dataLayer, "FinalPort", FinalPort);
-                AddElement(doc, dataLayer, "UserID", "HOST_TEST");
-            });
-
-        SendMessage(xml);
+        switch (SelectedCommandType)
+        {
+            case "MOVECMD":
+                SendMoveCommand();
+                break;
+            case "MOVECANCEL":
+                SendMoveCancel();
+                break;
+            case "ACTIONCMD":
+                SendActionCommand();
+                break;
+        }
     }
 
-    // ========================================================
-    //  MOVECMD / ACTIONCMD 전송
-    // ========================================================
-
-    [RelayCommand]
-    private void SendMoveCmd()
+    private async void SendMoveCommand()
     {
-        string xml = HostMessageProtocol.BuildMessage(
-            "MOVECMD",
-            "/HQ/ACS01",
-            "/HQ/MES01",
-            dataLayer =>
+        var message = new HostMessage<MoveCommandData>
+        {
+            Command = "MOVECMD",
+            Header = new HostHeader
             {
-                var doc = dataLayer.OwnerDocument;
+                DestSubject = "/HQ/ACS01",
+                ReplySubject = "/HQ/MES01"
+            },
+            DataLayer = new MoveCommandData
+            {
+                AcsId = CmdAcsId,
+                DestLoc = CmdDestLoc,
+                DestPort = CmdDestPort,
+                ActionType = CmdActionType,
+                SourceLoc = CmdSourceLoc,
+                SourcePort = CmdSourcePort,
+                JobID = CmdJobId,
+                MaterialType = CmdMaterialType,
+                UserID = CmdUserId
+            }
+        };
 
-                AddElement(doc, dataLayer, "JobID", $"MC_{DateTime.Now:yyyyMMddHHmmss}");
-                AddElement(doc, dataLayer, "Priority", "3");
-                AddElement(doc, dataLayer, "SourceEQP", "EQP01");
-                AddElement(doc, dataLayer, "SourcePort", SourcePort);
-                AddElement(doc, dataLayer, "FinalEQP", "EQP02");
-                AddElement(doc, dataLayer, "FinalPort", FinalPort);
-                AddElement(doc, dataLayer, "MatType", MaterialType);
-                AddElement(doc, dataLayer, "CarrID", "CARR001");
-                AddElement(doc, dataLayer, "UserID", "HOST_TEST");
-            });
-
-        SendMessage(xml);
+        await SendMessageAsync("MOVECMD", message);
     }
 
-    [RelayCommand]
-    private void SendActionCmd()
+    private async void SendMoveCancel()
     {
-        string xml = HostMessageProtocol.BuildMessage(
-            "ACTIONCMD",
-            "/HQ/ACS01",
-            "/HQ/MES01",
-            dataLayer =>
+        var message = new HostMessage<MoveCancelData>
+        {
+            Command = "MOVECANCEL",
+            Header = new HostHeader
             {
-                var doc = dataLayer.OwnerDocument;
+                DestSubject = "/HQ/ACS01",
+                ReplySubject = "/HQ/MES01"
+            },
+            DataLayer = new MoveCancelData
+            {
+                AcsId = CmdAcsId,
+                DestLoc = CmdDestLoc,
+                SourceLoc = CmdSourceLoc,
+                JobId = CmdJobId,
+                MaterialType = CmdMaterialType,
+                UserId = CmdUserId
+            }
+        };
 
-                AddElement(doc, dataLayer, "ActionType", "CANCEL");
-                AddElement(doc, dataLayer, "JobID", JobId);
-                AddElement(doc, dataLayer, "UserID", "HOST_TEST");
-            });
+        await SendMessageAsync("MOVECANCEL", message);
+    }
 
-        SendMessage(xml);
+    private async void SendActionCommand()
+    {
+        var message = new HostMessage<ActionCommandData>
+        {
+            Command = "ACTIONCMD",
+            Header = new HostHeader
+            {
+                DestSubject = "/HQ/ACS01",
+                ReplySubject = "/HQ/MES01"
+            },
+            DataLayer = new ActionCommandData
+            {
+                AcsId = CmdAcsId,
+                TargetLoc = CmdTargetLoc,
+                TargetPort = CmdTargetPort,
+                JobID = CmdJobId,
+                MaterialType = CmdMaterialType,
+                ActionType = CmdActionType,
+                UserID = CmdUserId
+            }
+        };
+
+        await SendMessageAsync("ACTIONCMD", message);
+    }
+
+    private async Task SendMessageAsync<T>(string commandName, HostMessage<T> message) where T : class, new()
+    {
+        string xml = HostXmlSerializer.Serialize(message);
+
+        try
+        {
+            await HostMessageProtocol.ConnectAndSendAsync(SendHost, SendPort, xml);
+            AppendLog($"[SEND] {commandName} ({xml.Length} bytes) → {SendHost}:{SendPort}");
+            AppendLog(FormatXml(xml));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[ERROR] 전송 실패 ({SendHost}:{SendPort}): {ex.Message}");
+        }
     }
 
     // ========================================================
@@ -340,13 +355,6 @@ public partial class MainWindowViewModel : ObservableObject
     // ========================================================
     //  Helpers
     // ========================================================
-
-    private static void AddElement(XmlDocument doc, XmlElement parent, string name, string value)
-    {
-        var elem = doc.CreateElement(name);
-        elem.InnerText = value ?? "";
-        parent.AppendChild(elem);
-    }
 
     private static string FormatXml(string xml)
     {

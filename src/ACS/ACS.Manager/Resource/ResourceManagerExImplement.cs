@@ -39,8 +39,7 @@ namespace ACS.Manager.Resource
 
         public int DeleteBay(String bayId)
         {
-            StringBuilder sbBayId = new StringBuilder(bayId);
-            return this.PersistentDao.Delete(typeof(BayEx), sbBayId);
+            return this.PersistentDao.DeleteByAttribute(typeof(BayEx), "BayId", bayId);
         }
 
         public int DeleteFactories()
@@ -50,8 +49,9 @@ namespace ACS.Manager.Resource
 
         public BayEx GetBay(String bayId)
         {
-            StringBuilder sbBayId = new StringBuilder(bayId);
-            return (BayEx)this.PersistentDao.Find(typeof(BayEx), sbBayId, false);
+            IList list = this.PersistentDao.FindByAttribute(typeof(BayEx), "BayId", bayId, false);
+            if (list == null || list.Count == 0) return null;
+            return (BayEx)list[0];
         }
 
         public IList GetBays()
@@ -145,8 +145,7 @@ namespace ACS.Manager.Resource
 
         public int DeleteVehicle(String vehicleId)
         {
-            StringBuilder sbVehicleId = new StringBuilder(vehicleId);
-            return this.PersistentDao.Delete(typeof(VehicleEx), sbVehicleId);
+            return this.PersistentDao.DeleteByAttribute(typeof(VehicleEx), "VehicleId", vehicleId);
         }
 
         public void DeleteZone(ZoneEx zone)
@@ -156,8 +155,7 @@ namespace ACS.Manager.Resource
 
         public int DeleteZone(String zoneId)
         {
-            StringBuilder sbZoneId = new StringBuilder(zoneId);
-            return this.PersistentDao.Delete(typeof(ZoneEx), sbZoneId);
+            return this.PersistentDao.DeleteByAttribute(typeof(ZoneEx), "ZoneId", zoneId);
         }
 
         public LinkEx GetLink(String linkId)
@@ -177,9 +175,9 @@ namespace ACS.Manager.Resource
             return (LocationEx)this.PersistentDao.Find(typeof(LocationEx), sbLocationId, false);
         }
 
-        public LocationEx GetLocationByPortId(String portId)
+        public LocationEx GetLocationByLocationId(String portId)
         {
-            IList locations = this.PersistentDao.FindByAttribute(typeof(LocationEx), "PortId", portId);
+            IList locations = this.PersistentDao.FindByAttribute(typeof(LocationEx), "LocationId", portId);
             if (locations.Count > 0)
             {
                 return (LocationEx)locations[0];
@@ -247,8 +245,12 @@ namespace ACS.Manager.Resource
 
         public VehicleEx GetVehicle(String vehicleId)
         {
-            StringBuilder sbVehicleId = new StringBuilder(vehicleId);
-            return (VehicleEx)this.PersistentDao.Find(typeof(VehicleEx), sbVehicleId, false);
+            IList results = this.PersistentDao.FindByAttribute(typeof(VehicleEx), "VehicleId", vehicleId);
+            if (results != null && results.Count > 0)
+            {
+                return (VehicleEx)results[0];
+            }
+            return null;
         }
 
         private VehicleEx Refresh(String vehicleId)
@@ -281,8 +283,9 @@ namespace ACS.Manager.Resource
 
         public ZoneEx GetZone(String zoneId)
         {
-            StringBuilder sbZoneId = new StringBuilder(zoneId);
-            return (ZoneEx)this.PersistentDao.Find(typeof(ZoneEx), sbZoneId, false);
+            IList list = this.PersistentDao.FindByAttribute(typeof(ZoneEx), "ZoneId", zoneId, false);
+            if (list == null || list.Count == 0) return null;
+            return (ZoneEx)list[0];
         }
 
         public ZoneEx GetZoneByBayId(String bayId)
@@ -333,7 +336,7 @@ namespace ACS.Manager.Resource
 
         public int UpdateVehicle(VehicleEx vehicle, String propertyName, Object propertyValue)
         {
-            return this.PersistentDao.Update(vehicle.GetType(), propertyName, propertyValue, vehicle.Id);
+            return this.PersistentDao.UpdateByAttribute(vehicle.GetType(), propertyName, propertyValue, "VehicleId", vehicle.VehicleId);
         }
 
         public int UpdateVehicleTransferState(VehicleEx vehicle, String transferState, String messageName)
@@ -367,7 +370,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.transferState was changed to {" + transferState + "}.");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -416,7 +419,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.batteryRate was changed to {" + batteryRate + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleBatteryHistory(newVehicle);
                     }
                 }
@@ -470,7 +473,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.transportCommandId was changed to{" + transportCommandId + "}.");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -514,7 +517,7 @@ namespace ACS.Manager.Resource
                     {
                         UpdateVehicle(vehicle, "NodeCheckTime",DateTime.Now);
                         //logger.fine("vehicle{" + vehicle.getId() + "}.currentNodeId was changed to {" + nodeId + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -563,7 +566,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.processingState was changed to {" + processingState + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -612,7 +615,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.connectionState was changed to {" + connectionState + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -661,7 +664,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.runState was changed to {" + runState + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -711,7 +714,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.fullState was changed to {" + fullState + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -790,7 +793,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.alarmState was changed to {" + state + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -838,7 +841,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.batteryVoltage was changed to {" + voltage + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleBatteryHistory(newVehicle);
                     }
                 }
@@ -979,7 +982,7 @@ namespace ACS.Manager.Resource
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.acsDestNodeId was changed from{" + vehicle.getAcsDestNodeId() +
                         // "} to{" + destNodeId + "}.");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -1044,7 +1047,7 @@ namespace ACS.Manager.Resource
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.vehicleDestNodeId was changed from{" + vehicle.getVehicleDestNodeId() +
                         // "} to{" + destNodeId + "}.");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -1435,7 +1438,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.transportCommandId was changed to{" + transportCommandId + "}.");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }
@@ -1490,7 +1493,7 @@ namespace ACS.Manager.Resource
                     if (updateCount > 0)
                     {
                         //logger.fine("vehicle{" + vehicle.getId() + "}.processingState was changed to {" + processingState + "}");
-                        VehicleEx newVehicle = Refresh(vehicle.Id);
+                        VehicleEx newVehicle = Refresh(vehicle.VehicleId);
                         this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
                     }
                 }

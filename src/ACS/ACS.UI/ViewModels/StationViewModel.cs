@@ -58,8 +58,11 @@ public partial class StationViewModel : ObservableObject
     {
         if (_apiService == null) return;
 
+        var nodes = await _apiService.GetNodesAsync();
+        var links = await _apiService.GetLinksAsync();
+
         var emptyStation = new StationDto { Type = "ACQUIRE" };
-        var dialog = new StationEditWindow(emptyStation, isEditMode: false);
+        var dialog = new StationEditWindow(emptyStation, nodes, links, isEditMode: false);
 
         var result = await dialog.ShowDialog<bool?>(GetOwnerWindow());
         if (result == true)
@@ -75,7 +78,10 @@ public partial class StationViewModel : ObservableObject
     {
         if (_apiService == null || SelectedStation == null) return;
 
-        var dialog = new StationEditWindow(SelectedStation, isEditMode: true);
+        var nodes = await _apiService.GetNodesAsync();
+        var links = await _apiService.GetLinksAsync();
+
+        var dialog = new StationEditWindow(SelectedStation, nodes, links, isEditMode: true);
 
         var result = await dialog.ShowDialog<bool?>(GetOwnerWindow());
         if (result == true)

@@ -164,7 +164,7 @@ namespace ACS.Manager
 
             String portType = VehicleMessageExs.C_CODE_TYPE_UNDEFINED;
 
-            LocationEx sourceLocation = this.GetLocationByPortId(portId);
+            LocationEx sourceLocation = this.GetLocationByLocationId(portId);
             if (sourceLocation != null)
             {
                 String direction = sourceLocation.Direction;
@@ -302,12 +302,12 @@ namespace ACS.Manager
             foreach (var item in vehicleList)
             {
                 VehicleEx vehicle = (VehicleEx)item;
-                TransportCommandEx transportCommand = this.TransferManager.Value.GetTransportCommandByVehicleId(vehicle.Id);
+                TransportCommandEx transportCommand = this.TransferManager.Value.GetTransportCommandByVehicleId(vehicle.VehicleId);
                 if (transportCommand != null)
                 {
                     continue;
                 }
-                string vehicleId = vehicle.Id;
+                string vehicleId = vehicle.VehicleId;
                 bool flag = true;
                 IList alarms = this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
 
@@ -405,7 +405,7 @@ namespace ACS.Manager
         {
             string portType = VehicleMessageExs.C_CODE_TYPE_ROBOT_UNDEFINED;
 
-            LocationEx destLocation = this.CacheManager.GetLocationByPortId(destPortId);
+            LocationEx destLocation = this.CacheManager.GetLocationByLocationId(destPortId);
             if (destLocation != null)
             {
                 String direction = destLocation.Direction;
@@ -658,10 +658,10 @@ namespace ACS.Manager
             foreach (VehicleEx vehicle in vehicleList)
             {
 
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 bool flag = true;
 
-                if (this.TransferManager.Value.GetTransportCommandByVehicleId(vehicle.Id) == null)
+                if (this.TransferManager.Value.GetTransportCommandByVehicleId(vehicle.VehicleId) == null)
                 {
                     //List<AlarmEx> alarms = (List<AlarmEx>)this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
 
@@ -1035,7 +1035,7 @@ namespace ACS.Manager
             setAttributes.Add("LastChargeBattery", vehicle.LastChargeBattery);
 
             Dictionary<string, object> conditionAttributes = new Dictionary<string, object>();
-            conditionAttributes.Add("Id", vehicle.Id);
+            conditionAttributes.Add("Id", vehicle.VehicleId);
 
             this.PersistentDao.UpdateByAttributes(typeof(VehicleExs), setAttributes, conditionAttributes);
         }

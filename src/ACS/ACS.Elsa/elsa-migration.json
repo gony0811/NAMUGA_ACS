@@ -1,4 +1,4 @@
 {
   "Description": "Commands listed in ElsaCommands are routed to Elsa workflow engine. All other commands use legacy WorkflowManagerImpl. Add command names here as you migrate them to Elsa visual workflows.",
-  "ElsaCommands": ["MOVECMD", "CONTROL_STARTHEARTBEAT"]
+  "ElsaCommands": ["MOVECMD", "CONTROL-STARTHEARTBEAT", "SCHEDULE-QUEUEJOB", "JOBREPORT"]
 }

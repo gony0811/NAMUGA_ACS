@@ -22,12 +22,12 @@ public partial class ZoneEditWindow : Window
         Zone = new ZoneDto
         {
             Id = zone.Id ?? "",
+            OriginalId = zone.Id ?? "",
             BayId = zone.BayId ?? "",
             Description = zone.Description ?? ""
         };
 
         IdTextBox.Text = Zone.Id;
-        IdTextBox.IsReadOnly = isEditMode;
         DescriptionTextBox.Text = Zone.Description;
 
         // Bay 목록을 ComboBox에 설정

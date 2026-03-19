@@ -1,0 +1,146 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ACS.AMR.Simulator.ViewModels"
+        x:Class="ACS.AMR.Simulator.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="ACS AMR Simulator"
+        Width="1100" Height="750"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto,150">
+
+        <!-- Row 0: 툴바 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Content="Load Vehicles" Command="{Binding LoadVehiclesCommand}" />
+            <Button Content="Add Vehicle" Command="{Binding AddVehicleCommand}" />
+            <Button Content="Save Selected" Command="{Binding SaveSelectedCommand}" />
+            <Button Content="Save All" Command="{Binding SaveAllCommand}" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="20,0,0,0"
+                       Foreground="Gray" FontSize="13" />
+        </StackPanel>
+
+        <!-- Row 1: 메인 영역 (Vehicle 리스트 + 편집 패널) -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,350">
+
+            <!-- 왼쪽: Vehicle DataGrid -->
+            <DataGrid Grid.Column="0" Margin="0,0,8,0"
+                      ItemsSource="{Binding Vehicles}"
+                      SelectedItem="{Binding SelectedVehicle}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserResizeColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Vehicle ID" Binding="{Binding VehicleId}" Width="90" />
+                    <DataGridTextColumn Header="Connection" Binding="{Binding ConnectionState}" Width="90" />
+                    <DataGridTextColumn Header="Processing" Binding="{Binding ProcessingState}" Width="80" />
+                    <DataGridTextColumn Header="Run" Binding="{Binding RunState}" Width="60" />
+                    <DataGridTextColumn Header="Alarm" Binding="{Binding AlarmState}" Width="70" />
+                    <DataGridTextColumn Header="Battery" Binding="{Binding BatteryRate}" Width="60" />
+                    <DataGridTextColumn Header="Node" Binding="{Binding CurrentNodeId}" Width="80" />
+                    <DataGridTextColumn Header="Transfer" Binding="{Binding TransferState}" Width="100" />
+                    <DataGridTextColumn Header="TC ID" Binding="{Binding TransportCommandId}" Width="100" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- 오른쪽: 편집 패널 -->
+            <Border Grid.Column="1" BorderBrush="#ddd" BorderThickness="1" CornerRadius="4" Padding="12"
+                    IsEnabled="{Binding SelectedVehicle, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <ScrollViewer>
+                    <StackPanel Spacing="10" DataContext="{Binding SelectedVehicle}">
+
+                        <TextBlock Text="Vehicle 상태 편집" FontSize="16" FontWeight="Bold" Margin="0,0,0,6" />
+
+                        <TextBlock Text="{Binding VehicleId, StringFormat='Vehicle: {0}'}"
+                                   FontSize="14" FontWeight="SemiBold" Foreground="#1565c0" />
+
+                        <!-- Connection State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Connection State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConnectionStates}"
+                                      SelectedItem="{Binding ConnectionState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Processing State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Processing State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ProcessingStates}"
+                                      SelectedItem="{Binding ProcessingState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Run State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Run State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RunStates}"
+                                      SelectedItem="{Binding RunState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Alarm State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Alarm State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AlarmStates}"
+                                      SelectedItem="{Binding AlarmState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Transfer State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Transfer State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TransferStates}"
+                                      SelectedItem="{Binding TransferState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Full State -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Full State" FontSize="12" Foreground="Gray" />
+                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).FullStates}"
+                                      SelectedItem="{Binding FullState}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <!-- Current Node -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Current Node ID" FontSize="12" Foreground="Gray" />
+                            <TextBox Text="{Binding CurrentNodeId}" />
+                        </StackPanel>
+
+                        <!-- Battery Rate -->
+                        <StackPanel Spacing="3">
+                            <TextBlock FontSize="12" Foreground="Gray">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="Battery Rate: {0}%">
+                                        <Binding Path="BatteryRate" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding BatteryRate}"
+                                    TickFrequency="10" IsSnapToTickEnabled="False" />
+                        </StackPanel>
+
+                        <!-- Battery Voltage -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Battery Voltage" FontSize="12" Foreground="Gray" />
+                            <NumericUpDown Value="{Binding BatteryVoltage}" Minimum="0" Maximum="30"
+                                           Increment="0.1" FormatString="F1" />
+                        </StackPanel>
+
+                        <!-- Transport Command ID -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Transport Command ID" FontSize="12" Foreground="Gray" />
+                            <TextBox Text="{Binding TransportCommandId}" />
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Row 2: 구분선 -->
+        <Separator Grid.Row="2" Margin="0,8" />
+
+        <!-- Row 3: 로그 -->
+        <TextBox Grid.Row="3" Text="{Binding LogText}" IsReadOnly="True"
+                 AcceptsReturn="True" TextWrapping="Wrap"
+                 FontFamily="Consolas,Menlo,monospace" FontSize="11"
+                 VerticalContentAlignment="Top" />
+    </Grid>
+</Window>

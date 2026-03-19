@@ -198,6 +198,7 @@ namespace ACS.Database
 
         public void Save(object obj)
         {
+            NormalizeDateTimeProperties(obj);
             int tryCount = 0;
             do
             {
@@ -233,6 +234,7 @@ namespace ACS.Database
 
         public void SaveOrUpdate(object obj)
         {
+            NormalizeDateTimeProperties(obj);
             int tryCount = 0;
             do
             {
@@ -1478,6 +1480,42 @@ namespace ACS.Database
             if (entry.State != EntityState.Detached)
             {
                 entry.State = EntityState.Detached;
+            }
+        }
+
+        /// <summary>
+        /// 엔티티의 모든 DateTime/DateTime? 프로퍼티를 UTC로 정규화.
+        /// PostgreSQL의 timestamp with time zone 컬럼은 Npgsql에서 UTC만 허용하므로,
+        /// DateTimeKind.Local 또는 Unspecified인 값을 UTC로 변환한다.
+        /// </summary>
+        private void NormalizeDateTimeProperties(object entity)
+        {
+            if (entity == null) return;
+
+            foreach (var prop in entity.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+
+                if (prop.PropertyType == typeof(DateTime))
+                {
+                    var dt = (DateTime)prop.GetValue(entity);
+                    if (dt.Kind != DateTimeKind.Utc)
+                    {
+                        prop.SetValue(entity, dt.Kind == DateTimeKind.Local
+                            ? dt.ToUniversalTime()
+                            : DateTime.SpecifyKind(dt, DateTimeKind.Utc));
+                    }
+                }
+                else if (prop.PropertyType == typeof(DateTime?))
+                {
+                    var dt = (DateTime?)prop.GetValue(entity);
+                    if (dt.HasValue && dt.Value.Kind != DateTimeKind.Utc)
+                    {
+                        prop.SetValue(entity, dt.Value.Kind == DateTimeKind.Local
+                            ? dt.Value.ToUniversalTime()
+                            : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc));
+                    }
+                }
             }
         }
 

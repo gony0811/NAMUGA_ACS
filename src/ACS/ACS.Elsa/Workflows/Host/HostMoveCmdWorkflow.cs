@@ -36,8 +36,10 @@ namespace ACS.Elsa.Workflows
             // 워크플로우 변수: MOVECMD XML을 저장
             var moveCmdXml = new Variable<XmlDocument> { Name = "MoveCmdXml" };
             var jobReportXml = new Variable<XmlDocument> { Name = "JobReportXml" };
+            var transportCommandId = new Variable<string> { Name = "TransportCommandId" };
             builder.WithVariable(moveCmdXml);
             builder.WithVariable(jobReportXml);
+            builder.WithVariable(transportCommandId);
 
             builder.Root = new Sequence
             {
@@ -57,11 +59,17 @@ namespace ACS.Elsa.Workflows
                         JobReportXml = new(jobReportXml)
                     },
 
-                    // Step 3: 로그 출력
-                    new WriteLine("MOVECMD workflow completed: JOBREPORT(RECEIVE) sent to Host")
+                    // Step 3: TransportCommand 생성 (DB 저장)
+                    new CreateTransportCommandActivity
+                    {
+                        MoveCmdXml = new(moveCmdXml),
+                        TransportCommandId = new(transportCommandId)
+                    },
+
+                    // Step 4: 로그 출력
+                    new WriteLine("MOVECMD workflow completed: JOBREPORT(RECEIVE) sent, TransportCommand created")
 
                     // TODO: 향후 추가 Step
-                    // - TransportCommand 생성 (DB 저장)
                     // - 차량 배정 로직
                     // - 차량에 이동 명령 전송
                     // - JOBREPORT(ASSIGNED) 전송

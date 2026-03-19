@@ -41,6 +41,7 @@
                     </StackPanel.Styles>
                     <Button Content="+" ToolTip.Tip="Add Node" Command="{Binding AddNodeCommand}"
                             FontWeight="Bold" />
+                    <Button Content="&#x1F4CD;" ToolTip.Tip="Map에서 선택" Command="{Binding SelectFromMapCommand}" />
                     <Button Content="-" ToolTip.Tip="Delete Node" Command="{Binding DeleteNodeCommand}"
                             FontWeight="Bold" />
                     <Button Content="&#x270F;" ToolTip.Tip="Modify Node" Command="{Binding EditNodeCommand}" />
@@ -71,8 +72,10 @@
 
         <!-- Row 2: Node DataGrid -->
         <DataGrid Grid.Row="2"
+                  Name="NodeDataGrid"
                   ItemsSource="{Binding Nodes}"
                   SelectedItem="{Binding SelectedNode}"
+                  SelectionMode="Extended"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserResizeColumns="True"

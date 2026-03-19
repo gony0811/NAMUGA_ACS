@@ -35,7 +35,7 @@ namespace ACS.Core.Resource
         int DeleteLink(string paramString);
         void CreateLocation(LocationEx paramLocation);
         LocationEx GetLocation(string paramString);
-        LocationEx GetLocationByPortId(string paramString);
+        LocationEx GetLocationByLocationId(string paramString);
         LocationEx GetLocationByStationId(string paramString);
         IList GetLocations();
         bool CheckLocation(string paramString);

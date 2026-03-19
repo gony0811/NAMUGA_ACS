@@ -1,7 +1,7 @@
 {
-  "definitionId": "CONTROL_STARTHEARTBEAT_JSON",
-  "name": "CONTROL_STARTHEARTBEAT (JSON)",
-  "description": "JSON 기반 ControlStartHeartBeat 워크플로우 정의. C# 코드 버전(CONTROL_STARTHEARTBEAT)의 대안으로 사용 가능. Elsa Studio에서 편집하거나 이 파일을 직접 수정하여 워크플로우를 변경할 수 있다.",
+  "definitionId": "CONTROL-STARTHEARTBEAT-JSON",
+  "name": "CONTROL-STARTHEARTBEAT (JSON)",
+  "description": "JSON 기반 ControlStartHeartBeat 워크플로우 정의. C# 코드 버전(CONTROL-STARTHEARTBEAT)의 대안으로 사용 가능. Elsa Studio에서 편집하거나 이 파일을 직접 수정하여 워크플로우를 변경할 수 있다.",
   "steps": [
     {
       "type": "ExtractHeartBeatInput",

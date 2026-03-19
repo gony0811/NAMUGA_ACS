@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.PortView"
+             x:DataType="vm:PortViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Row 0: Toolbar -->
+        <Border Grid.Row="0" Background="{StaticResource AcsTabBarBrush}"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="&#x270F;" FontSize="14"
+                               Foreground="{StaticResource AcsPrimaryBlueBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="Port (Location)" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource AcsPrimaryBlueBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding TotalCount, StringFormat='[{0}] Rows'}"
+                               FontSize="12"
+                               Foreground="{StaticResource AcsTextSecondaryBrush}"
+                               VerticalAlignment="Center" Margin="4,0,0,0" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2"
+                            VerticalAlignment="Center" Margin="0,0,4,0">
+                    <StackPanel.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="Width" Value="28" />
+                            <Setter Property="Height" Value="28" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="FontSize" Value="13" />
+                            <Setter Property="HorizontalContentAlignment" Value="Center" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                        </Style>
+                    </StackPanel.Styles>
+                    <Button Content="+" ToolTip.Tip="Add Location" Command="{Binding AddLocationCommand}"
+                            FontWeight="Bold" />
+                    <Button Content="-" ToolTip.Tip="Delete Location" Command="{Binding DeleteLocationCommand}"
+                            FontWeight="Bold" />
+                    <Button Content="&#x270F;" ToolTip.Tip="Modify Location" Command="{Binding EditLocationCommand}" />
+                    <Border Width="1" Background="#CCC" Margin="4,4" />
+                    <Button Content="&#x1F504;" ToolTip.Tip="Refresh" Command="{Binding LoadLocationsCommand}" />
+                </StackPanel>
+
+                <Panel />
+            </DockPanel>
+        </Border>
+
+        <!-- Row 1: Table Option -->
+        <Border Grid.Row="1" Background="White"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <StackPanel>
+                <TextBlock Text="&#x25BC; Table Option" FontSize="11"
+                           Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                <TextBlock Text="TOTAL" FontSize="11" Margin="12,2,0,0"
+                           Foreground="{StaticResource AcsPrimaryBlueBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Row 2: Location DataGrid -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Locations}"
+                  SelectedItem="{Binding SelectedLocation}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
+                  CanUserReorderColumns="True"
+                  GridLinesVisibility="All"
+                  BorderThickness="0"
+                  Background="White"
+                  FontSize="11"
+                  RowHeight="26"
+                  HeadersVisibility="Column">
+
+            <DataGrid.Styles>
+                <Style Selector="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#DCE6F5" />
+                    <Setter Property="Foreground" Value="#D32F2F" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="11" />
+                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                    <Setter Property="Padding" Value="8,4" />
+                </Style>
+                <Style Selector="DataGridRow:nth-child(2n)">
+                    <Setter Property="Background" Value="#E8EEF7" />
+                </Style>
+            </DataGrid.Styles>
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="LOCATION ID"
+                                    Binding="{Binding LocationId}"
+                                    Width="150" />
+                <DataGridTextColumn Header="STATION ID"
+                                    Binding="{Binding StationId}"
+                                    Width="150" />
+                <DataGridTextColumn Header="TYPE"
+                                    Binding="{Binding Type}"
+                                    Width="120" />
+                <DataGridTextColumn Header="CARRIER TYPE"
+                                    Binding="{Binding CarrierType}"
+                                    Width="120" />
+                <DataGridTextColumn Header="STATE"
+                                    Binding="{Binding State}"
+                                    Width="*" />
+                <DataGridTextColumn Header="DIRECTION"
+                                    Binding="{Binding Direction}"
+                                    Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

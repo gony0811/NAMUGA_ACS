@@ -13,6 +13,7 @@ using ACS.Core.Cache;
 using ACS.Core.DependencyInjection;
 using ACS.Communication.Msb;
 using ACS.Communication.Http;
+using ACS.Core.Message;
 using ACS.Control;
 using ACS.Core.Workflow;
 using ACS.Utility;
@@ -41,6 +42,7 @@ namespace ACS.App
         private readonly IApplicationManager _applicationManager;
         private readonly IApplicationControlManager _applicationControlManager;
         private readonly IEnumerable<IMsbControllable> _msbControllables;
+        private readonly IEnumerable<IMessageAgent> _messageAgents;
         private readonly Lazy<IWorkflowManager> _workflowManager;
         private readonly ICacheManagerEx _cacheManager;
         private readonly IControlServerManager _controlServerManager;
@@ -58,7 +60,8 @@ namespace ACS.App
             IApplicationControlManager applicationControlManager = null,
             Lazy<IWorkflowManager> workflowManager = null,
             ICacheManagerEx cacheManager = null,
-            IControlServerManager controlServerManager = null)
+            IControlServerManager controlServerManager = null,
+            IEnumerable<IMessageAgent> messageAgents = null)
         {
             _scope = scope ?? throw new ArgumentNullException(nameof(scope));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -66,6 +69,7 @@ namespace ACS.App
             _applicationManager = applicationManager;
             _applicationControlManager = applicationControlManager;
             _msbControllables = msbControllables ?? Enumerable.Empty<IMsbControllable>();
+            _messageAgents = messageAgents ?? Enumerable.Empty<IMessageAgent>();
             _serviceLocator = serviceLocator;
             _workflowManager = workflowManager;
             _cacheManager = cacheManager;

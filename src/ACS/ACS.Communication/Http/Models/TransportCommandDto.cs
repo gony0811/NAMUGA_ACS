@@ -4,7 +4,8 @@ namespace ACS.Communication.Http.Models
 {
     public class TransportCommandDto
     {
-        public string Id { get; set; }
+        public long Id { get; set; }
+        public string JobId { get; set; }
         public int Priority { get; set; }
         public string State { get; set; }
         public string VehicleId { get; set; }

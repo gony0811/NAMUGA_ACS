@@ -94,6 +94,14 @@ namespace ACS.Communication.Http.Handlers
                     return Task.CompletedTask;
                 }
 
+                // Location CRUD (POST/PUT/DELETE)
+                if (resource.ToLowerInvariant() == "locations" && request.Method != HttpMethods.Get)
+                {
+                    json = HandleLocationCrud(request, resourceId);
+                    context.Response = StringHttpResponse.Create(json, HttpResponseCode.Ok, "application/json");
+                    return Task.CompletedTask;
+                }
+
                 // LinkZone CRUD (POST/DELETE)
                 if (resource.ToLowerInvariant() == "linkzones" && request.Method != HttpMethods.Get)
                 {
@@ -127,6 +135,9 @@ namespace ACS.Communication.Http.Handlers
                         break;
                     case "bays":
                         json = GetBaysJson();
+                        break;
+                    case "locations":
+                        json = GetLocationsJson();
                         break;
                     case "linkzones":
                         json = GetLinkZonesJson(resourceId);
@@ -188,6 +199,32 @@ namespace ACS.Communication.Http.Handlers
                     var id = resourceId;
                     if (string.IsNullOrEmpty(id))
                         throw new Exception("Node ID is required for delete");
+
+                    // Node 삭제 전: 관련 Link → LinkZone 연쇄 삭제
+                    IList links = _resourceManager.GetLinks();
+                    if (links != null)
+                    {
+                        foreach (var item in links)
+                        {
+                            var link = item as LinkEx;
+                            if (link != null && (link.FromNodeId == id || link.ToNodeId == id))
+                            {
+                                // Link에 속한 LinkZone 먼저 삭제
+                                IList linkZones = _resourceManager.GetLinkZonesByLinkId(link.Id);
+                                if (linkZones != null)
+                                {
+                                    foreach (var lzItem in linkZones)
+                                    {
+                                        var lz = lzItem as LinkZoneEx;
+                                        if (lz != null)
+                                            _resourceManager.DeleteLinkZone(lz);
+                                    }
+                                }
+                                _resourceManager.DeleteLink(link);
+                            }
+                        }
+                    }
+
                     _resourceManager.DeleteNode(id);
                     return JsonConvert.SerializeObject(new { success = true }, JsonSettings);
                 }
@@ -286,7 +323,7 @@ namespace ACS.Communication.Http.Handlers
                     if (v == null) continue;
                     dtos.Add(new VehicleDto
                     {
-                        Id = v.Id,
+                        VehicleId = v.VehicleId,
                         State = v.State,
                         ConnectionState = v.ConnectionState,
                         ProcessingState = v.ProcessingState,
@@ -424,7 +461,7 @@ namespace ACS.Communication.Http.Handlers
                     if (z == null) continue;
                     dtos.Add(new ZoneDto
                     {
-                        Id = z.Id,
+                        Id = z.ZoneId,
                         BayId = z.BayId,
                         Description = z.Description
                     });
@@ -443,7 +480,7 @@ namespace ACS.Communication.Http.Handlers
                     var dto = ParseBody<BayDto>(request);
                     var bay = new BayEx
                     {
-                        Id = dto.Id,
+                        BayId = dto.Id,
                         Floor = dto.Floor,
                         Description = dto.Description,
                         AgvType = dto.AgvType,
@@ -460,9 +497,11 @@ namespace ACS.Communication.Http.Handlers
                 case HttpMethods.Put:
                 {
                     var dto = ParseBody<BayDto>(request);
-                    var existing = _resourceManager.GetBay(dto.Id);
+                    var lookupId = !string.IsNullOrEmpty(dto.OriginalId) ? dto.OriginalId : dto.Id;
+                    var existing = _resourceManager.GetBay(lookupId);
                     if (existing == null)
-                        throw new Exception("Bay not found: " + dto.Id);
+                        throw new Exception("Bay not found: " + lookupId);
+                    existing.BayId = dto.Id;
                     existing.Floor = dto.Floor;
                     existing.Description = dto.Description;
                     existing.AgvType = dto.AgvType;
@@ -481,10 +520,22 @@ namespace ACS.Communication.Http.Handlers
                     if (string.IsNullOrEmpty(id))
                         throw new Exception("Bay ID is required for delete");
 
-                    // Bay 삭제 전 해당 BayId를 참조하는 Zone 연쇄 삭제
+                    // Bay 삭제 전: 하위 Zone에 LinkZone이 존재하면 삭제 불가
                     IList zones = _resourceManager.GetZones();
                     if (zones != null)
                     {
+                        foreach (var item in zones)
+                        {
+                            var zone = item as ZoneEx;
+                            if (zone != null && zone.BayId == id)
+                            {
+                                IList zoneLinkZones = _resourceManager.GetLinkZonesByZoneId(zone.ZoneId);
+                                if (zoneLinkZones != null && zoneLinkZones.Count > 0)
+                                    throw new Exception($"Bay '{id}'의 Zone '{zone.ZoneId}'에 연결된 LinkZone이 {zoneLinkZones.Count}개 있어 삭제할 수 없습니다. LinkZone을 먼저 삭제해주세요.");
+                            }
+                        }
+
+                        // LinkZone이 없으면 Zone 연쇄 삭제
                         foreach (var item in zones)
                         {
                             var zone = item as ZoneEx;
@@ -512,7 +563,7 @@ namespace ACS.Communication.Http.Handlers
                     var dto = ParseBody<ZoneDto>(request);
                     var zone = new ZoneEx
                     {
-                        Id = dto.Id,
+                        ZoneId = dto.Id,
                         BayId = dto.BayId,
                         Description = dto.Description
                     };
@@ -522,9 +573,11 @@ namespace ACS.Communication.Http.Handlers
                 case HttpMethods.Put:
                 {
                     var dto = ParseBody<ZoneDto>(request);
-                    var existing = _resourceManager.GetZone(dto.Id);
+                    var lookupId = !string.IsNullOrEmpty(dto.OriginalId) ? dto.OriginalId : dto.Id;
+                    var existing = _resourceManager.GetZone(lookupId);
                     if (existing == null)
-                        throw new Exception("Zone not found: " + dto.Id);
+                        throw new Exception("Zone not found: " + lookupId);
+                    existing.ZoneId = dto.Id;
                     existing.BayId = dto.BayId;
                     existing.Description = dto.Description;
                     _resourceManager.UpdateZone(existing);
@@ -535,6 +588,12 @@ namespace ACS.Communication.Http.Handlers
                     var id = resourceId;
                     if (string.IsNullOrEmpty(id))
                         throw new Exception("Zone ID is required for delete");
+
+                    // Zone 삭제 전: LinkZone이 존재하면 삭제 불가
+                    IList existingLinkZones = _resourceManager.GetLinkZonesByZoneId(id);
+                    if (existingLinkZones != null && existingLinkZones.Count > 0)
+                        throw new Exception($"Zone '{id}'에 연결된 LinkZone이 {existingLinkZones.Count}개 있어 삭제할 수 없습니다. LinkZone을 먼저 삭제해주세요.");
+
                     _resourceManager.DeleteZone(id);
                     return JsonConvert.SerializeObject(new { success = true }, JsonSettings);
                 }
@@ -556,7 +615,7 @@ namespace ACS.Communication.Http.Handlers
                     if (b == null) continue;
                     dtos.Add(new BayDto
                     {
-                        Id = b.Id,
+                        Id = b.BayId,
                         Floor = b.Floor,
                         Description = b.Description,
                         AgvType = b.AgvType,
@@ -645,6 +704,7 @@ namespace ACS.Communication.Http.Handlers
                     dtos.Add(new TransportCommandDto
                     {
                         Id = c.Id,
+                        JobId = c.JobId,
                         Priority = c.Priority,
                         State = c.State,
                         VehicleId = c.VehicleId,
@@ -662,6 +722,82 @@ namespace ACS.Communication.Http.Handlers
             }
 
             return JsonConvert.SerializeObject(dtos, JsonSettings);
+        }
+
+        private string GetLocationsJson()
+        {
+            IList locations = _resourceManager.GetLocations();
+            var dtos = new List<LocationDto>();
+
+            if (locations != null)
+            {
+                foreach (var item in locations)
+                {
+                    var loc = item as LocationEx;
+                    if (loc == null) continue;
+                    dtos.Add(new LocationDto
+                    {
+                        LocationId = loc.LocationId,
+                        StationId = loc.StationId,
+                        Type = loc.Type,
+                        CarrierType = loc.CarrierType,
+                        State = loc.State,
+                        Direction = loc.Direction
+                    });
+                }
+            }
+
+            return JsonConvert.SerializeObject(dtos, JsonSettings);
+        }
+
+        private string HandleLocationCrud(IHttpRequest request, string resourceId)
+        {
+            switch (request.Method)
+            {
+                case HttpMethods.Post:
+                {
+                    var dto = ParseBody<LocationDto>(request);
+                    var location = new LocationEx
+                    {
+                        LocationId = dto.LocationId,
+                        StationId = dto.StationId,
+                        Type = dto.Type,
+                        CarrierType = dto.CarrierType,
+                        State = dto.State,
+                        Direction = dto.Direction
+                    };
+                    _resourceManager.CreateLocation(location);
+                    return JsonConvert.SerializeObject(new { success = true }, JsonSettings);
+                }
+                case HttpMethods.Put:
+                {
+                    var dto = ParseBody<LocationDto>(request);
+                    var lookupId = !string.IsNullOrEmpty(dto.OriginalLocationId) ? dto.OriginalLocationId : dto.LocationId;
+                    var existing = _resourceManager.GetLocationByLocationId(lookupId);
+                    if (existing == null)
+                        throw new Exception("Location not found: " + lookupId);
+                    existing.LocationId = dto.LocationId;
+                    existing.StationId = dto.StationId;
+                    existing.Type = dto.Type;
+                    existing.CarrierType = dto.CarrierType;
+                    existing.State = dto.State;
+                    existing.Direction = dto.Direction;
+                    _resourceManager.UpdateLocation(existing);
+                    return JsonConvert.SerializeObject(new { success = true }, JsonSettings);
+                }
+                case HttpMethods.Delete:
+                {
+                    var id = resourceId;
+                    if (string.IsNullOrEmpty(id))
+                        throw new Exception("Location ID is required for delete");
+                    var existing = _resourceManager.GetLocationByLocationId(id);
+                    if (existing != null)
+                        _resourceManager.DeleteLocation(existing);
+                    return JsonConvert.SerializeObject(new { success = true }, JsonSettings);
+                }
+                default:
+                    throw new Exception("Unsupported method: " + request.Method);
+            }
         }
     }
 }

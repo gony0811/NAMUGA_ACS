@@ -39,7 +39,7 @@ namespace ACS.Manager.Transfer
         {
             TransportCommandEx transportCommand = new TransportCommandEx();
 
-            transportCommand.Id = transferMessage.TransportCommandId;
+            transportCommand.JobId = transferMessage.TransportCommandId;
             transportCommand.CarrierId = transferMessage.CarrierId;
             transportCommand.Source = (transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
             transportCommand.Dest = (transferMessage.DestMachine + ":" + transferMessage.DestUnit);
@@ -96,14 +96,12 @@ namespace ACS.Manager.Transfer
         // yslee Hybernate delete 확인 필요 
         public int DeleteTransportCommand(String transportCommandId)
         {
-            StringBuilder sb = new StringBuilder(transportCommandId);
-            return this.PersistentDao.Delete(typeof(TransportCommandEx), sb );
+            return this.PersistentDao.DeleteByAttribute(typeof(TransportCommandEx), "JobId", transportCommandId);
         }
 
         public int DeleteTransportCommand(TransportCommandEx transportCommand)
         {
-            StringBuilder sb = new StringBuilder(transportCommand.Id);
-            return this.PersistentDao.Delete(typeof(TransportCommandEx), sb);
+            return this.PersistentDao.DeleteByAttribute(typeof(TransportCommandEx), "JobId", transportCommand.JobId);
         }
 
         public int DeleteTransportCommands()
@@ -134,8 +132,12 @@ namespace ACS.Manager.Transfer
 
         public TransportCommandEx GetTransportCommand(String transportCommandId)
         {
-            StringBuilder sbTransportCommandId = new StringBuilder(transportCommandId);
-            return (TransportCommandEx)this.PersistentDao.Find(typeof(TransportCommandEx), sbTransportCommandId, false);
+            IList results = this.PersistentDao.FindByAttribute(typeof(TransportCommandEx), "JobId", transportCommandId);
+            if (results != null && results.Count > 0)
+            {
+                return (TransportCommandEx)results[0];
+            }
+            return null;
         }
   
         public TransportCommandEx GetTransportCommandByCarrierId(String carrierId)
@@ -259,17 +261,17 @@ namespace ACS.Manager.Transfer
 
         public int UpdateTransportCommand(TransportCommandEx transportCommand, Dictionary<string, object> setAttributes)
         {
-            return this.PersistentDao.Update(typeof(TransportCommandEx), setAttributes, transportCommand.Id);
+            return this.PersistentDao.UpdateByAttributes(typeof(TransportCommandEx), setAttributes, "JobId", transportCommand.JobId);
         }
-  
+
         public int UpdateTransportCommandVehicleId(TransportCommandEx transportCommand, String vehicleId)
         {
-            return this.PersistentDao.Update(typeof(TransportCommandEx), "VehicleId", vehicleId, transportCommand.Id);
+            return this.PersistentDao.UpdateByAttribute(typeof(TransportCommandEx), "VehicleId", vehicleId, "JobId", transportCommand.JobId);
         }
-  
+
         public int UpdateTransportCommandPath(TransportCommandEx transportCommand, String path)
         {
-            return this.PersistentDao.Update(typeof(TransportCommandEx), "Path", path, transportCommand.Id);
+            return this.PersistentDao.UpdateByAttribute(typeof(TransportCommandEx), "Path", path, "JobId", transportCommand.JobId);
         }
   
         public void UpdateTransportCommandState(TransportCommandEx transportCommand)
@@ -286,7 +288,7 @@ namespace ACS.Manager.Transfer
         {
             TransportCommandEx transportCommand = new TransportCommandEx();
 
-            transportCommand.Id = transportCommandId;
+            transportCommand.JobId = transportCommandId;
             transportCommand.CarrierId = carrierId;
             transportCommand.Source = sourcePortId;
             transportCommand.Dest = destPortId;
@@ -377,7 +379,7 @@ namespace ACS.Manager.Transfer
             setAttributes.Add("State", "CHANGEVEHICLE");
 
             Dictionary<string, object> conditionAttributes = new Dictionary<string, object>();
-            conditionAttributes.Add("Id", transportCommand.Id);
+            conditionAttributes.Add("JobId", transportCommand.JobId);
             conditionAttributes.Add("State", "ASSIGNED");
 
             return this.PersistentDao.UpdateByAttributes(typeof(TransportCommandEx), setAttributes, conditionAttributes);

@@ -46,6 +46,11 @@ public partial class LinkEditWindow : Window
         IdTextBox.IsReadOnly = isEditMode;
         FromNodeIdTextBox.Text = Link.FromNodeId;
         ToNodeIdTextBox.Text = Link.ToNodeId;
+        // Map에서 선택된 경우 FromNodeId/ToNodeId가 이미 채워져 있으면 읽기전용
+        if (!string.IsNullOrEmpty(Link.FromNodeId))
+            FromNodeIdTextBox.IsReadOnly = true;
+        if (!string.IsNullOrEmpty(Link.ToNodeId))
+            ToNodeIdTextBox.IsReadOnly = true;
         LeftBranchNumeric.Value = Link.LeftBranch;
         SpeedNumeric.Value = Link.Speed;
         DistanceNumeric.Value = Link.Length;

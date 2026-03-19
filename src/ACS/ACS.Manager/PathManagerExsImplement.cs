@@ -91,7 +91,7 @@ namespace ACS.Manager
 
         public VehicleEx SearchSuitableVehicleDijkstraCache(BayEx bay, string sourceNode)
         {
-            string bayId = bay.Id;
+            string bayId = bay.BayId;
             IList vehicles = ResourceManager.GetVehicles(bayId, false);
 
             if ((vehicles == null) || vehicles.Count < 1)
@@ -110,7 +110,7 @@ namespace ACS.Manager
 
             Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
 
-            IList linkViews = this.CacheManager.GetLinkViewByBayId(bay.Id);
+            IList linkViews = this.CacheManager.GetLinkViewByBayId(bay.BayId);
 
             if (linkViews != null)
             {
@@ -177,7 +177,7 @@ namespace ACS.Manager
 
         public VehicleEx SearchSuitableVehicleDijkstraCache(TransportCommandEx transportCmd, BayEx bay, string sourceNode)
         {
-            string bayId = bay.Id;
+            string bayId = bay.BayId;
             IList vehicles = ResourceManager.GetVehicles(bayId, false);
 
             if ((vehicles == null) || vehicles.Count < 1)
@@ -196,7 +196,7 @@ namespace ACS.Manager
 
             Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
 
-            IList linkViews = this.CacheManager.GetLinkViewByBayId(bay.Id);
+            IList linkViews = this.CacheManager.GetLinkViewByBayId(bay.BayId);
 
             if (linkViews != null)
             {
@@ -262,7 +262,7 @@ namespace ACS.Manager
 
         public VehicleEx SearchSuitableVehicleDijkstraCache(TransportCommandEx transportCmd, BayEx bay, string sourceNode, Dictionary<string, IList> linkViewMap)
         {
-            string bayId = bay.Id;
+            string bayId = bay.BayId;
             IList vehicles = ResourceManager.GetVehicles(bayId, false);
 
             //if ((vehicles == null) || vehicles.Count < 1)
@@ -332,7 +332,7 @@ namespace ACS.Manager
 
         public VehicleEx SearchSuitableParkingVehicleDijkstraCache(BayEx bay, string sourceNode)
         {
-            string bayId = bay.Id;
+            string bayId = bay.BayId;
             IList vehicles = this.GetParkingVehicles(bayId, false);
 
             if ((vehicles == null) || vehicles.Count < 1)
@@ -372,7 +372,7 @@ namespace ACS.Manager
 
         public VehicleEx SearchSuitableParkingVehicleDijkstraCache(BayEx bay, string sourceNode, Dictionary<string, IList> linkViewMap)
         {
-            string bayId = bay.Id;
+            string bayId = bay.BayId;
             IList vehicles = this.GetParkingVehicles(bayId, false);
 
             if ((vehicles == null) || vehicles.Count < 1)
@@ -1247,20 +1247,20 @@ namespace ACS.Manager
 
                             VehicleEx vehicle = (VehicleEx)vehicles[0];
 
-                            if (checkedVehicles.ContainsKey(vehicle.Id))
+                            if (checkedVehicles.ContainsKey(vehicle.VehicleId))
                             {
                                 continue;
                             }
                             else
                             {
-                                checkedVehicles.Add(vehicle.Id, vehicle);
+                                checkedVehicles.Add(vehicle.VehicleId, vehicle);
                             }
 
                             int totalCost = paths[path] + link.Length + link.Load;
                             List<string> foundPath = new List<string>();
                             foundPath.AddRange(path);
                             foundPath.Add(vehicle.CurrentNodeId);
-                            logger.Info(vehicle.Id + ", cost[" + totalCost + "], " + foundPath);
+                            logger.Info(vehicle.VehicleId + ", cost[" + totalCost + "], " + foundPath);
                             int totalTime = totalCost * 60 / 2500;
 
                             foundPath.Reverse();
@@ -1338,20 +1338,20 @@ namespace ACS.Manager
 
                             VehicleEx vehicle = (VehicleEx)vehicles[0];
 
-                            if (checkedVehicles.ContainsKey(vehicle.Id))
+                            if (checkedVehicles.ContainsKey(vehicle.VehicleId))
                             {
                                 continue;
                             }
                             else
                             {
-                                checkedVehicles.Add(vehicle.Id, vehicle);
+                                checkedVehicles.Add(vehicle.VehicleId, vehicle);
                             }
 
                             int totalCost = paths[path] + link.Length + link.Load;
                             List<string> foundPath = new List<string>();
                             foundPath.AddRange(path);
                             foundPath.Add(vehicle.CurrentNodeId);
-                            logger.Info(vehicle.Id + ", cost[" + totalCost + "], " + foundPath);
+                            logger.Info(vehicle.VehicleId + ", cost[" + totalCost + "], " + foundPath);
                             int totalTime = totalCost * 60 / 2500;
                             foundPath.Reverse();
 
@@ -1580,12 +1580,12 @@ namespace ACS.Manager
                         logger.Info("Find Vehicle : " + foundVehicle);
                         try
                         {
-                            LocationEx sourceLocation = this.GetLocationByPortId(transportCommand.Source);
+                            LocationEx sourceLocation = this.GetLocationByLocationId(transportCommand.Source);
                             String stationId = sourceLocation.StationId;
                             foreach (KeyValuePair<int, VehicleEx> entry in vehicleCost)
                             {
                                 VehicleEx nominatedVehicle = entry.Value;
-                                CreateSuitableVehicleHistory(bayId, transportCommand.Id, stationId, transportCommand.Source, foundVehicle.Id, nominatedVehicle.Id, nominatedVehicle.CurrentNodeId, entry.Key.ToString());
+                                CreateSuitableVehicleHistory(bayId, transportCommand.JobId, stationId, transportCommand.Source, foundVehicle.VehicleId, nominatedVehicle.VehicleId, nominatedVehicle.CurrentNodeId, entry.Key.ToString());
                             }
                         }
                         catch (Exception e)
@@ -1849,12 +1849,12 @@ namespace ACS.Manager
                         logger.Info("Find Vehicle : " + foundVehicle);
                         try
                         {
-                            LocationEx sourceLocation = this.CacheManager.GetLocationByPortId(transportCommand.Source);
+                            LocationEx sourceLocation = this.CacheManager.GetLocationByLocationId(transportCommand.Source);
                             String stationId = sourceLocation.StationId;
                             foreach (KeyValuePair<int, VehicleEx> entry in vehicleCost)
                             {
                                 VehicleEx nominatedVehicle = entry.Value;
-                                CreateSuitableVehicleHistory(bayId, transportCommand.Id, stationId, transportCommand.Source, foundVehicle.Id, nominatedVehicle.Id, nominatedVehicle.CurrentNodeId, entry.Key.ToString());
+                                CreateSuitableVehicleHistory(bayId, transportCommand.JobId, stationId, transportCommand.Source, foundVehicle.VehicleId, nominatedVehicle.VehicleId, nominatedVehicle.CurrentNodeId, entry.Key.ToString());
                             }
                         }
                         catch (Exception e)
@@ -2164,12 +2164,12 @@ namespace ACS.Manager
             foreach (var item in vehicleList)
             {
                 VehicleEx vehicle = (VehicleEx)item;
-                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                 if (transportCommand != null)
                 {
                     continue;
                 }
-                string vehicleId = vehicle.Id;
+                string vehicleId = vehicle.VehicleId;
                 bool flag = true;
                 IList alarms = this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
 
@@ -2230,13 +2230,13 @@ namespace ACS.Manager
 
             foreach (VehicleEx vehicle in vehicleList)
             {
-                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                 if (transportCommand != null)
                 {
-                    logger.Warn("vehicle{" + vehicle.Id + "} has a transportCommand{" + transportCommand.Id + "}. it will be not designated.");
+                    logger.Warn("vehicle{" + vehicle.VehicleId + "} has a transportCommand{" + transportCommand.JobId + "}. it will be not designated.");
                     continue;
                 }
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 bool flag = true;
                 List<AlarmEx> alarms = (List<AlarmEx>)this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
 
@@ -2351,7 +2351,7 @@ namespace ACS.Manager
 
             if (result > 0)
             {
-                logger.Debug("transportCommand{" + transportCommand.Id + "}.path was changed to {" + transportCommand.Path + "}" + transportCommand);
+                logger.Debug("transportCommand{" + transportCommand.JobId + "}.path was changed to {" + transportCommand.Path + "}" + transportCommand);
             }
         }
 
@@ -2392,7 +2392,7 @@ namespace ACS.Manager
                     for (IEnumerator iterator = nominateVehicles.GetEnumerator(); iterator.MoveNext();)
                     {
                         VehicleEx vehicle = (VehicleEx)iterator.Current;
-                        logger.Info("Find vehicle to charge [" + vehicle.Id + "]. Bay [" + vehicle.BayId + "]. Charge point: " + destLocation);
+                        logger.Info("Find vehicle to charge [" + vehicle.VehicleId + "]. Bay [" + vehicle.BayId + "]. Charge point: " + destLocation);
                     }
                     // Check lowest Voltage AGV
                     Dictionary<string, IList> vehicleVoltageMap = new Dictionary<string, IList>();

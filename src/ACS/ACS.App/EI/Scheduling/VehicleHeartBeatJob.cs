@@ -156,7 +156,7 @@ namespace ACS.EI.Scheduling
                     var str = DateTime.Now.ToString("HHmmss");
 
                     string transactionId = str;
-                    string vehicleId = vehicle.Id.PadLeft(3, '0');
+                    string vehicleId = vehicle.VehicleId.PadLeft(3, '0');
 
                     SendPacket sendPacket = new SendPacket(vehicleId, "A", commandCode, transactionId);
 
@@ -236,13 +236,13 @@ namespace ACS.EI.Scheduling
         //            //        var str = DateTime.Now.ToString("mmss");
 
         //            //        string transactionId = str;
-        //            //        string vehicleId = vehicle.Id.PadLeft(2,'0');
+        //            //        string vehicleId = vehicle.VehicleId.PadLeft(2,'0');
 
-        //            //        SendPacket sendPacket = new SendPacket(vehicle.Id, "A", commandCode, transactionId);
+        //            //        SendPacket sendPacket = new SendPacket(vehicle.VehicleId, "A", commandCode, transactionId);
 
         //            //        if (isWifiMode)
         //            //        {
-        //            //            AbstractSocketService abstractSocketService = this.nioInterfaceManager.GetNioInterface(vehicle.Id);
+        //            //            AbstractSocketService abstractSocketService = this.nioInterfaceManager.GetNioInterface(vehicle.VehicleId);
         //            //            if (abstractSocketService != null)
         //            //            {
         //            //                if (abstractSocketService.SessionOpened)
@@ -295,7 +295,7 @@ namespace ACS.EI.Scheduling
         //                    var str = DateTime.Now.ToString("HHmmss");
 
         //                    string transactionId = str;
-        //                    string vehicleId = vehicle.Id.PadLeft(3,'0');
+        //                    string vehicleId = vehicle.VehicleId.PadLeft(3,'0');
 
         //                    SendPacket sendPacket = new SendPacket(vehicleId, "A", commandCode, transactionId);
 

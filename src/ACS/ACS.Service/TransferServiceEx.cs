@@ -182,20 +182,20 @@ namespace ACS.Service
 
             if (vehicleMessage.TransportCommand != null)
             {
-                oldtransportCommand = vehicleMessage.TransportCommand.Id;
+                oldtransportCommand = vehicleMessage.TransportCommand.JobId;
             }
 
             //20190829 added by KSB
             //20200208 LSJ exist 추가로 기존CMD UPDATE 진행
             if (oldtransportCommand != null && oldtransportCommand.Length > 0)
             {
-                transportCommand.Id = (oldtransportCommand);
+                transportCommand.JobId = (oldtransportCommand);
                 transportCommand.CarrierId = (oldtransportCommand);
                 exist = true;
             }
             else
             {
-                transportCommand.Id = (commandId);
+                transportCommand.JobId = (commandId);
                 transportCommand.CarrierId = (commandId);
 
             }
@@ -226,7 +226,7 @@ namespace ACS.Service
             if (exist)
             {
                 this.TransferManager.UpdateTransportCommand(transportCommand);
-                rechargeTransportCommand = TransferManager.GetTransportCommand(transportCommand.Id);
+                rechargeTransportCommand = TransferManager.GetTransportCommand(transportCommand.JobId);
             }
             else
             {
@@ -237,7 +237,7 @@ namespace ACS.Service
             {
 
                 vehicleMessage.TransportCommand = (transportCommand);
-                vehicleMessage.TransportCommandId = (transportCommand.Id);
+                vehicleMessage.TransportCommandId = (transportCommand.JobId);
                 vehicleMessage.CarrierId = (transportCommand.CarrierId);
                 //logger.fine(transportCommand);
                 result = true;
@@ -263,7 +263,7 @@ namespace ACS.Service
 
             TransportCommandEx transportCommand = new TransportCommandEx();
 
-            transportCommand.Id = (commandId);
+            transportCommand.JobId = (commandId);
             transportCommand.CarrierId = (vehicleMessage.TransportCommand.CarrierId);
             transportCommand.State = (TransportCommandEx.STATE_CREATED);
             //wook 20170629
@@ -296,7 +296,7 @@ namespace ACS.Service
             {
 
                 vehicleMessage.TransportCommand = (transportCommand);
-                vehicleMessage.TransportCommandId = (transportCommand.Id);
+                vehicleMessage.TransportCommandId = (transportCommand.JobId);
                 vehicleMessage.CarrierId = (transportCommand.CarrierId);
                 //logger.fine(transportCommand);
                 result = true;
@@ -326,7 +326,7 @@ namespace ACS.Service
 
             if (transportCommand != null)
             {
-                //logger.fine("transportCommand{" + transportCommand.Id + "} was deleted"]=transferMessage);
+                //logger.fine("transportCommand{" + transportCommand.JobId + "} was deleted"]=transferMessage);
                 this.HistoryManager.CreateTransportCommandHistory(transportCommand, "", transferMessage.Cause);
                 int resultCount = this.TransferManager.DeleteTransportCommand(transportCommand);
 
@@ -407,7 +407,7 @@ namespace ACS.Service
         //		
         //		TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByQueueStateFIFO(vehicleMessage.VehicleId);
         //		vehicleMessage.TransportCommand=(transportCommand);
-        //		vehicleMessage.TransportCommandId=(transportCommand.Id);
+        //		vehicleMessage.TransportCommandId=(transportCommand.JobId);
         //		
         //		return vehicleMessage;
         //	}
@@ -458,7 +458,7 @@ namespace ACS.Service
             if (transportCommand != null)
             {
                 String destPortId = transportCommand.Dest;
-                LocationEx destLocation = this.PathManager.GetLocationByPortId(destPortId);
+                LocationEx destLocation = this.PathManager.GetLocationByLocationId(destPortId);
                 String destNodeId = destLocation.StationId;
                 String vehicleCurrentNodeId = "";
 
@@ -497,7 +497,7 @@ namespace ACS.Service
                 if (transportCommand.JobType.Equals(TransportCommandEx.JOBTYPE_CHARGEMOVE))
                 {
                     vehicleMessage.TransportCommand = (transportCommand);
-                    vehicleMessage.TransportCommandId = (transportCommand.Id);
+                    vehicleMessage.TransportCommandId = (transportCommand.JobId);
                     vehicleMessage.CarrierId = (transportCommand.CarrierId);
                     vehicleMessage.Cause = (TransportCommandEx.STATE_CHARGE_COMPLETED);
 
@@ -520,12 +520,12 @@ namespace ACS.Service
             String sameBayId = "";
             String transferFlag = "Y";
 
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
 
             // 요거로 변경해야,,,
             // LocationEx sourceLocation =  this.PathManager.GetLocationViewByStationId(transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
 
-            LocationEx destLocation = this.PathManager.GetLocationByPortId(transferMessage.DestMachine + ":" + transferMessage.DestUnit);
+            LocationEx destLocation = this.PathManager.GetLocationByLocationId(transferMessage.DestMachine + ":" + transferMessage.DestUnit);
 
             // 요거로 변경해야,,,
             // LocationEx destLocation =  this.PathManager.GetLocationViewByStationId(transferMessage.DestMachine + ":" + transferMessage.DestUnit);
@@ -603,7 +603,7 @@ namespace ACS.Service
             {
 
                 NodeEx sourceNode = this.PathManager.GetNode(vehicle.CurrentNodeId);
-                LocationEx destLocation = this.PathManager.GetLocationByPortId(transferMessage.DestMachine + ":" + transferMessage.DestUnit);
+                LocationEx destLocation = this.PathManager.GetLocationByLocationId(transferMessage.DestMachine + ":" + transferMessage.DestUnit);
 
                 //181017 MOVECMD NotSameBay
                 sameBayId = vehicle.BayId;
@@ -1174,8 +1174,8 @@ namespace ACS.Service
 
             if (transportCommand != null)
             {
-                LocationEx sourceLocation = this.ResourceManager.GetLocationByPortId(transportCommand.Source);
-                LocationEx destLocation = this.ResourceManager.GetLocationByPortId(transportCommand.Dest);
+                LocationEx sourceLocation = this.ResourceManager.GetLocationByLocationId(transportCommand.Source);
+                LocationEx destLocation = this.ResourceManager.GetLocationByLocationId(transportCommand.Dest);
 
                 PathEx sourceDestPath = this.PathManager.SearchDynamicPathsDijkstra(sourceLocation.StationId, destLocation.StationId);
 
@@ -2245,10 +2245,10 @@ namespace ACS.Service
             //		
             //		if (transferMessage.PathInfo != null) {
             //			pathInfo = transferMessage.PathInfo;
-            //			currentLocation = this.PathManager.GetLocationByPortId(transferMessage.SourceMachine+":"+transferMessage.SourceUnit);
+            //			currentLocation = this.PathManager.GetLocationByLocationId(transferMessage.SourceMachine+":"+transferMessage.SourceUnit);
             //		} else {
-            //			currentLocation = this.PathManager.GetLocationByPortId(transferMessage.SourceMachine+":"+transferMessage.SourceUnit);
-            //			LocationEx destLocation = this.PathManager.GetLocationByPortId(transferMessage.DestMachine+":"+transferMessage.DestUnit);
+            //			currentLocation = this.PathManager.GetLocationByLocationId(transferMessage.SourceMachine+":"+transferMessage.SourceUnit);
+            //			LocationEx destLocation = this.PathManager.GetLocationByLocationId(transferMessage.DestMachine+":"+transferMessage.DestUnit);
             //			pathInfo = this.PathManager.SearchPaths(currentLocation, destLocation);
             //
             //		}
@@ -2790,7 +2790,7 @@ namespace ACS.Service
             }
 
             vehicleMessage.TransportCommand = transportCommand;
-            vehicleMessage.TransportCommandId = transportCommand.Id;
+            vehicleMessage.TransportCommandId = transportCommand.JobId;
             vehicleMessage.CarrierId = transportCommand.CarrierId;
 
             if (!string.IsNullOrEmpty(transportCommand.Source))
@@ -3014,12 +3014,12 @@ namespace ACS.Service
                                     {
 
                                         VehicleEx originalVehicle = this.ResourceManager.GetVehicle(transportCommand.VehicleId);
-                                        logger.Warn("stealTransportCommand{" + transportCommand.Id + "}, changeVehicle{" + originalVehicle.Id + " -> " + vehicle.Id + "}, " + transportCommand, transportCommand.CarrierId, transportCommand.Id, "]=" + vehicle.Id);
+                                        logger.Warn("stealTransportCommand{" + transportCommand.JobId + "}, changeVehicle{" + originalVehicle.VehicleId + " -> " + vehicle.VehicleId + "}, " + transportCommand, transportCommand.CarrierId, transportCommand.JobId, "]=" + vehicle.VehicleId);
                                         return transportCommand;
                                     }
                                     else
                                     {
-                                        logger.Warn("already changedVehicle, " + transportCommand, transportCommand.CarrierId, transportCommand.Id, "]=" + vehicle.Id);
+                                        logger.Warn("already changedVehicle, " + transportCommand, transportCommand.CarrierId, transportCommand.JobId, "]=" + vehicle.VehicleId);
                                     }
                                 }
                             }
@@ -3047,7 +3047,7 @@ namespace ACS.Service
             VehicleEx commandVehicle = this.ResourceManager.GetVehicle(transportCommand.VehicleId);
             String commandVehicleNodeId = commandVehicle.CurrentNodeId;
             String currentVehicleNodeId = vehicle.CurrentNodeId;
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transportCommand.Source);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transportCommand.Source);
             if (sourceLocation != null)
             {
 
@@ -3061,9 +3061,9 @@ namespace ACS.Service
                     if (currentVehicleLength < commandVehicleLength)
                     {
 
-                        //					//logger.Warn("orgVehicle{" + commandVehicle.Id + "}, length{" + commandVehicleLength+ "}"]=""]=""]=transportCommand.Id, ""]=commandVehicle.Id);
-                        //					//logger.Warn("newVehicle{" + vehicle.Id + "}, length{" + currentVehicleLength+ "}"]=""]=""]=transportCommand.Id, ""]=vehicle.Id);
-                        //logger.Warn("commandVehicle{" + commandVehicle.Id + "}, length{" + commandVehicleLength + "}" + "\n" + "currentVehicle{" + vehicle.Id + "}, length{" + currentVehicleLength + "}"]=""]=""]=transportCommand.Id, ""]=vehicle.Id);
+                        //					//logger.Warn("orgVehicle{" + commandVehicle.VehicleId + "}, length{" + commandVehicleLength+ "}"]=""]=""]=transportCommand.JobId, ""]=commandVehicle.VehicleId);
+                        //					//logger.Warn("newVehicle{" + vehicle.VehicleId + "}, length{" + currentVehicleLength+ "}"]=""]=""]=transportCommand.JobId, ""]=vehicle.VehicleId);
+                        //logger.Warn("commandVehicle{" + commandVehicle.VehicleId + "}, length{" + commandVehicleLength + "}" + "\n" + "currentVehicle{" + vehicle.VehicleId + "}, length{" + currentVehicleLength + "}"]=""]=""]=transportCommand.JobId, ""]=vehicle.VehicleId);
                         result = true;
                     }
                 }
@@ -3166,7 +3166,7 @@ namespace ACS.Service
             foreach (object obj in transportCommands)
             {
                 TransportCommandEx transportCommand = (TransportCommandEx)obj;
-                LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transportCommand.Source);
+                LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transportCommand.Source);
                 if (sourceLocation != null)
                 {
 
@@ -3189,7 +3189,7 @@ namespace ACS.Service
                 {
                     //KSB ChargeJob 일경우 Source는 없고, Dest만 존재함
                     //logger.Warn("can not find sourceLocation, source{" + transportCommand.Source + "}");
-                    logger.Warn("can not find sourceLocation, source{" + transportCommand.Id + "}");
+                    logger.Warn("can not find sourceLocation, source{" + transportCommand.JobId + "}");
                 }
             }
 
@@ -3616,7 +3616,7 @@ namespace ACS.Service
                                 {
                                     VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
                                     newVehicleMessage.Vehicle = vehicle;
-                                    newVehicleMessage.VehicleId = vehicle.Id;
+                                    newVehicleMessage.VehicleId = vehicle.VehicleId;
                                     newVehicleMessage.NodeId = orderPair.OrderGroup;
                                     newVehicleMessage.KeyData = orderPair.Status;
 
@@ -3635,7 +3635,7 @@ namespace ACS.Service
                             {
                                 VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
                                 newVehicleMessage.Vehicle = vehicle;
-                                newVehicleMessage.VehicleId = vehicle.Id;
+                                newVehicleMessage.VehicleId = vehicle.VehicleId;
                                 newVehicleMessage.NodeId = orderPair.OrderGroup;
                                 newVehicleMessage.KeyData = orderPair.Status;
 
@@ -3649,7 +3649,7 @@ namespace ACS.Service
                             }
                         }
                         /*
-                        VehicleOrderEx vehicleOrder = this.ResourceManager.GetVehicleOrderByVehicleId(vehicle.Id);
+                        VehicleOrderEx vehicleOrder = this.ResourceManager.GetVehicleOrderByVehicleId(vehicle.VehicleId);
                         if (vehicleOrder == null)
                         {
                             OrderPairNodeEx orderPair = this.ResourceManager.SearchNextOrderNode(vehicle.Path);
@@ -3659,7 +3659,7 @@ namespace ACS.Service
 
                                 VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
                                 newVehicleMessage.Vehicle = vehicle;
-                                newVehicleMessage.VehicleId = vehicle.Id;
+                                newVehicleMessage.VehicleId = vehicle.VehicleId;
                                 newVehicleMessage.NodeId = orderPair.OrderGroup;
                                 newVehicleMessage.KeyData = orderPair.Status;
 
@@ -3677,7 +3677,7 @@ namespace ACS.Service
                                 //20230314 ORDER_ONEPOINT
                                 //주석처리 동일포지션 
                                 //VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
-                                //newVehicleMessage.VehicleId = vehicle.Id;
+                                //newVehicleMessage.VehicleId = vehicle.VehicleId;
                                 //newVehicleMessage.Vehicle = vehicle;
                                 //newVehicleMessage.NodeId = "0000," + vehicle.AcsDestNodeId + ",0000";
                                 //newVehicleMessage.KeyData = "GO_DEST";
@@ -3699,8 +3699,8 @@ namespace ACS.Service
 
                     // Check vehicle move to follow path, remove missing path in path string...
                     // if newPath is null, vehicle doesn't move to follow the path
-                    OCodeLog.Info(string.Format("SearchNodeInPathAndReCalculate() - vehicle id:{0} | currentNode:{1} | path:{2} | pastPath:{3}", vehicle.Id, currentNode, path, pastPath));
-                    string newPath = this.PathManager.SearchNodeInPathAndReCalculate(vehicle.Id, currentNode, path, pastPath);
+                    OCodeLog.Info(string.Format("SearchNodeInPathAndReCalculate() - vehicle id:{0} | currentNode:{1} | path:{2} | pastPath:{3}", vehicle.VehicleId, currentNode, path, pastPath));
+                    string newPath = this.PathManager.SearchNodeInPathAndReCalculate(vehicle.VehicleId, currentNode, path, pastPath);
 
                     logger.Info("New path: " + ((newPath == null) ? "" : newPath));
 
@@ -3723,7 +3723,7 @@ namespace ACS.Service
                                 {
                                     VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
                                     newVehicleMessage.Vehicle = vehicle;
-                                    newVehicleMessage.VehicleId = vehicle.Id;
+                                    newVehicleMessage.VehicleId = vehicle.VehicleId;
                                     newVehicleMessage.NodeId = orderPair.OrderGroup;
                                     newVehicleMessage.KeyData = orderPair.Status;
 
@@ -3740,7 +3740,7 @@ namespace ACS.Service
                             {
                                 VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
                                 newVehicleMessage.Vehicle = vehicle;
-                                newVehicleMessage.VehicleId = vehicle.Id;
+                                newVehicleMessage.VehicleId = vehicle.VehicleId;
                                 newVehicleMessage.NodeId = orderPair.OrderGroup;
                                 newVehicleMessage.KeyData = orderPair.Status;
 
@@ -3755,20 +3755,20 @@ namespace ACS.Service
                         }
                         else
                         {
-                            VehicleOrderEx vehicleOrder = this.ResourceManager.GetVehicleOrderByVehicleId(vehicle.Id);
+                            VehicleOrderEx vehicleOrder = this.ResourceManager.GetVehicleOrderByVehicleId(vehicle.VehicleId);
 
                             //20230314 ORDER_ONEPOINT
                             if (vehicleOrder != null)
                             {
-                                this.ResourceManager.DeleteVehicleOrderByVehicleID(vehicle.Id);
+                                this.ResourceManager.DeleteVehicleOrderByVehicleID(vehicle.VehicleId);
                             }
                             //목적지 n-1 T_CODE시 O_CODE 전송하지 않게 처리
                             /*
                             if (vehicleOrder != null)
                             {
-                                this.ResourceManager.DeleteVehicleOrderByVehicleID(vehicle.Id);
+                                this.ResourceManager.DeleteVehicleOrderByVehicleID(vehicle.VehicleId);
                                 VehicleMessageEx newVehicleMessage = new VehicleMessageEx();
-                                newVehicleMessage.VehicleId = vehicle.Id;
+                                newVehicleMessage.VehicleId = vehicle.VehicleId;
                                 newVehicleMessage.Vehicle = vehicle;
                                 newVehicleMessage.NodeId = "0000,0000,0000";
                                 newVehicleMessage.KeyData = "ORDER_LF";

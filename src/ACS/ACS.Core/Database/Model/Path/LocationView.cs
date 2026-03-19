@@ -5,7 +5,7 @@ namespace ACS.Core.Database.Model.Path;
 
 public class LocationView : Entity
 {
-    public virtual string PortId { get; set; }
+    public virtual string LocationId { get; set; }
     public virtual string StationId { get; set; }
     public virtual string BayId { get; set; }
     public virtual string Location_Type { get; set; }
@@ -31,7 +31,7 @@ public class LocationView : Entity
     {
         StringBuilder sb = new StringBuilder();
         sb.Append("location_view{");
-        sb.Append("id=").Append(this.PortId);
+        sb.Append("id=").Append(this.LocationId);
         sb.Append(", stationid=").Append(this.StationId);
         sb.Append(", bayId=").Append(this.BayId);
         sb.Append(", location_type=").Append(this.Location_Type);

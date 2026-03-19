@@ -8,7 +8,7 @@ namespace ACS.Core.Path.Model
 {
     public class LocationViewEx
     {
-        public virtual string PortId {get;set;}
+        public virtual string LocationId {get;set;}
 
         public virtual string StationId { get; set; }
 
@@ -56,7 +56,7 @@ namespace ACS.Core.Path.Model
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("location_view{");
-            sb.Append("id=").Append(this.PortId);
+            sb.Append("id=").Append(this.LocationId);
             sb.Append(", stationid=").Append(this.StationId);
             sb.Append(", bayId=").Append(this.BayId);
             sb.Append(", location_type=").Append(this.Location_Type);

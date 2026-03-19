@@ -36,5 +36,14 @@ namespace ACS.Elsa.Bridge
         {
             return Container?.ResolveOptional<T>();
         }
+
+        /// <summary>
+        /// Autofac 컨테이너에서 이름으로 서비스를 resolve.
+        /// 예: ResolveNamed&lt;IMessageAgent&gt;("HostAgentSender")
+        /// </summary>
+        public T ResolveNamed<T>(string name) where T : class
+        {
+            return Container?.ResolveNamed<T>(name);
+        }
     }
 }

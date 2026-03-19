@@ -65,10 +65,6 @@ namespace ACS.App.Host
                     return;
                 }
 
-                if (e.MessageName == "LOAD_COMPLETED")
-                    e.MessageName = "MOVECMD";
-                    
-
                 switch (e.MessageName?.ToUpperInvariant())
                 {
                     case "MOVECMD":
@@ -77,6 +73,10 @@ namespace ACS.App.Host
 
                     case "ACTIONCMD":
                         HandleActionCommand(e.MessageName, xmlDoc);
+                        break;
+
+                    case "JOBREPORT":
+                        HandleGenericCommand(e.MessageName, xmlDoc);
                         break;
 
                     case "LOAD_COMPLETED":

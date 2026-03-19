@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ACS.UI.Views.BayEditWindow"
         Title="Modify Bay"
-        Width="400" Height="440"
+        Width="400" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
 
@@ -15,7 +15,7 @@
                 <TextBlock Text="Bay Info" FontWeight="SemiBold" FontSize="11"
                            Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Bay ID:" VerticalAlignment="Center" FontSize="11" />
                     <TextBox Grid.Row="0" Grid.Column="1" x:Name="IdTextBox"
                              FontSize="11" Height="28" />
 

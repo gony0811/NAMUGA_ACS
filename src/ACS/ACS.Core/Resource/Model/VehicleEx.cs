@@ -54,6 +54,7 @@ namespace ACS.Core.Resource.Model
         public static string VENDOR_COMMON = "COMMON"; //221212 copy
 
 
+        public virtual string VehicleId { get; set; }
         public virtual string NioId {get;set;}
         public virtual string Vendor { get; set; }
         public virtual string Version { get; set; }
@@ -85,6 +86,7 @@ namespace ACS.Core.Resource.Model
             StringBuilder sb = new StringBuilder();
             sb.Append("vehicle{");
             sb.Append("id=").Append(this.Id);
+            sb.Append(", vehicleId=").Append(this.VehicleId);
             sb.Append(", NioName=").Append(this.NioId);
             sb.Append(", vendor=").Append(this.Vendor);
             sb.Append(", version=").Append(this.Version);

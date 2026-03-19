@@ -747,9 +747,9 @@ namespace ACS.Manager.Path
             return null;
         }
 
-        public LocationEx GetLocationByPortId(String portId)
+        public LocationEx GetLocationByLocationId(String portId)
         {
-            IList locations = this.PersistentDao.FindByAttribute(typeof(LocationEx), "PortId", portId);
+            IList locations = this.PersistentDao.FindByAttribute(typeof(LocationEx), "LocationId", portId);
             if (locations.Count > 0)
             {
                 return (LocationEx)locations[0];
@@ -799,14 +799,14 @@ namespace ACS.Manager.Path
             foreach (var item in vehicleList)
             {
                 VehicleEx vehicle = (VehicleEx)item;
-                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                 if (transportCommand != null)
                 {
                     //logger.warn("vehicle{" + vehicle.getId() + "} has a transportCommand{" + transportCommand.getId() + "}. it will be not designated.");
                 }
                 else
                 {
-                    String vehicleId = vehicle.Id;
+                    String vehicleId = vehicle.VehicleId;
                     bool flag = true;
                     IList alarms = this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
                     if ((alarms != null) && (alarms.Count > 0))
@@ -896,7 +896,7 @@ namespace ACS.Manager.Path
             foreach (var item in vehicleList)
             {
                 VehicleEx vehicle = (VehicleEx)item;
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 bool flag = true;
                 IList alarms = this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
                 if ((alarms != null) && (alarms.Count > 0))
@@ -950,7 +950,7 @@ namespace ACS.Manager.Path
             foreach (var item in vehicleList)
             {
                 VehicleEx vehicle = (VehicleEx)item;
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 bool flag = true;
                 IList alarms = this.AlarmManager.GetAlarmsByVehicleId(vehicleId);
                 if ((alarms != null) && (alarms.Count > 0))

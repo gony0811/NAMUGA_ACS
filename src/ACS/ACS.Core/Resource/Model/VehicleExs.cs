@@ -9,6 +9,8 @@ namespace ACS.Core.Resource.Model
 {
     public class VehicleExs : VehicleEx
     {
+        public virtual long Seq { get; set; }
+
         public static float AVAIALBE_VOLTAGE_RGV = (float)23.5;
         public static float AVAIABLE_CHARGE_MAX_VOLTAGE_RGV = (float)26.0;
 

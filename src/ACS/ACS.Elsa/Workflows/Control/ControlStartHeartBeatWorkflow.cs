@@ -32,8 +32,8 @@ namespace ACS.Elsa.Workflows
     {
         protected override void Build(IWorkflowBuilder builder)
         {
-            builder.DefinitionId = "CONTROL_STARTHEARTBEAT";
-            builder.Name = "CONTROL_STARTHEARTBEAT";
+            builder.DefinitionId = "CONTROL-STARTHEARTBEAT";
+            builder.Name = "CONTROL-STARTHEARTBEAT";
             builder.Description = "Primary 서버의 모든 Application에 HeartBeat 전송 및 상태 관리";
 
             // 워크플로우 변수

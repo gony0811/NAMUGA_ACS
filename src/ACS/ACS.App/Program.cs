@@ -28,22 +28,29 @@ static class Program
             return null;
         };
 
-        // Duplicate process detection
-        var currentProcess = Process.GetCurrentProcess();
-        var processName = currentProcess.ProcessName;
-        Console.WriteLine($"[ACS] Process: {processName} (PID: {currentProcess.Id})");
-        if (!processName.Equals("dotnet", StringComparison.OrdinalIgnoreCase)
-            && Process.GetProcessesByName(processName).Length > 1)
-        {
-            Console.WriteLine("[ACS] Duplicate process detected. Exiting.");
-            return;
-        }
-
         // Load configuration from appsettings.json
         var configuration = new ConfigurationBuilder()
             .SetBasePath(appDir)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
+
+        // Named Mutex 기반 중복 프로세스 검출
+        var processId = configuration["Acs:Process:Name"];
+        if (string.IsNullOrEmpty(processId))
+        {
+            Console.WriteLine("[ACS] Acs:Process:Name is not configured. Exiting.");
+            return;
+        }
+
+        using var mutex = new Mutex(true, $"Global\\ACS_{processId}", out bool createdNew);
+        if (!createdNew)
+        {
+            Console.WriteLine($"[ACS] Process '{processId}' is already running. Exiting.");
+            return;
+        }
+
+        Console.Title = processId;
+        Console.WriteLine($"[ACS] Process: {processId} (PID: {Process.GetCurrentProcess().Id})");
 
         // Initialize Serilog
         Log.Logger = new LoggerConfiguration()

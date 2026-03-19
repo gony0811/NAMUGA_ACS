@@ -42,11 +42,11 @@ namespace ACS.Core.Cache
 
         NodeEx GetNode(string nodeId);
         NodeEx GetNodeByStation(StationEx station);
-        LocationEx GetLocationByPortId(string portId);
+        LocationEx GetLocationByLocationId(string portId);
         LocationEx GetLocation(string portId);
         LocationEx GetLocationByStationId(string stationId);
         StationEx GetStationById(string stationId);
-        List<LocationViewEx> GetLocationViewByPortId(string portId);
+        List<LocationViewEx> GetLocationViewByLocationId(string portId);
         LocationViewEx GetBayByLocationViewByPortId(string portId);
         LocationViewEx GetBayByLocationViewByStationId(string stationId);
         List<LocationViewEx> GetLocationViewByStationId(string stationId);

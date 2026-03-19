@@ -162,7 +162,8 @@ namespace ACS.Elsa.Bridge
                 {
                     $"Host{workflowName}Workflow",          // HostMoveCmdWorkflow
                     $"{workflowName}Workflow",              // MOVECMDWorkflow
-                    workflowName                            // 직접 클래스명
+                    workflowName,                           // 직접 클래스명
+                    ConvertToPascalClassName(workflowName)  // SCHEDULE-QUEUEJOB → ScheduleQueuejobWorkflow
                 };
 
                 foreach (var candidate in candidates)
@@ -201,6 +202,19 @@ namespace ACS.Elsa.Bridge
                 logger.Error($"Elsa workflow '{workflowName}' failed: {ex.Message}", ex);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 메시지명을 PascalCase 클래스명으로 변환.
+        /// 예: "SCHEDULE-QUEUEJOB" → "ScheduleQueuejobWorkflow"
+        /// _workflowRegistry가 OrdinalIgnoreCase이므로 정확한 casing 불필요.
+        /// </summary>
+        private static string ConvertToPascalClassName(string messageName)
+        {
+            var parts = messageName.Split('-', '_');
+            var pascal = string.Concat(parts.Select(p =>
+                p.Length > 0 ? char.ToUpper(p[0]) + p.Substring(1).ToLower() : ""));
+            return pascal + "Workflow";
         }
 
         // --- IWorkflowManager implementation ---

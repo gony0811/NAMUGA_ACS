@@ -15,6 +15,7 @@ namespace ACS.Core.Host
         /// <param name="reportType">RECEIVE, ARRIVED, COMPLETE, CANCEL 등</param>
         /// <param name="jobId">작업 ID</param>
         /// <param name="amrId">AMR(AGV) ID</param>
+        /// <param name="actionType">작업 타입 (LOAD, UNLOAD 등)</param>
         /// <param name="materialType">자재 타입 (MAGAZINE 등)</param>
         /// <param name="acsId">ACS 시스템 ID</param>
         /// <param name="userId">요청 사용자 ID</param>
@@ -25,6 +26,7 @@ namespace ACS.Core.Host
             string reportType,
             string jobId,
             string amrId = "",
+            string actionType = "",
             string materialType = "",
             string acsId = "",
             string userId = "",

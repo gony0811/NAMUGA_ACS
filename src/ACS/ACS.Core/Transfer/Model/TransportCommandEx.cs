@@ -49,7 +49,8 @@ namespace ACS.Core.Transfer.Model
         public static String CAUSE_MOVECANCEL = "MOVECANCEL";
         public static String CAUSE_COMPLETE = "COMPLETE";
 
-        public virtual string Id { get; set; }
+        public virtual long Id { get; set; }
+        public virtual string JobId { get; set; }
         public virtual int Priority { get; set; }
         public virtual string State { get; set; }
         public virtual string VehicleId { get; set; }
@@ -100,6 +101,7 @@ namespace ACS.Core.Transfer.Model
             StringBuilder sb = new StringBuilder();
             sb.Append("transportCommand{");
             sb.Append("id=").Append(this.Id);
+            sb.Append(", jobId=").Append(this.JobId);
             sb.Append(", priority=").Append(this.Priority);
             sb.Append(", state=").Append(this.State);
             sb.Append(", vehicleId=").Append(this.VehicleId);

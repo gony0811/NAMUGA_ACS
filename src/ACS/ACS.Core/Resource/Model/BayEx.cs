@@ -8,7 +8,8 @@ namespace ACS.Core.Resource.Model
 {
     public class BayEx
     {
-        public virtual string Id {get;set;}
+        public virtual long Id { get; set; }
+        public virtual string BayId { get; set; }
         public virtual int Floor { get; set; }
         public virtual string Description { get; set; }
         public virtual string AgvType { get; set; }       //20200310 LYS Add on Function for Parking Station
@@ -25,6 +26,7 @@ namespace ACS.Core.Resource.Model
             StringBuilder sb = new StringBuilder();
             sb.Append("bay{");
             sb.Append("id=").Append(this.Id);
+            sb.Append(", bayId=").Append(this.BayId);
             sb.Append(", description=").Append(this.Description);
             sb.Append(", floor=").Append(this.Floor);
             sb.Append(", agvType=").Append(this.AgvType);

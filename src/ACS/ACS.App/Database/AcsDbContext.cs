@@ -161,8 +161,8 @@ namespace ACS.Database
             modelBuilder.Entity<LocationViewEx>(e =>
             {
                 e.ToView("NA_R_LOCATION_VW");
-                e.HasKey(x => x.PortId);
-                e.Property(x => x.PortId).HasColumnName("portId").HasMaxLength(64);
+                e.HasKey(x => x.LocationId);
+                e.Property(x => x.LocationId).HasColumnName("portId").HasMaxLength(64);
                 e.Property(x => x.StationId).HasColumnName("stationId").HasMaxLength(64);
                 e.Property(x => x.BayId).HasColumnName("bayId").HasMaxLength(64);
                 e.Property(x => x.Location_Type).HasColumnName("location_Type").HasMaxLength(8);
@@ -256,8 +256,10 @@ namespace ACS.Database
             modelBuilder.Entity<VehicleExs>(e =>
             {
                 e.ToTable("NA_R_VEHICLE");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.HasKey(x => x.Seq);
+                e.Property(x => x.Seq).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Ignore(x => x.Id); // Entity 베이스의 string Id — DB 매핑 제외
+                e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
                 e.Property(x => x.NioId).HasColumnName("NIOID").HasMaxLength(32);
                 e.Property(x => x.Vendor).HasColumnName("vendor").HasMaxLength(32);
                 e.Property(x => x.Version).HasColumnName("version").HasMaxLength(32);
@@ -288,8 +290,10 @@ namespace ACS.Database
             modelBuilder.Entity<LocationEx>(e =>
             {
                 e.ToTable("NA_R_LOCATION");
-                e.HasKey(x => x.PortId);
-                e.Property(x => x.PortId).HasColumnName("portId").HasMaxLength(64);
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Property(x => x.LocationId).HasColumnName("locationId").HasMaxLength(64).IsRequired();
+                e.HasIndex(x => x.LocationId).IsUnique();
                 e.Property(x => x.StationId).HasColumnName("stationId").HasMaxLength(64);
                 e.Property(x => x.Type).HasColumnName("type").HasMaxLength(8);
                 e.Property(x => x.CarrierType).HasColumnName("carrierType").HasMaxLength(8);
@@ -301,7 +305,8 @@ namespace ACS.Database
             {
                 e.ToTable("NA_R_BAY");
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Property(x => x.BayId).HasColumnName("bayId").HasMaxLength(64);
                 e.Property(x => x.Floor).HasColumnName("floor").HasMaxLength(20);
                 e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
                 e.Property(x => x.AgvType).HasColumnName("agvType").HasMaxLength(20);
@@ -314,7 +319,8 @@ namespace ACS.Database
             {
                 e.ToTable("NA_R_ZONE");
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Property(x => x.ZoneId).HasColumnName("zoneId").HasMaxLength(64);
                 e.Property(x => x.BayId).HasColumnName("bayId").HasMaxLength(64);
                 e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
             });
@@ -394,7 +400,8 @@ namespace ACS.Database
             {
                 e.ToTable("NA_T_TRANSPORTCMD");
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(64);
                 e.Property(x => x.Priority).HasColumnName("priority");
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);

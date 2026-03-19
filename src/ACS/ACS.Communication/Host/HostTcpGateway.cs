@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using ACS.Communication.Host.Models;
 using ACS.Core.Host;
 using ACS.Core.Logging;
 
@@ -36,18 +37,11 @@ namespace ACS.Communication.Host
         private TcpListener _listener;
         private Task _acceptTask;
 
-        // ── 송신 측 (Client) ──
-        private TcpClient _sendClient;
-        private NetworkStream _sendStream;
-        private readonly object _sendLock = new object();
-        private Task _sendConnectTask;
-
         // ── 공통 ──
         private CancellationTokenSource _cts;
         private volatile bool _isListening;
-        private volatile bool _isSendConnected;
 
-        public bool IsConnected => _isListening || _isSendConnected;
+        public bool IsConnected => _isListening;
 
         public event EventHandler<HostTcpMessageEventArgs> MessageReceived;
 
@@ -62,9 +56,6 @@ namespace ACS.Communication.Host
             // 수신 서버 시작
             StartListener();
 
-            // 송신 클라이언트 연결 시작 (백그라운드)
-            _sendConnectTask = Task.Run(() => SendConnectLoopAsync(_cts.Token));
-
             logger.Info($"[HostTcpGateway] Started - Listen:{ListenPort}, Send:{SendHost}:{SendPort}");
         }
 
@@ -75,11 +66,8 @@ namespace ACS.Communication.Host
             _cts?.Cancel();
 
             try { _listener?.Stop(); } catch { }
-            try { _sendStream?.Close(); } catch { }
-            try { _sendClient?.Close(); } catch { }
 
             _isListening = false;
-            _isSendConnected = false;
 
             logger.Info("[HostTcpGateway] Stopped.");
         }
@@ -189,72 +177,24 @@ namespace ACS.Communication.Host
                 return;
             }
 
-            lock (_sendLock)
+            try
             {
-                if (_sendStream == null || !_isSendConnected)
-                {
-                    logger.Warn($"[HostTcpGateway] SendToHost - not connected to Host {SendHost}:{SendPort}, message '{messageName}' queued for retry");
-                    return;
-                }
-
-                try
-                {
-                    HostMessageProtocol.WriteMessageAsync(_sendStream, messageBody).GetAwaiter().GetResult();
-                    logger.Info($"[HostTcpGateway] Sent: {messageName} ({messageBody.Length} bytes)");
-                }
-                catch (Exception ex)
-                {
-                    logger.Error($"[HostTcpGateway] Send error: {ex.Message}");
-                    DisconnectSendClient();
-                }
+                HostMessageProtocol.ConnectAndSendAsync(SendHost, SendPort, messageBody).GetAwaiter().GetResult();
+                logger.Info($"[HostTcpGateway] Sent: {messageName} ({messageBody.Length} bytes) to {SendHost}:{SendPort}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"[HostTcpGateway] Send error to {SendHost}:{SendPort}: {ex.Message}");
             }
         }
 
-        private async Task SendConnectLoopAsync(CancellationToken ct)
+        /// <summary>
+        /// 모델 객체를 직렬화하여 Host로 전송.
+        /// </summary>
+        public void SendToHost<TData>(string messageName, HostMessage<TData> message) where TData : class, new()
         {
-            while (!ct.IsCancellationRequested)
-            {
-                if (!_isSendConnected)
-                {
-                    try
-                    {
-                        var client = new TcpClient();
-                        await client.ConnectAsync(SendHost, SendPort).ConfigureAwait(false);
-
-                        lock (_sendLock)
-                        {
-                            _sendClient = client;
-                            _sendStream = client.GetStream();
-                            _isSendConnected = true;
-                        }
-
-                        logger.Info($"[HostTcpGateway] Connected to Host {SendHost}:{SendPort} for sending");
-                    }
-                    catch (Exception ex)
-                    {
-                        if (!ct.IsCancellationRequested)
-                            logger.Debug($"[HostTcpGateway] Send connect failed ({SendHost}:{SendPort}): {ex.Message}, retrying in {ReconnectIntervalMs}ms");
-                    }
-                }
-
-                try
-                {
-                    await Task.Delay(ReconnectIntervalMs, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-            }
-        }
-
-        private void DisconnectSendClient()
-        {
-            _isSendConnected = false;
-            try { _sendStream?.Close(); } catch { }
-            try { _sendClient?.Close(); } catch { }
-            _sendStream = null;
-            _sendClient = null;
+            string xml = HostXmlSerializer.Serialize(message);
+            SendToHost(messageName, xml);
         }
     }
 }

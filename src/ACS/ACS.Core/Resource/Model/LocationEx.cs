@@ -12,7 +12,8 @@ namespace ACS.Core.Resource.Model
         public static string TYPE_CHARGE = "CHARGE";
         public static string TYPE_STOCK = "STOCK";
 
-        public virtual string PortId { get; set; }
+        public virtual long Id { get; set; }
+        public virtual string LocationId { get; set; }
         public virtual string StationId { get; set; }
         public virtual string Type { get; set; }
         public virtual string CarrierType { get; set; }
@@ -22,7 +23,7 @@ namespace ACS.Core.Resource.Model
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("location{");
-            sb.Append("portId=").Append(this.PortId);
+            sb.Append("locationId=").Append(this.LocationId);
             sb.Append(", stationId=").Append(this.StationId);
             sb.Append(", type=").Append(this.Type);
             sb.Append(", carrierType=").Append(this.CarrierType);

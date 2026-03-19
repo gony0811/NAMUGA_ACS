@@ -267,7 +267,7 @@ namespace ACS.Service
         public VehicleEx SearchSuitableVehicle(TransportCommandEx transportCommand)
         {
 
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transportCommand.Source);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transportCommand.Source);
             String stationId = "";
             String bayId = "";
             if (sourceLocation != null)
@@ -286,11 +286,11 @@ namespace ACS.Service
             else
             {
                 ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                //logger.Warn("location does't exist in repository, portId{" + transportCommand.Source + "}", "", transportCommand.CarrierId,transportCommand.Id, bayId, stationId);
+                //logger.Warn("location does't exist in repository, portId{" + transportCommand.Source + "}", "", transportCommand.CarrierId,transportCommand.JobId, bayId, stationId);
             }
             ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
             //		//logger.Warn("can not find Suitable Vehicle, " + sourceLocation.toString(), "", transportCommand.CarrierId, 
-            //				transportCommand.Id, bayId, stationId); 
+            //				transportCommand.JobId, bayId, stationId); 
             return null;
         }
 
@@ -299,7 +299,7 @@ namespace ACS.Service
 
             bool result = false;
 
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transferMessage.SourceMachine + ":" + transferMessage.SourceUnit);
             if (sourceLocation != null)
             {
                 //			String stationId = sourceLocation.StationId;
@@ -310,7 +310,7 @@ namespace ACS.Service
                 if (vehicle != null)
                 {
 
-                    transferMessage.VehicleId = vehicle.Id;
+                    transferMessage.VehicleId = vehicle.VehicleId;
                     transferMessage.Vehicle = vehicle;
                     return true;
                 }
@@ -324,7 +324,7 @@ namespace ACS.Service
 
             bool result = false;
 
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(vehicleMessage.TransportCommand.Source);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(vehicleMessage.TransportCommand.Source);
             if (sourceLocation != null)
             {
                 String stationId = sourceLocation.StationId;
@@ -333,7 +333,7 @@ namespace ACS.Service
                 if (vehicle != null)
                 {
 
-                    vehicleMessage.VehicleId = vehicle.Id;
+                    vehicleMessage.VehicleId = vehicle.VehicleId;
                     vehicleMessage.Vehicle = vehicle;
                     return true;
                 }
@@ -347,7 +347,7 @@ namespace ACS.Service
             bool result = false;
 
             String bayId = vehicleMessage.BayId;
-            LocationEx destLocation = this.PathManager.GetLocationByPortId(vehicleMessage.DestPortId);
+            LocationEx destLocation = this.PathManager.GetLocationByLocationId(vehicleMessage.DestPortId);
 
             //20171006 wook BCS Rule change
             //		VehicleEx vehicle = this.PathManager.SearchSuitableChargeVehicle(bayId);
@@ -356,7 +356,7 @@ namespace ACS.Service
             if (vehicle != null)
             {
 
-                vehicleMessage.VehicleId = vehicle.Id;
+                vehicleMessage.VehicleId = vehicle.VehicleId;
                 vehicleMessage.Vehicle = vehicle;
                 return true;
             }
@@ -406,7 +406,7 @@ namespace ACS.Service
                     LocationViewEx locationView = (LocationViewEx)iterator.Current;
                     IList OccupiedVehicles = this.ResourceManager.GetVehiclesByCurrentNode(locationView.StationId);
 
-                    bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.PortId);
+                    bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.LocationId);
 
                     //이미 할당 된 Station 이거나 위치에 타 AGV 있는지 확인
                     //다른 AGV가 해당 위치를 해당 순간에 지나가거나, 알람 발생으로 멈춰있는데... 배제해야하나????
@@ -414,7 +414,7 @@ namespace ACS.Service
                     {
                         VehicleEx vehicle = new VehicleEx();
 
-                        vehicleMessage.DestPortId = locationView.PortId;
+                        vehicleMessage.DestPortId = locationView.LocationId;
                         LocationEx destLocation = this.CacheManager.GetLocationByStationId(locationView.StationId);
 
                         if (destLocation != null)
@@ -439,19 +439,19 @@ namespace ACS.Service
                             TransportCommandEx transportCommand = null;
                             if (vehicle != null)
                             {
-                                boolTransportCmd = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.PortId);
-                                transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                                boolTransportCmd = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.LocationId);
+                                transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
 
                                 if (boolTransportCmd == true || transportCommand != null)
                                 {
-                                    logger.Fatal("public bool SearchSuitableRechargeStationWithAGV(vehicleMessageEx vehicleMessage) : Skip Vehicle - " + locationView.PortId + "," + vehicle.Id + " - " + boolTransportCmd);
+                                    logger.Fatal("public bool SearchSuitableRechargeStationWithAGV(vehicleMessageEx vehicleMessage) : Skip Vehicle - " + locationView.LocationId + "," + vehicle.VehicleId + " - " + boolTransportCmd);
                                     continue;
                                 }
                             }
 
                             if (vehicle != null)
                             {
-                                vehicleMessage.VehicleId = vehicle.Id;
+                                vehicleMessage.VehicleId = vehicle.VehicleId;
                                 vehicleMessage.Vehicle = vehicle;
                                 vehicleMessage.BayId = vehicle.BayId;
                                 return true;
@@ -478,7 +478,7 @@ namespace ACS.Service
         //		} 
         //		
         ////		List listVehicles = vehicleMessage.Vehicles;
-        ////		LocationEx destLocation = this.PathManager.GetLocationByPortId(vehicleMessage.DestPortId);
+        ////		LocationEx destLocation = this.PathManager.GetLocationByLocationId(vehicleMessage.DestPortId);
         ////		LocationEx sourceLocation = null;
         ////		int distance = 0;
         ////		Map<String, Integer> mapVehicleDistance = new HashMap();
@@ -487,8 +487,8 @@ namespace ACS.Service
         ////		for (Iterator iterator = listVehicles.GetEnumerator(); iterator.MoveNext();) {
         ////			VehicleEx vehicle = (VehicleEx) iterator.Current;
         ////			
-        ////			String vehicleId = vehicle.Id;
-        ////			//logger.Info("Check distance  Vehicle: " + vehicle.Id + ", RechargeStation: " + destLocation.PortId);
+        ////			String vehicleId = vehicle.VehicleId;
+        ////			//logger.Info("Check distance  Vehicle: " + vehicle.VehicleId + ", RechargeStation: " + destLocation.PortId);
         ////			
         ////			if (vehicle.CurrentNodeId == null || vehicle.CurrentNodeId.isEmpty()) 
         ////			{
@@ -496,7 +496,7 @@ namespace ACS.Service
         ////			}
         ////			//wook
         ////			//?�눖而� TAG??Location???袁⑤빍疫�??�슢揆??pathManager ?�꼷�젟 ?袁⑹뒄
-        //////			sourceLocation = this.PathManager.GetLocationByPortId(this.PathManager.getLocationViewByStationId(vehicle.CurrentNodeId).PortId);
+        //////			sourceLocation = this.PathManager.GetLocationByLocationId(this.PathManager.getLocationViewByStationId(vehicle.CurrentNodeId).PortId);
         ////			String currentNodeId = vehicle.CurrentNodeId;
         ////			NodeEx sourceNode = this.PathManager.getNode(currentNodeId);
         ////			NodeEx destNode = this.PathManager.getNode(destLocation.StationId);
@@ -514,7 +514,7 @@ namespace ACS.Service
         ////			
         ////			PathACS paths = (PathACS) pathInfo.getPathsAvailable().get(0);
         ////			distance = paths.getNodeIds().size();
-        ////			//logger.Info("Distance " + vehicle.Id + " AND " + destLocation.PortId + "is " + distance);
+        ////			//logger.Info("Distance " + vehicle.VehicleId + " AND " + destLocation.PortId + "is " + distance);
         ////			mapVehicleDistance.put(vehicleId, distance);
         ////		}
         ////		
@@ -540,14 +540,14 @@ namespace ACS.Service
         ////		
         ////		VehicleEx vehicle = this.ResourceManager.GetVehicle(suitableVehicle);
         //		
-        //		LocationEx chargeLocation = this.PathManager.GetLocationByPortId(vehicleMessage.DestPortId);
+        //		LocationEx chargeLocation = this.PathManager.GetLocationByLocationId(vehicleMessage.DestPortId);
         //		StationACS chargeStation = this.ResourceManager.GetStation(chargeLocation.StationId);
         //		VehicleEx vehicle = this.PathManager.SearchSuitableVehicleFromRecharge(chargeStation, vehicleMessage.BayId, vehicleMessage.Vehicles, false);
         //		
         //		if (vehicle != null) 
         //		{
         //			result = true;
-        //			vehicleMessage.VehicleId=(vehicle.Id);
+        //			vehicleMessage.VehicleId=(vehicle.VehicleId);
         //			vehicleMessage.Vehicle=vehicle;
         //		}
         //		
@@ -596,7 +596,7 @@ namespace ACS.Service
             //				{
             //					LocationViewEx destLocationView = (LocationViewEx) iterator.Current;
             //					String destLocationPortId = destLocationView.PortId;
-            //					LocationEx destLocation = this.ResourceManager.GetLocationByPortId(destLocationPortId);
+            //					LocationEx destLocation = this.ResourceManager.GetLocationByLocationId(destLocationPortId);
             //					NodeEx destNode = this.ResourceManager.GetNode(destLocation.StationId);
             //					
             //					PathInfoACS pathInfo = this.PathManager.searchDynamicPaths(sourceStation, currentNode, destNode, false, null, false);
@@ -659,7 +659,7 @@ namespace ACS.Service
                 }
             }
 
-            if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id) == null)
+            if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId) == null)
             {
                 IList queuedJob = this.TransferManager.GetQueuedTransportCommandsByBayId(vehicle.BayId);
 
@@ -669,28 +669,28 @@ namespace ACS.Service
                     {
 
                         TransportCommandEx transportCommand = (TransportCommandEx)iter.Current;
-                        ////logger.Info("Try to Find Vehicle for Queued TransportCommand : " + transportCommand.Id);
+                        ////logger.Info("Try to Find Vehicle for Queued TransportCommand : " + transportCommand.JobId);
 
                         //SDV-057 soonhan.lee
 
                         if (transportCommand.BayId.Equals(vehicle.BayId))
                         {
-                            //logger.Info("Find Queued TransportCommand : " + transportCommand.Id + " Suitable Vehicle : " + vehicle.Id);
+                            //logger.Info("Find Queued TransportCommand : " + transportCommand.JobId + " Suitable Vehicle : " + vehicle.VehicleId);
                             transportCommand.VehicleId = vehicleMessage.VehicleId;
                             vehicleMessage.TransportCommand = transportCommand;
-                            vehicleMessage.TransportCommandId = transportCommand.Id;
-                            //vehicleMessage.setCarrierId(transportCommand.Id);
+                            vehicleMessage.TransportCommandId = transportCommand.JobId;
+                            //vehicleMessage.setCarrierId(transportCommand.JobId);
                             vehicleMessage.CarrierId = transportCommand.CarrierId; // 2017.17.18 soonhan.lee
                             return true;
                         }
                         //			    VehicleEx vehicle = this.SearchSuitableVehicle(transportCommand);
 
-                        //			    if(vehicle.Id.EqualsIgnoreCase(vehicleMessage.VehicleId)){
+                        //			    if(vehicle.VehicleId.EqualsIgnoreCase(vehicleMessage.VehicleId)){
                         //			    	
-                        //			    	//logger.Info("Find Queued TransportCommand : " + transportCommand.Id + "Suitable Vehicle : " + vehicleMessage.VehicleId);
-                        //			    	transportCommand.VehicleId=(vehicle.Id);
+                        //			    	//logger.Info("Find Queued TransportCommand : " + transportCommand.JobId + "Suitable Vehicle : " + vehicleMessage.VehicleId);
+                        //			    	transportCommand.VehicleId=(vehicle.VehicleId);
                         //				    vehicleMessage.setTransportCommand(transportCommand);
-                        //				    vehicleMessage.setTransportCommandId(transportCommand.Id);
+                        //				    vehicleMessage.setTransportCommandId(transportCommand.JobId);
                         //				     return true;
                         //			    }
 
@@ -703,7 +703,7 @@ namespace ACS.Service
             }
             else
             {
-                //logger.Warn("Still have TransportCommand, Vehicle : " + vehicle.Id);
+                //logger.Warn("Still have TransportCommand, Vehicle : " + vehicle.VehicleId);
             }
             return false;
         }
@@ -747,7 +747,7 @@ namespace ACS.Service
             }
 
             String bayId = oldestTransportCommand.BayId;
-            LocationEx sourceLocation = this.PathManager.GetLocationByPortId(oldestTransportCommand.Source);
+            LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(oldestTransportCommand.Source);
             String stationId = "";
             if (sourceLocation != null)
             {
@@ -756,7 +756,7 @@ namespace ACS.Service
                 if ((vehicles == null) || vehicles.Count < 1)
                 {
                     ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                    //logger.Warn("can not fined available vehicles, bayId{" + bayId + "}", vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, bayId, transportCommand.Source); 
+                    //logger.Warn("can not fined available vehicles, bayId{" + bayId + "}", vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, bayId, transportCommand.Source); 
                     return false;
                 }
 
@@ -765,7 +765,7 @@ namespace ACS.Service
                 //    VehicleEx obj = (VehicleEx)iterator.Current;
                 //    //logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
                 //    //logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString());
-                //    logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, object.CurrentNodeId, object.Id); 
+                //    logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, object.CurrentNodeId, object.Id); 
                 //}
 
                 //VehicleEx vehicle = (VehicleEx)vehicles[0];// $$$$$
@@ -773,32 +773,32 @@ namespace ACS.Service
 
                 if (vehicle != null)
                 {
-                    if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id) == null)
+                    if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId) == null)
                     {
                         ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
                         ////logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString());
-                        //logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, vehicle.CurrentNodeId, vehicle.Id); 
+                        //logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, vehicle.CurrentNodeId, vehicle.VehicleId); 
 
-                        ////logger.Info("Find Queued TransportCommand : " + transportCommand.Id + " Suitable Vehicle : " + vehicle.Id);
-                        oldestTransportCommand.VehicleId = vehicle.Id;
-                        //vehicleMessage.setCarrierId(transportCommand.Id);
+                        ////logger.Info("Find Queued TransportCommand : " + transportCommand.JobId + " Suitable Vehicle : " + vehicle.VehicleId);
+                        oldestTransportCommand.VehicleId = vehicle.VehicleId;
+                        //vehicleMessage.setCarrierId(transportCommand.JobId);
                         vehicleMessage.CarrierId = oldestTransportCommand.CarrierId;
                         vehicleMessage.TransportCommand = oldestTransportCommand;
-                        vehicleMessage.TransportCommandId = oldestTransportCommand.Id;
+                        vehicleMessage.TransportCommandId = oldestTransportCommand.JobId;
                         vehicleMessage.Vehicle = vehicle;
-                        vehicleMessage.VehicleId = vehicle.Id;
+                        vehicleMessage.VehicleId = vehicle.VehicleId;
                         return true;
                     }
                     else
                     {
                         ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                        //logger.Warn("This Vehicle have already Job - " + transportCommand.Id + ", " + vehicle.Id, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, vehicle.CurrentNodeId, vehicle.Id);
+                        //logger.Warn("This Vehicle have already Job - " + transportCommand.JobId + ", " + vehicle.VehicleId, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, vehicle.CurrentNodeId, vehicle.VehicleId);
                     }
                 }
                 else
                 {
                     ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                    //logger.Warn("Can not Find Suitable Vehicle, Queued TransportCommand : " + transportCommand.Id, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, bayId, transportCommand.Source);
+                    //logger.Warn("Can not Find Suitable Vehicle, Queued TransportCommand : " + transportCommand.JobId, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, bayId, transportCommand.Source);
                 }
             }
 
@@ -830,8 +830,8 @@ namespace ACS.Service
                         ////logger.fine(transportCommand);
 
                         String bayId = transportCommand.BayId;
-                        //LocationEx sourceLocation = this.PathManager.GetLocationByPortId(transportCommand.Source);
-                        LocationEx sourceLocation = this.CacheManager.GetLocationByPortId(transportCommand.Source);
+                        //LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(transportCommand.Source);
+                        LocationEx sourceLocation = this.CacheManager.GetLocationByLocationId(transportCommand.Source);
                         String stationId = "";
                         if (sourceLocation != null)
                         {
@@ -841,7 +841,7 @@ namespace ACS.Service
                             //if ((vehicles == null) || vehicles.Count < 1)
                             //{
                             //    ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                            //    //logger.Warn("can not fined available vehicles, bayId{" + bayId + "}", vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, bayId, transportCommand.Source); 
+                            //    //logger.Warn("can not fined available vehicles, bayId{" + bayId + "}", vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, bayId, transportCommand.Source); 
                             //    return false;
                             //}
 
@@ -850,7 +850,7 @@ namespace ACS.Service
                             //    VehicleEx obj = (VehicleEx)iterator.Current;
                             //    //logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
                             //    //logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString());
-                            //    logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, object.CurrentNodeId, object.Id); 
+                            //    logger.Warn("Logging Target(" + stationId + ") Candidate-Vehicle : " + object.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, object.CurrentNodeId, object.Id); 
                             //}
 
                             VehicleEx vehicle = null;
@@ -869,32 +869,32 @@ namespace ACS.Service
 
                             if (vehicle != null)
                             {
-                                if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id) == null)
+                                if (this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId) == null)
                                 {
                                     ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
                                     ////logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString());
-                                    //logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, vehicle.CurrentNodeId, vehicle.Id); 
+                                    //logger.Warn("Logging Target(" + stationId + ") Selected-Vehicle : " + vehicle.toString(), vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, vehicle.CurrentNodeId, vehicle.VehicleId); 
 
-                                    ////logger.Info("Find Queued TransportCommand : " + transportCommand.Id + " Suitable Vehicle : " + vehicle.Id);
-                                    transportCommand.VehicleId = vehicle.Id;
-                                    //vehicleMessage.setCarrierId(transportCommand.Id);
+                                    ////logger.Info("Find Queued TransportCommand : " + transportCommand.JobId + " Suitable Vehicle : " + vehicle.VehicleId);
+                                    transportCommand.VehicleId = vehicle.VehicleId;
+                                    //vehicleMessage.setCarrierId(transportCommand.JobId);
                                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                                     vehicleMessage.TransportCommand = transportCommand;
-                                    vehicleMessage.TransportCommandId = transportCommand.Id;
+                                    vehicleMessage.TransportCommandId = transportCommand.JobId;
                                     vehicleMessage.Vehicle = vehicle;
-                                    vehicleMessage.VehicleId = vehicle.Id;
+                                    vehicleMessage.VehicleId = vehicle.VehicleId;
                                     return true;
                                 }
                                 else
                                 {
                                     ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                                    //logger.Warn("This Vehicle have already Job - " + transportCommand.Id + ", " + vehicle.Id, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, vehicle.CurrentNodeId, vehicle.Id);
+                                    //logger.Warn("This Vehicle have already Job - " + transportCommand.JobId + ", " + vehicle.VehicleId, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, vehicle.CurrentNodeId, vehicle.VehicleId);
                                 }
                             }
                             else
                             {
                                 ////logger.Warn(message, messageName, carrierName, commandId, machineName, unitName);
-                                //logger.Warn("Can not Find Suitable Vehicle, Queued TransportCommand : " + transportCommand.Id, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.Id, bayId, transportCommand.Source);
+                                //logger.Warn("Can not Find Suitable Vehicle, Queued TransportCommand : " + transportCommand.JobId, vehicleMessage.MessageName, transportCommand.CarrierId, transportCommand.JobId, bayId, transportCommand.Source);
                             }
                         }
                     }
@@ -983,7 +983,7 @@ namespace ACS.Service
                     String stationId = locationView.StationId;
                     //logger.Info("Start to Check RechargeStation : " + locationView.toString());
 
-                    bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.PortId);
+                    bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.LocationId);
 
                     if (!boolTransportCommand)
                     {
@@ -992,19 +992,19 @@ namespace ACS.Service
 
                         if (listVehicles == null || listVehicles.Count <= 0)
                         {
-                            //logger.Info("Find Empty RechargeStation : " + locationView.PortId);
-                            vehicleMessage.DestPortId = locationView.PortId;
+                            //logger.Info("Find Empty RechargeStation : " + locationView.LocationId);
+                            vehicleMessage.DestPortId = locationView.LocationId;
                             return true;
                         }
                         else
                         {
-                            //logger.Info("This RechargeStation (" + locationView.PortId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
+                            //logger.Info("This RechargeStation (" + locationView.LocationId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
                         }
                     }
                     else
                     {
-                        TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByDestPortId(locationView.PortId);
-                        //logger.Info("This RechargeStation (" + locationView.PortId + ") has TransPortCommand : " + transportCommand.toString());
+                        TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByDestPortId(locationView.LocationId);
+                        //logger.Info("This RechargeStation (" + locationView.LocationId + ") has TransPortCommand : " + transportCommand.toString());
 
                         if (transportCommand.State.Equals("QUEUED", StringComparison.OrdinalIgnoreCase))
                         {
@@ -1015,13 +1015,13 @@ namespace ACS.Service
 
                             if (listVehicles == null || listVehicles.Count <= 0)
                             {
-                                //logger.Info("Find Empty RechargeStation : " + locationView.PortId);
-                                vehicleMessage.DestPortId = locationView.PortId;
+                                //logger.Info("Find Empty RechargeStation : " + locationView.LocationId);
+                                vehicleMessage.DestPortId = locationView.LocationId;
                                 return true;
                             }
                             else
                             {
-                                //logger.Info("This RechargeStation (" + locationView.PortId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
+                                //logger.Info("This RechargeStation (" + locationView.LocationId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
                             }
                         }
                     }
@@ -1046,7 +1046,7 @@ namespace ACS.Service
             //					
             //					if (node.Type.Equals(NodeEx.TYPE_CHARGE)) 
             //					{
-            //						bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.PortId);
+            //						bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.LocationId);
             //						if (!boolTransportCommand) 
             //						{
             //							//20170503 wook ?袁⑹삺 �빊�뫗�읈餓λ쵐�뵥 �빊�뫗�읈??嚥≪뮇彛� �빊遺�?
@@ -1056,13 +1056,13 @@ namespace ACS.Service
             ////							if (listVehicles == null) 
             //							if (listVehicles == null || listVehicles.size() <= 0) 
             //							{
-            //								//logger.Info("Find Empty RechargeStation : " + locationView.PortId);
-            //								vehicleMessage.setDestPortId(locationView.PortId);
+            //								//logger.Info("Find Empty RechargeStation : " + locationView.LocationId);
+            //								vehicleMessage.setDestPortId(locationView.LocationId);
             //								return true;
             //							}
             //							
             //						}
-            //						//logger.Info("RechargeStation is busy, " + locationView.PortId);
+            //						//logger.Info("RechargeStation is busy, " + locationView.LocationId);
             //					}
             //				}
             //			}
@@ -1092,7 +1092,7 @@ namespace ACS.Service
             //						
             //						if (node.Type.Equals(NodeEx.TYPE_CHARGE)) 
             //						{
-            //							bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.PortId);
+            //							bool boolTransportCommand = this.TransferManager.CheckTransportCommandByDestLocationId(locationView.LocationId);
             //							if (!boolTransportCommand) 
             //							{
             //								//20170503 wook ?袁⑹삺 �빊�뫗�읈餓λ쵐�뵥 �빊�뫗�읈??嚥≪뮇彛� �빊遺�?
@@ -1101,16 +1101,16 @@ namespace ACS.Service
             //								
             //								if (listVehicles == null || listVehicles.size() <= 0) 
             //								{
-            //									//logger.Info("Find Empty RechargeStation : " + locationView.PortId);
-            //									vehicleMessage.setDestPortId(locationView.PortId);
+            //									//logger.Info("Find Empty RechargeStation : " + locationView.LocationId);
+            //									vehicleMessage.setDestPortId(locationView.LocationId);
             //									return true;
             //								}
             //								else
             //								{
-            //									//logger.Info("This RechargeStation (" + locationView.PortId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
+            //									//logger.Info("This RechargeStation (" + locationView.LocationId + ") has Vehicle : " + ((VehicleEx)listVehicles.get(0)).toString());
             //								}
             //							}
-            //							//logger.Info("RechargeStation is busy, " + locationView.PortId);
+            //							//logger.Info("RechargeStation is busy, " + locationView.LocationId);
             //						}
             //					}
             //				}
@@ -1136,7 +1136,7 @@ namespace ACS.Service
             if (transportCommand != null)
             {
                 String destPortId = transportCommand.Dest;
-                LocationEx destLocation = this.PathManager.GetLocationByPortId(destPortId);
+                LocationEx destLocation = this.PathManager.GetLocationByLocationId(destPortId);
                 String destNodeId = destLocation.StationId;
                 String vehicleCurrentNodeId = "";
 
@@ -1160,7 +1160,7 @@ namespace ACS.Service
                     String desc = "Change the properties of the Tag[" + vehicleCurrentNodeId + "] To ACQUIRE in AGV[" + vehicleMessage.VehicleId + "].";
 
                     this.CreateUIInform(Inform.INFORM_TYPE_EMERGENCY, message, vehicleMessage.VehicleId, desc);
-                    //logger.Error(message + "::" + vehicleMessage.toString(), "", vehicleMessage.MessageName, "", transportCommand.Id, "AGV NG", vehicleMessage.VehicleId, vehicleMessage.MessageName);
+                    //logger.Error(message + "::" + vehicleMessage.toString(), "", vehicleMessage.MessageName, "", transportCommand.JobId, "AGV NG", vehicleMessage.VehicleId, vehicleMessage.MessageName);
                     return false;
                 }
             }
@@ -1183,7 +1183,7 @@ namespace ACS.Service
             if (transportCommand != null)
             {
                 String sourcePortId = transportCommand.Source;
-                LocationEx sourceLocation = this.PathManager.GetLocationByPortId(sourcePortId);
+                LocationEx sourceLocation = this.PathManager.GetLocationByLocationId(sourcePortId);
 
                 if(sourceLocation == null)
                 {
@@ -1213,7 +1213,7 @@ namespace ACS.Service
 
                     this.CreateUIInform(Inform.INFORM_TYPE_EMERGENCY, message, vehicleMessage.VehicleId, desc);
 
-                    //logger.Error(message + "::" + vehicleMessage.toString(), "", vehicleMessage.MessageName, "", transportCommand.Id, "AGV NG", vehicleMessage.VehicleId, vehicleMessage.MessageName);
+                    //logger.Error(message + "::" + vehicleMessage.toString(), "", vehicleMessage.MessageName, "", transportCommand.JobId, "AGV NG", vehicleMessage.VehicleId, vehicleMessage.MessageName);
                     return false;
                 }
             }
@@ -1510,7 +1510,7 @@ namespace ACS.Service
             if (vehicle != null)
             {
                 String bayId = vehicle.BayId;
-                String zoneId = this.ResourceManager.GetZoneByBayId(bayId).Id;
+                String zoneId = this.ResourceManager.GetZoneByBayId(bayId).ZoneId;
                 IList listLinks = this.ResourceManager.GetLinkZonesByZoneId(zoneId);
 
                 if (listLinks != null)
@@ -1553,7 +1553,7 @@ namespace ACS.Service
             {
                 //logger.Error("Can Not Find TransportCommand in DB. Vehicle: " + vehicleMessage.VehicleId);
             }
-            this.ResourceManager.UpdateVehicleTransportCommandId(vehicleMessage.VehicleId, transportCommand.Id,
+            this.ResourceManager.UpdateVehicleTransportCommandId(vehicleMessage.VehicleId, transportCommand.JobId,
                     vehicleMessage.MessageName);
         }
 
@@ -1570,7 +1570,7 @@ namespace ACS.Service
                 //logger.Error("Can Not Find TransportCommand in DB. Vehicle: " + transferMessage.VehicleId);
             }
 
-            this.ResourceManager.UpdateVehicleTransportCommandId(transferMessage.VehicleId, transportCommand.Id,
+            this.ResourceManager.UpdateVehicleTransportCommandId(transferMessage.VehicleId, transportCommand.JobId,
                     transferMessage.MessageName);
         }
 
@@ -1593,7 +1593,7 @@ namespace ACS.Service
                 if (station2.Equals("06", StringComparison.OrdinalIgnoreCase) || station2.Equals("08", StringComparison.OrdinalIgnoreCase))
                 {
 
-                    TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                    TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                     if (transportCommand != null && !transportCommand.JobType.Equals(TransportCommandEx.JOBTYPE_CHARGEMOVE))
                     {
                         if (vehicle.FullState.Equals(VehicleEx.FULLSTATE_EMPTY))
@@ -1612,7 +1612,7 @@ namespace ACS.Service
                                 transportCommand.State = TransportCommandEx.STATE_QUEUED;
 
                                 this.TransferManager.UpdateTransportCommand(transportCommand);
-                                //logger.Info("This Vehicle's TransportCommand change Queued. Vehicle: " + vehicle.Id + "JOB: " + transportCommand.Id);
+                                //logger.Info("This Vehicle's TransportCommand change Queued. Vehicle: " + vehicle.VehicleId + "JOB: " + transportCommand.JobId);
                             }
                         }
                     }
@@ -1713,7 +1713,7 @@ namespace ACS.Service
             }
 
             String destPortId = transportCommand.Dest;
-            String destNodeId = this.PathManager.GetLocationByPortId(destPortId).StationId;
+            String destNodeId = this.PathManager.GetLocationByLocationId(destPortId).StationId;
 
             this.ChangeVehicleLocation(vehicleMessage.VehicleId, destNodeId, vehicleMessage.MessageName);
         }
@@ -1918,7 +1918,7 @@ namespace ACS.Service
                         }
 
                         //					//20170815 wook JOB??揶�??�⑥쥙�뿳?袁⑸뻻 Queue?怨밴묶嚥�??�떯?
-                        //					TransportCommandEx transportCommand =  this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                        //					TransportCommandEx transportCommand =  this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                         //					if (transportCommand != null && !transportCommand.JobType.Equals(TransportCommandEx.JOBTYPE_CHARGEMOVE)) 
                         //					{
                         //						if (vehicle.FullState.Equals(VehicleEx.FULLSTATE_EMPTY) && transportCommand.getLoadedTime() == null) 
@@ -1937,13 +1937,13 @@ namespace ACS.Service
                         //							
                         //							this.TransferManager.updateTransportCommand(transportCommand);
                         //							this.ResourceManager.UpdateVehicle(vehicle);
-                        //							//logger.Info("This Vehicle's TransportCommand change Queued. Vehicle: " + vehicle.Id + "JOB: " + transportCommand.Id);
+                        //							//logger.Info("This Vehicle's TransportCommand change Queued. Vehicle: " + vehicle.VehicleId + "JOB: " + transportCommand.JobId);
                         //						}
                         //					}
-                        this.ResourceManager.UpdateVehicleConnectionState(vehicle.Id, VehicleEx.CONNECTIONSTATE_DISCONNECT,
+                        this.ResourceManager.UpdateVehicleConnectionState(vehicle.VehicleId, VehicleEx.CONNECTIONSTATE_DISCONNECT,
                                 vehicleMessage.MessageName);
                         //					this.historyManager.createVehicleHistory(vehicle);
-                        logger.Debug("This Vehicle is disconnected. Vehicle: [" + vehicle.Id + "]");
+                        logger.Debug("This Vehicle is disconnected. Vehicle: [" + vehicle.VehicleId + "]");
 
                         ////SJP
                         ////this.MessageManager.SendRestartNio(vehicle);
@@ -1973,7 +1973,7 @@ namespace ACS.Service
                                 //}
                             }
                         }
-                        //logger.Info("This Vehicle is already disconnected. Vehicle: [" + vehicle.Id + "]");
+                        //logger.Info("This Vehicle is already disconnected. Vehicle: [" + vehicle.VehicleId + "]");
                     }
                 }
                 return true;
@@ -2162,11 +2162,11 @@ namespace ACS.Service
                             vehicleMessage.MessageName);
                     //logger.Info("changed vehicle(" + vehicleMessage.VehicleId + ") processing state to " + VehicleEx.PROCESSINGSTATE_IDLE);
 
-                    TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.Id);
+                    TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                     if (transportCommand != null && transportCommand.JobType.Equals(TransportCommandEx.JOBTYPE_CHARGEMOVE))
                     {
-                        logger.Info("delete Charge TransportCommand (" + transportCommand.Id + ")");
-                        this.TransferManager.DeleteTransportCommand(transportCommand.Id);
+                        logger.Info("delete Charge TransportCommand (" + transportCommand.JobId + ")");
+                        this.TransferManager.DeleteTransportCommand(transportCommand.JobId);
                     }
                 }
             }
@@ -2439,7 +2439,7 @@ namespace ACS.Service
                 VehicleEx vehicle = (VehicleEx)iterator.Current;
 
                 VehicleCrossWaitEx vehicleCrossWait = new VehicleCrossWaitEx();
-                vehicleCrossWait.VehicleId = (vehicle.Id);
+                vehicleCrossWait.VehicleId = (vehicle.VehicleId);
                 vehicleCrossWait.NodeId = (vehicle.CurrentNodeId);
                 vehicleCrossWait.State = (VehicleCrossWaitEx.STATE_GOING);
                 vehicleCrossWait.CreatedTime = DateTime.Now;//(TimeUtils.getCurrentTime());
@@ -3015,7 +3015,7 @@ namespace ACS.Service
             {
                 VehicleEx vehicle = (VehicleEx)iterator.Current;
 
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 //logger.Info("Check Vehicle TransportCommand= " + vehicle.toString());
 
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicleId);
@@ -3051,7 +3051,7 @@ namespace ACS.Service
             {
                 VehicleEx vehicle = (VehicleEx)iterator.Current;
 
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 DateTime nodeCheckTime = vehicle.NodeCheckTime;
                 DateTime currentTime = new DateTime();
 
@@ -3109,7 +3109,7 @@ namespace ACS.Service
             {
                 VehicleEx vehicle = (VehicleEx)iterator.Current;
 
-                VehicleCrossWaitEx VehicleCrossWaitEx = this.ResourceManager.GetVehicleCrossWait(vehicle.Id);
+                VehicleCrossWaitEx VehicleCrossWaitEx = this.ResourceManager.GetVehicleCrossWait(vehicle.VehicleId);
                 if (VehicleCrossWaitEx != null)
                 {
 
@@ -3215,12 +3215,12 @@ namespace ACS.Service
                 String vehicleBayId = vehicle.BayId;
                 if (this.PathManager.GetLinkZoneByFromBayId(vehicleBayId) == null || this.PathManager.GetLinkZoneByFromBayId(vehicleBayId).Count <= 0)
                 {
-                    //logger.Info("This AGV is Fix Mode, " + vehicle.Id + " " + vehicle.BayId);
+                    //logger.Info("This AGV is Fix Mode, " + vehicle.VehicleId + " " + vehicle.BayId);
                     return false;
                 }
 
 
-                String message = "VEHICLE [" + vehicle.Id + "] TAG=" + tagNodeId + " ORIGINAL ROUTE=" + vehicle.BayId;
+                String message = "VEHICLE [" + vehicle.VehicleId + "] TAG=" + tagNodeId + " ORIGINAL ROUTE=" + vehicle.BayId;
                 String desc = "Dear AGV member. Move this AGV to original route[" + vehicle.BayId + "]";
 
                 ////logger.Warn(message,"",vehicleMessage.MessageName,vehicleMessage.CarrierId,vehicleMessage.getCommandId(),vehicle.CurrentNodeId,vehicleMessage.VehicleId);
@@ -3306,7 +3306,7 @@ namespace ACS.Service
             if (!string.IsNullOrEmpty(vehicleDestNodeId) && !currentStationId.Equals(vehicleDestNodeId, StringComparison.OrdinalIgnoreCase)) //Equals->EqualsIngnoreCase嚥�?癰�?瑗�
             {
                 vehicleMessage.DestNodeId = vehicleDestNodeId;
-                //logger.Info("This Vehicle (" + vehicle.Id + ") send to " + vehicleDestNodeId + " by S_CODE");
+                //logger.Info("This Vehicle (" + vehicle.VehicleId + ") send to " + vehicleDestNodeId + " by S_CODE");
                 return false;
             }
 
@@ -3457,7 +3457,7 @@ namespace ACS.Service
             }
 
             String destPortId = transportCommand.Dest;
-            String destNodeId = this.PathManager.GetLocationByPortId(destPortId).StationId;
+            String destNodeId = this.PathManager.GetLocationByLocationId(destPortId).StationId;
 
             if (!currentNodeId.Equals(destNodeId))
             {
@@ -3493,7 +3493,7 @@ namespace ACS.Service
             }
 
             String destPortId = transportCommand.Dest;
-            String destNodeId = this.PathManager.GetLocationByPortId(destPortId).StationId;
+            String destNodeId = this.PathManager.GetLocationByLocationId(destPortId).StationId;
 
             if (!currentNodeId.Equals(destNodeId))
             {
@@ -3807,7 +3807,7 @@ namespace ACS.Service
             {
 
                 String destPortId = transportCommand.Dest;
-                LocationEx destLocation = this.PathManager.GetLocationByPortId(destPortId);
+                LocationEx destLocation = this.PathManager.GetLocationByLocationId(destPortId);
                 String destNodeId = destLocation.StationId;
                 String vehicleCurrentNodeId = "";
 
@@ -4093,7 +4093,7 @@ namespace ACS.Service
             {
                 VehicleEx vehicle = (VehicleEx)iterator.Current;
 
-                String vehicleId = vehicle.Id;
+                String vehicleId = vehicle.VehicleId;
                 DateTime eventTime = vehicle.EventTime;
                 DateTime currentTime = DateTime.Now;
 
@@ -4206,7 +4206,7 @@ namespace ACS.Service
         public void updateVehicleIdle(VehicleEx vehicle)
         {
             VehicleIdleEx vehicleIdle = new VehicleIdleEx();
-            vehicleIdle.VehicleId = vehicle.Id;
+            vehicleIdle.VehicleId = vehicle.VehicleId;
             vehicleIdle.BayId = vehicle.BayId;
             this.ResourceManager.UpdateVehicleIdleTime(vehicleIdle);
         }

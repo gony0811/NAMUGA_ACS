@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ACS.UI.Views.StationEditWindow"
         Title="Modify Station"
-        Width="380" Height="320"
+        Width="380"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
 
@@ -15,14 +16,15 @@
                 <TextBlock Text="ID / Type" FontWeight="SemiBold" FontSize="11"
                            Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" FontSize="11" />
-                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="IdTextBox"
-                             FontSize="11" Height="28" />
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Node ID:" VerticalAlignment="Center" FontSize="11" />
+                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="IdComboBox"
+                              FontSize="11" Height="30" HorizontalAlignment="Stretch" />
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Link ID:" VerticalAlignment="Center"
                                FontSize="11" Margin="0,6,0,0" />
-                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="LinkIdTextBox"
-                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="LinkIdComboBox"
+                              FontSize="11" Height="30" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch" />
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center"
                                FontSize="11" Margin="0,6,0,0" />
@@ -50,8 +52,14 @@
                                    FontSize="11" Height="28" />
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Direction:" VerticalAlignment="Center"
                                FontSize="11" Margin="0,6,0,0" />
-                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="DirectionTextBox"
-                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="DirectionComboBox"
+                              FontSize="11" Height="30" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="LEFT" />
+                        <ComboBoxItem Content="LEFTBACK" />
+                        <ComboBoxItem Content="RIGHT" />
+                        <ComboBoxItem Content="RIGHTBACK" />
+                    </ComboBox>
                 </Grid>
             </StackPanel>
         </Border>

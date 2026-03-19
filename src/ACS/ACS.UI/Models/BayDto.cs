@@ -3,6 +3,7 @@ namespace ACS.UI.Models;
 public class BayDto
 {
     public string Id { get; set; }
+    public string OriginalId { get; set; }
     public int Floor { get; set; }
     public string Description { get; set; }
     public string AgvType { get; set; }

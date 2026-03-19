@@ -21,6 +21,7 @@ namespace ACS.App.Host
     ///     <AcsId>ACS01</AcsId>
     ///     <Type>RECEIVE</Type>
     ///     <AmrId>AMR01</AmrId>
+    ///     <ActionType>LOAD</ActionType>
     ///     <JobID>JOB20260303141832001</JobID>
     ///     <MaterialType>MAGAZINE</MaterialType>
     ///     <UserID>MES01</UserID>
@@ -44,6 +45,7 @@ namespace ACS.App.Host
             string reportType,
             string jobId,
             string amrId = "",
+            string actionType = "",
             string materialType = "",
             string acsId = "",
             string userId = "",
@@ -81,6 +83,7 @@ namespace ACS.App.Host
             AppendElement(doc, dataLayer, "AcsId", acsId);
             AppendElement(doc, dataLayer, "Type", reportType);
             AppendElement(doc, dataLayer, "AmrId", amrId ?? "");
+            AppendElement(doc, dataLayer, "ActionType", actionType ?? "");
             AppendElement(doc, dataLayer, "JobID", jobId);
             AppendElement(doc, dataLayer, "MaterialType", materialType ?? "");
             AppendElement(doc, dataLayer, "UserID", userId ?? "");
@@ -104,6 +107,10 @@ namespace ACS.App.Host
                                ?? ExtractValue(moveCmdXml, "//DataLayer/MaterialType")
                                ?? "";
 
+            string actionType = ExtractValue(moveCmdXml, "//ActionType")
+                            ?? ExtractValue(moveCmdXml, "//DataLayer/ActionType")
+                            ?? "";
+
             string acsId = ExtractValue(moveCmdXml, "//AcsId")
                         ?? ExtractValue(moveCmdXml, "//DataLayer/AcsId")
                         ?? "";
@@ -115,7 +122,7 @@ namespace ACS.App.Host
             string destSubject = ExtractValue(moveCmdXml, "//Header/ReplySubject") ?? "";
             string replySubject = ExtractValue(moveCmdXml, "//Header/DestSubject") ?? "";
 
-            return BuildJobReport(reportType, jobId, amrId, materialType, acsId, userId,
+            return BuildJobReport(reportType, jobId, amrId, actionType, materialType, acsId, userId,
                 destSubject, replySubject);
         }
 

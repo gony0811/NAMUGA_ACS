@@ -163,7 +163,7 @@ namespace ACS.Service
             String vehicleId = transferMessage.VehicleId;
             String commandCode = VehicleMessageEx.COMMAND_CODE_C;
             String portId = transferMessage.SourceMachine + ":" + transferMessage.SourceUnit;
-            LocationEx sourcePortLocation = this.ResourceManager.GetLocationByPortId(portId);
+            LocationEx sourcePortLocation = this.ResourceManager.GetLocationByLocationId(portId);
             String tagNumber = sourcePortLocation.StationId;
 
             String commandType;
@@ -250,7 +250,7 @@ namespace ACS.Service
                 return false;
             }
             String portId = transportCommand.Dest;
-            LocationEx destPortLocation = this.ResourceManager.GetLocationByPortId(portId);
+            LocationEx destPortLocation = this.ResourceManager.GetLocationByLocationId(portId);
             String tagNumber = destPortLocation.StationId.PadLeft(4, '0');
 
             String commandType;

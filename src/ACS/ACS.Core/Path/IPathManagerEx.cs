@@ -55,7 +55,7 @@ namespace ACS.Core.Path
         IList GetChargeLocationViewsByBayId(string paramString);
         IList GetStockLocationViewsByBayId(string paramString);
         LocationEx GetLocationByStationId(string paramString);
-        LocationEx GetLocationByPortId(string paramString);
+        LocationEx GetLocationByLocationId(string paramString);
         string GetCommonUseBayIdBySourceDest(string paramString1, string paramString2, string paramString3);
         bool IsSameBayId(string paramString1, string paramString2, string paramString3);
         IList GetLinkViewsByBayId(bool flag, String s);

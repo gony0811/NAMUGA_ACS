@@ -104,8 +104,8 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicleMessage.VehicleId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
-                    vehicleMessage.TransportCommandId = transportCommand.Id;
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
+                    vehicleMessage.TransportCommandId = transportCommand.JobId;
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -123,7 +123,7 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommand(vehicleMessage.TransportCommandId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -153,8 +153,8 @@ namespace ACS.Service
                 transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicleMessage.VehicleId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
-                    vehicleMessage.TransportCommandId = transportCommand.Id;
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
+                    vehicleMessage.TransportCommandId = transportCommand.JobId;
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -172,7 +172,7 @@ namespace ACS.Service
                 transportCommand = this.TransferManager.GetTransportCommand(vehicleMessage.TransportCommandId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
 
@@ -400,8 +400,8 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicleMessage.VehicleId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message", vehicleMessage);
-                    vehicleMessage.TransportCommandId = transportCommand.Id;
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message", vehicleMessage);
+                    vehicleMessage.TransportCommandId = transportCommand.JobId;
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -420,7 +420,7 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommand(vehicleMessage.TransportCommandId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message", vehicleMessage);
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message", vehicleMessage);
 
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
@@ -460,7 +460,7 @@ namespace ACS.Service
                 {
 
                     String currentNodeId = vehicle.CurrentNodeId;
-                    LocationEx location = this.PathManager.GetLocationByPortId(transportCommand.Source);
+                    LocationEx location = this.PathManager.GetLocationByLocationId(transportCommand.Source);
                     if (location != null)
                     {
 
@@ -505,8 +505,8 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommandByVehicleId(vehicleMessage.VehicleId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
-                    vehicleMessage.TransportCommandId = transportCommand.Id;
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
+                    vehicleMessage.TransportCommandId = transportCommand.JobId;
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -525,7 +525,7 @@ namespace ACS.Service
                 TransportCommandEx transportCommand = this.TransferManager.GetTransportCommand(vehicleMessage.TransportCommandId);
                 if (transportCommand != null)
                 {
-                    logger.Info("transportCommandId{" + transportCommand.Id + "} will be set in the message");
+                    logger.Info("transportCommandId{" + transportCommand.JobId + "} will be set in the message");
                     vehicleMessage.TransportCommand = transportCommand;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                     result = true;
@@ -1404,7 +1404,7 @@ namespace ACS.Service
                     string[] source = vehicleMessage.TransportCommand.Source.Split(':');
                     string[] dest = vehicleMessage.TransportCommand.Dest.Split(':');
 
-                    string jobId = transportCommand.Id;
+                    string jobId = transportCommand.JobId;
                     //KSB
                     //string carrID = "";                    
                     string carrID = transportCommand.CarrierId;
@@ -1551,7 +1551,7 @@ namespace ACS.Service
                     string[] source = vehicleMessage.TransportCommand.Source.Split(':');
                     string[] dest = vehicleMessage.TransportCommand.Dest.Split(':');
 
-                    string jobId = transportCommand.Id;
+                    string jobId = transportCommand.JobId;
                     //KSB
                     //string carrID = vehicleMessage.CarrierId;
                     string carrID = transportCommand.CarrierId;
@@ -1690,7 +1690,7 @@ namespace ACS.Service
                     string availableState = "UP";
                     string moveState = vehicleMessage.RunState;
                     string rechargeState = "";
-                    string jobId = vehicleMessage.TransportCommand.Id;
+                    string jobId = vehicleMessage.TransportCommand.JobId;
                     string reasonCode = "";
                     string reasonComment = "";
                     string alarmId = "";
@@ -3614,7 +3614,7 @@ namespace ACS.Service
                 {
                     VehicleEx vehicle = (VehicleEx)iterator.Current;
                     logger.Info("vehicle=[" + vehicle.ToString() + "]");
-                    vehicleMessage.VehicleId = (vehicle.Id);
+                    vehicleMessage.VehicleId = (vehicle.VehicleId);
                     vehicleMessage.NodeId = (vehicle.CurrentNodeId);
 
                     logger.Info("sendVehiclePermitMessage. " + vehicleMessage);
@@ -3640,7 +3640,7 @@ namespace ACS.Service
             VehicleEx vehicle = oldVehicleMessage.Vehicle;
             VehicleMessageEx newVehicleMessage = this.MessageManager.CreateVehicleMessage(vehicle);
             newVehicleMessage.TransportCommand = (stillTransportCommand);
-            newVehicleMessage.TransportCommandId = (stillTransportCommand.Id);
+            newVehicleMessage.TransportCommandId = (stillTransportCommand.JobId);
 
             return newVehicleMessage;
         }

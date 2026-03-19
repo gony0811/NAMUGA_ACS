@@ -44,7 +44,7 @@ namespace ACS.Scheduling
                     XmlElement data = document.DocumentElement["DATA"];
 
                     XmlNode element = document.CreateNode(XmlNodeType.Element, "BAYID", "");
-                    element.InnerText = bay.Id;
+                    element.InnerText = bay.BayId;
                     data.AppendChild(element);
 
                     _messageAgent.Send(document);

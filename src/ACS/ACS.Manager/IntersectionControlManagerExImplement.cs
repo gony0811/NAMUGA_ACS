@@ -727,7 +727,7 @@ namespace ACS.Manager
             {
                 if (CurrentInterSectionInfoEx.STATE_CHANGED.Equals(cis.State))
                 {
-                    logger.Info("InterSection's directionNode is currentNode{" + startNodeId + "}, AGV {" + vehicle.Id + "} will be entered to interSection.");
+                    logger.Info("InterSection's directionNode is currentNode{" + startNodeId + "}, AGV {" + vehicle.VehicleId + "} will be entered to interSection.");
                     return true;
                 }
                 else
@@ -746,18 +746,18 @@ namespace ACS.Manager
                 List<VehicleEx> startNodeAGVs = (List<VehicleEx>)this.ResourceManager.GetVehiclesByInterSectionStartNodes(crossStartNodes);
                 foreach (VehicleEx waitVehicle in startNodeAGVs)
                 {
-                    if (vehicle.Id.Equals(waitVehicle.Id))
+                    if (vehicle.VehicleId.Equals(waitVehicle.VehicleId))
                     {
                         continue;
                     }
                     if (VehicleEx.RUNSTATE_RUN.Equals(waitVehicle.RunState))
                     { //N梳퓎 c처 AGV kh찼c 휃ang RUN t梳죍 휃i沼긩 startnode kh찼c th챙 d沼쳌g
-                        logger.Info("Other AGV{" + waitVehicle.Id + "} is running, can't go into interSection.");
+                        logger.Info("Other AGV{" + waitVehicle.VehicleId + "} is running, can't go into interSection.");
                         return false;
                     }
                     else
                     {
-                        AlarmEx alarm = this.AlarmManager.GetAlarmByVehicleId(waitVehicle.Id);
+                        AlarmEx alarm = this.AlarmManager.GetAlarmByVehicleId(waitVehicle.VehicleId);
                         if (alarm != null && alarm.AlarmId.Equals(AlarmExs.ALARMCODE_FRONTSENSOR))
                             return false;
                     }
@@ -808,7 +808,7 @@ namespace ACS.Manager
                     }
                     else
                     {
-                        AlarmEx alarm = this.AlarmManager.GetAlarmByVehicleId(waitVehicle.Id);
+                        AlarmEx alarm = this.AlarmManager.GetAlarmByVehicleId(waitVehicle.VehicleId);
                         if (alarm != null && alarm.AlarmId.Equals(AlarmExs.ALARMCODE_FRONTSENSOR))
                             return true;
                     }

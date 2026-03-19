@@ -20,6 +20,7 @@ public partial class BayEditWindow : Window
         Bay = new BayDto
         {
             Id = bay.Id ?? "",
+            OriginalId = bay.Id ?? "",
             Floor = bay.Floor,
             Description = bay.Description ?? "",
             AgvType = bay.AgvType ?? "",
@@ -32,7 +33,6 @@ public partial class BayEditWindow : Window
         };
 
         IdTextBox.Text = Bay.Id;
-        IdTextBox.IsReadOnly = isEditMode;
         FloorNumeric.Value = Bay.Floor;
         DescriptionTextBox.Text = Bay.Description;
         AgvTypeTextBox.Text = Bay.AgvType;

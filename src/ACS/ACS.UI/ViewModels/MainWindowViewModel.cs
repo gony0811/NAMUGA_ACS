@@ -57,6 +57,9 @@ public partial class MainWindowViewModel : ObservableObject
     private ZoneViewModel _zoneViewModel;
 
     [ObservableProperty]
+    private PortViewModel _portViewModel;
+
+    [ObservableProperty]
     private string _connectionStatus = "Disconnected";
 
     [ObservableProperty]
@@ -102,11 +105,12 @@ public partial class MainWindowViewModel : ObservableObject
         _appManagementViewModel = new AppManagementViewModel();
         _nioViewModel = new NioViewModel();
         _hostCommunicationViewModel = new HostCommunicationViewModel(_apiService);
-        _nodeViewModel = new NodeViewModel(_apiService);
+        _nodeViewModel = new NodeViewModel(_apiService) { MapViewModel = _mapViewModel };
         _stationViewModel = new StationViewModel(_apiService);
-        _linkViewModel = new LinkViewModel(_apiService);
+        _linkViewModel = new LinkViewModel(_apiService) { MapViewModel = _mapViewModel };
         _bayViewModel = new BayViewModel(_apiService);
         _zoneViewModel = new ZoneViewModel(_apiService);
+        _portViewModel = new PortViewModel(_apiService);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -135,6 +139,7 @@ public partial class MainWindowViewModel : ObservableObject
             "Link" => ("Link", (Control)new LinkView { DataContext = LinkViewModel }),
             "Bay" => ("Bay", (Control)new BayView { DataContext = BayViewModel }),
             "Zone" => ("Zone", (Control)new ZoneView { DataContext = ZoneViewModel }),
+            "Port" => ("Port", (Control)new PortView { DataContext = PortViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -162,6 +167,8 @@ public partial class MainWindowViewModel : ObservableObject
             _ = BayViewModel.LoadBaysAsync();
         if (viewName == "Zone")
             _ = ZoneViewModel.LoadZonesAsync();
+        if (viewName == "Port")
+            _ = PortViewModel.LoadLocationsAsync();
     }
 
     public async Task LoadInitialDataAsync() => await RefreshAsync();
@@ -175,12 +182,16 @@ public partial class MainWindowViewModel : ObservableObject
             var links = await _apiService.GetLinksAsync();
             var vehicles = await _apiService.GetVehiclesAsync();
             var commands = await _apiService.GetTransportCommandsAsync();
+            var stations = await _apiService.GetStationsAsync();
+            var locations = await _apiService.GetLocationsAsync();
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 MapViewModel.UpdateNodes(nodes);
                 MapViewModel.UpdateLinks(links);
                 MapViewModel.UpdateVehicles(vehicles);
+                MapViewModel.UpdateStations(stations);
+                MapViewModel.UpdateLocations(locations);
                 DashboardViewModel.UpdateFromLinks(links);
                 DashboardViewModel.UpdateFromVehicles(vehicles);
                 DashboardViewModel.UpdateFromCommands(commands);

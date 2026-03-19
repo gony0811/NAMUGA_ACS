@@ -442,7 +442,7 @@ namespace ACS.Manager.Message
                 //logger.info("transportCommand{" + vehicleMessage.getTransportCommandId() + "} is valid");
                 //logger.info("transportCommand{" + vehicleMessage.getTransportCommandId() + "} is populated in message");
                 vehicleMessage.TransportCommand = transportCommand;
-                vehicleMessage.TransportCommandId = transportCommand.Id;
+                vehicleMessage.TransportCommandId = transportCommand.JobId;
                 vehicleMessage.CarrierId = transportCommand.CarrierId;
                 result = true;
             }
@@ -974,7 +974,7 @@ namespace ACS.Manager.Message
                 String destPortId = "";
                 if (vehicleMessage.TransportCommand != null)
                 {
-                    commandId = vehicleMessage.TransportCommand.Id;
+                    commandId = vehicleMessage.TransportCommand.JobId;
                     destPortId = vehicleMessage.TransportCommand.Dest;
                     vehicleMessage.CarrierId = transportCommand.CarrierId;
                 }
@@ -2245,7 +2245,7 @@ namespace ACS.Manager.Message
             XmlNode carriertype = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfCarrierType, "");
             XmlNode resultcode = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfResultCode, "");
 
-            commandid.InnerText = transportCommand.Id;
+            commandid.InnerText = transportCommand.JobId;
             vehicleid.InnerText = transportCommand.VehicleId;
             destportid.InnerText = dest;
             destnodeid.InnerText = destNodeId;
@@ -2288,7 +2288,7 @@ namespace ACS.Manager.Message
             XmlNode carriertype = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfCarrierType, "");
             XmlNode resultcode = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfResultCode, "");
 
-            commandid.InnerText = transportCommand.Id;
+            commandid.InnerText = transportCommand.JobId;
             vehicleid.InnerText = transportCommand.VehicleId;
             destportid.InnerText = dest;
             destnodeid.InnerText = destNodeId;
@@ -3109,7 +3109,7 @@ namespace ACS.Manager.Message
             XmlNode carriertype = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfCarrierType, "");
             XmlNode resultcode = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfResultCode, "");
 
-            commandid.InnerText = transportCommand.Id;
+            commandid.InnerText = transportCommand.JobId;
             vehicleid.InnerText = transportCommand.VehicleId;
             destportid.InnerText = dest;
             destnodeid.InnerText = destNodeId;
@@ -3208,7 +3208,7 @@ namespace ACS.Manager.Message
             VehicleMessageEx vehicleMessage = new VehicleMessageEx();
 
             vehicleMessage.MessageName = "C_CODE";
-            vehicleMessage.VehicleId = vehicle.Id;
+            vehicleMessage.VehicleId = vehicle.VehicleId;
             vehicleMessage.Vehicle = vehicle;
             vehicleMessage.NodeId = "";
 
@@ -3306,7 +3306,7 @@ namespace ACS.Manager.Message
             XmlNode carriertype = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfCarrierType, "");
             XmlNode resultcode = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfResultCode, "");
 
-            commandid.InnerText = transportCommand.Id;
+            commandid.InnerText = transportCommand.JobId;
             vehicleid.InnerText = transportCommand.VehicleId;
             destportid.InnerText = dest;
             destnodeid.InnerText = destNodeId;
@@ -3367,7 +3367,7 @@ namespace ACS.Manager.Message
             XmlElement data = document.DocumentElement["DATA"];
 
             XmlNode vehicleid = document.CreateNode(XmlNodeType.Element, this.messageNode.NodeNameOfVehicleId, "");
-            vehicleid.InnerText = vehicle.Id;
+            vehicleid.InnerText = vehicle.VehicleId;
             data.AppendChild(vehicleid);
 
             return document;

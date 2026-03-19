@@ -40,10 +40,10 @@ namespace ACS.Manager
         Dictionary<string, List<LinkViewEx>> linkViewMapByBayId = new Dictionary<string, List<LinkViewEx>>();
         Dictionary<string, List<LinkViewEx>> linkViewMapByFromNode = new Dictionary<string, List<LinkViewEx>>();
         Dictionary<string, NodeEx> nodeExMap = new Dictionary<string, NodeEx>();
-        Dictionary<string, LocationEx> locationMapByPort = new Dictionary<string, LocationEx>();
+        Dictionary<string, LocationEx> locationMapByLocationId = new Dictionary<string, LocationEx>();
         Dictionary<string, LocationEx> locationMapByStation = new Dictionary<string, LocationEx>();
         Dictionary<string, StationEx> stationMap = new Dictionary<string, StationEx>();
-        Dictionary<string, List<LocationViewEx>> locationViewMapByPort = new Dictionary<string, List<LocationViewEx>>();
+        Dictionary<string, List<LocationViewEx>> locationViewMapByLocationId = new Dictionary<string, List<LocationViewEx>>();
         Dictionary<string, List<LocationViewEx>> locationViewMapByStation = new Dictionary<string, List<LocationViewEx>>();
         Dictionary<string, List<LinkEx>> convertLinksToMapByToNode = new Dictionary<string, List<LinkEx>>();
         Dictionary<string, LinkViewEx> convertLinkViewToMapByFromNodeByBay = new Dictionary<string, LinkViewEx>();
@@ -64,7 +64,7 @@ namespace ACS.Manager
 
         public bool CheckLocation(string locationId)
         {
-            if (locationMapByPort.ContainsKey(locationId))
+            if (locationMapByLocationId.ContainsKey(locationId))
             {
                 return true;
             }
@@ -86,7 +86,7 @@ namespace ACS.Manager
 
         public LocationViewEx GetBayByLocationViewByPortId(string portId)
         {
-            List<LocationViewEx> locationView = (List<LocationViewEx>)locationViewMapByPort[portId];
+            List<LocationViewEx> locationView = (List<LocationViewEx>)locationViewMapByLocationId[portId];
             foreach (LocationViewEx loc in locationView)
             {
                 if (loc.TransferFlag.Equals("Y"))
@@ -240,9 +240,9 @@ namespace ACS.Manager
 
         public LocationEx GetLocation(string portId)
         {
-            if (locationMapByPort.ContainsKey(portId))
+            if (locationMapByLocationId.ContainsKey(portId))
             {
-                return locationMapByPort[portId];
+                return locationMapByLocationId[portId];
             }
             else
             {
@@ -255,13 +255,13 @@ namespace ACS.Manager
             return locations;
         }
 
-        public LocationEx GetLocationByPortId(string portId)
+        public LocationEx GetLocationByLocationId(string portId)
         {
-            
-            if (!string.IsNullOrEmpty(portId) && locationMapByPort.ContainsKey(portId))
+
+            if (!string.IsNullOrEmpty(portId) && locationMapByLocationId.ContainsKey(portId))
             {
                 LocationEx returnvalue;
-                locationMapByPort.TryGetValue(portId, out returnvalue);
+                locationMapByLocationId.TryGetValue(portId, out returnvalue);
                 return returnvalue;
             }
             else
@@ -287,11 +287,11 @@ namespace ACS.Manager
             return locationViews;
         }
 
-        public List<LocationViewEx> GetLocationViewByPortId(string portId)
+        public List<LocationViewEx> GetLocationViewByLocationId(string portId)
         {
-            if (locationViewMapByPort.ContainsKey(portId))
+            if (locationViewMapByLocationId.ContainsKey(portId))
             {
-                return locationViewMapByPort[portId];
+                return locationViewMapByLocationId[portId];
             }
             else
             {
@@ -761,7 +761,7 @@ namespace ACS.Manager
 
         public bool SynchronizeLocationACS()
         {
-            Dictionary<string, LocationEx> locPort = new Dictionary<string, LocationEx>();
+            Dictionary<string, LocationEx> locById = new Dictionary<string, LocationEx>();
             Dictionary<string, LocationEx> locStation = new Dictionary<string, LocationEx>();
 
             locationEx = this.ResourceManager.GetLocations();
@@ -770,9 +770,9 @@ namespace ACS.Manager
             {
                 try
                 {
-                    if (!locPort.ContainsKey(loc.PortId))
-                        locPort.Add(loc.PortId, loc);
-                    
+                    if (!locById.ContainsKey(loc.LocationId))
+                        locById.Add(loc.LocationId, loc);
+
                     if (!locStation.ContainsKey(loc.StationId))
                         locStation.Add(loc.StationId, loc);
                 }
@@ -781,8 +781,8 @@ namespace ACS.Manager
 
                 }
             }
-          
-            this.locationMapByPort = locPort;
+
+            this.locationMapByLocationId = locById;
             this.locationMapByStation = locStation;
             return true;
         }
@@ -834,7 +834,7 @@ namespace ACS.Manager
 
                         if (link != null)
                         {
-                            locView.PortId = loc.PortId;
+                            locView.LocationId = loc.LocationId;
                             locView.StationId = loc.StationId;
                             locView.BayId = lz.ZoneId;
                             locView.TransferFlag = lz.TransferFlag;
@@ -858,16 +858,16 @@ namespace ACS.Manager
             //locationViewACS = this.resourceManager.getLocationView();
             foreach (LocationViewEx loc in locationViews)
             {
-                if (locViewPort.ContainsKey(loc.PortId))
+                if (locViewPort.ContainsKey(loc.LocationId))
                 {
-                    List<LocationViewEx> locationViewInMap = locViewPort[loc.PortId];
+                    List<LocationViewEx> locationViewInMap = locViewPort[loc.LocationId];
                     locationViewInMap.Add(loc);
                 }
                 else
                 {
                     List<LocationViewEx> locationViewInMap = new List<LocationViewEx>();
                     locationViewInMap.Add(loc);
-                    locViewPort.Add(loc.PortId, locationViewInMap);
+                    locViewPort.Add(loc.LocationId, locationViewInMap);
                 }
 
                 if (locViewStation.ContainsKey(loc.StationId))
@@ -901,7 +901,7 @@ namespace ACS.Manager
                 }
             }
 
-            this.locationViewMapByPort = locViewPort;
+            this.locationViewMapByLocationId = locViewPort;
             this.locationViewMapByStation = locViewStation;
             this.locationViewCharge = locViewCharge;
             //		for(Map.Entry<String, List> a : locationViewCharge.entrySet()){

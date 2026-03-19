@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.UI", "ACS.UI\ACS.UI.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.Host.Test", "ACS.Host.Test\ACS.Host.Test.csproj", "{9169F3B2-4D4C-4771-A042-4B156BA23485}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACS.AMR.Simulator", "ACS.AMR.Simulator\ACS.AMR.Simulator.csproj", "{C4FCE70D-9220-416F-A2B6-1B7F53494EBB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,10 @@ Global
 		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9169F3B2-4D4C-4771-A042-4B156BA23485}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4FCE70D-9220-416F-A2B6-1B7F53494EBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4FCE70D-9220-416F-A2B6-1B7F53494EBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4FCE70D-9220-416F-A2B6-1B7F53494EBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4FCE70D-9220-416F-A2B6-1B7F53494EBB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B37E2B28-F90B-4B40-B3C3-BBF10BB6C10E} = {2CA8FF9E-BE2F-46D7-AC70-07752417A20D}

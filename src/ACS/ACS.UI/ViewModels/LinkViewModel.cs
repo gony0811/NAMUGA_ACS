@@ -20,6 +20,7 @@ namespace ACS.UI.ViewModels;
 public partial class LinkViewModel : ObservableObject
 {
     private readonly IAcsApiService? _apiService;
+    public MapViewModel? MapViewModel { get; set; }
 
     public ObservableCollection<LinkDto> Links { get; } = new();
 
@@ -58,29 +59,68 @@ public partial class LinkViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task AddLinkAsync()
+    private void AddLink()
     {
-        if (_apiService == null) return;
+        if (_apiService == null || MapViewModel == null) return;
 
-        var emptyLink = new LinkDto { Availability = "0" };
-        var zones = await _apiService.GetZonesAsync();
-        var emptyLinkZones = new List<LinkZoneDto>();
-        var dialog = new LinkEditWindow(emptyLink, zones, emptyLinkZones, isEditMode: false);
+        // 팝업 창 숨기기
+        var ownerWindow = GetOwnerWindow();
+        ownerWindow?.Hide();
 
-        var result = await dialog.ShowDialog<bool?>(GetOwnerWindow());
-        if (result == true)
+        void OnSelectionCompleted(string fromNodeId, string toNodeId)
         {
-            var success = await _apiService.CreateLinkAsync(dialog.Link);
-            if (success)
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
             {
-                // 새로 추가된 LinkZone 저장
-                foreach (var lz in dialog.LinkZones)
+                // 자동 ID 생성
+                string linkId = $"{fromNodeId}_{toNodeId}";
+                var newLink = new LinkDto
                 {
-                    await _apiService.CreateLinkZoneAsync(lz);
+                    Id = linkId,
+                    FromNodeId = fromNodeId,
+                    ToNodeId = toNodeId,
+                    Availability = "0"
+                };
+
+                var zones = await _apiService.GetZonesAsync();
+                var dialog = new LinkEditWindow(newLink, zones, new List<LinkZoneDto>(), isEditMode: false);
+
+                var mainWindow = Application.Current?.ApplicationLifetime is
+                    Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow : null;
+
+                var result = await dialog.ShowDialog<bool?>(mainWindow);
+                if (result == true)
+                {
+                    var success = await _apiService.CreateLinkAsync(dialog.Link);
+                    if (success)
+                    {
+                        foreach (var lz in dialog.LinkZones)
+                            await _apiService.CreateLinkZoneAsync(lz);
+                        await LoadLinksAsync();
+                        await RefreshMapLinksAsync();
+                    }
                 }
-                await LoadLinksAsync();
-            }
+
+                // 다시 Link 선택 모드로 진입 (연속 추가)
+                MapViewModel.EnterLinkSelectionMode();
+            });
         }
+
+        void OnSelectionCancelled()
+        {
+            MapViewModel.LinkSelectionCompleted -= OnSelectionCompleted;
+            MapViewModel.LinkSelectionCancelled -= OnSelectionCancelled;
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                ownerWindow?.Show();
+                ownerWindow?.Activate();
+            });
+        }
+
+        MapViewModel.LinkSelectionCompleted += OnSelectionCompleted;
+        MapViewModel.LinkSelectionCancelled += OnSelectionCancelled;
+        MapViewModel.EnterLinkSelectionMode();
     }
 
     [RelayCommand(CanExecute = nameof(HasSelectedLink))]
@@ -186,6 +226,20 @@ public partial class LinkViewModel : ObservableObject
         panel.Children.Add(btnPanel);
 
         return panel;
+    }
+
+    /// <summary>
+    /// API에서 link 목록을 다시 가져와 맵에 반영
+    /// </summary>
+    private async Task RefreshMapLinksAsync()
+    {
+        if (_apiService == null || MapViewModel == null) return;
+        try
+        {
+            var links = await _apiService.GetLinksAsync();
+            MapViewModel.UpdateLinks(links);
+        }
+        catch { }
     }
 
     private Window GetOwnerWindow()

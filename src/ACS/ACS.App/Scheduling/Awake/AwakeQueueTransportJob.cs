@@ -43,10 +43,8 @@ namespace ACS.Scheduling
                     {
                         foreach (var listbay in listBays)
                         {
-                            BayEx bay = (BayEx)listbay;
-                            String bayId = bay.Id;
 
-                            IList queueList = _transferManager.GetQueuedTransportCommandsByBayId(bayId);
+                            IList queueList = _transferManager.GetQueuedTransportCommands();
 
                             if (queueList != null)
                             {
@@ -57,13 +55,6 @@ namespace ACS.Scheduling
 
                                         message.MessageName = "SCHEDULE-QUEUEJOB";
                                         XmlDocument document = _messageManager.CreateDocument(message);
-
-                                        XmlElement data = document.DocumentElement["DATA"];
-
-
-                                        XmlNode element = document.CreateNode(XmlNodeType.Element, "BAYID", "");
-                                        element.InnerText = bay.Id;
-                                        data.AppendChild(element);
 
                                         _messageAgent.Send(document);//SCHEDULE_QUEUEJOB message
                                     }

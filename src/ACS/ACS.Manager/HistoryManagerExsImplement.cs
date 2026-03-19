@@ -133,7 +133,7 @@ namespace ACS.Manager
         public void AddVehiclePathHistory(VehicleEx vehicle, string path, string type, int distance)
         {
             VehicleSearchPathHistory vhs = new VehicleSearchPathHistory();
-            vhs.VehicleId = vehicle.Id;
+            vhs.VehicleId = vehicle.VehicleId;
             vhs.BayId = vehicle.BayId;
             vhs.Path = path;
             vhs.CurrentNodeId = vehicle.CurrentNodeId;

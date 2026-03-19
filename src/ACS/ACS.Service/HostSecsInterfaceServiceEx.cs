@@ -238,7 +238,7 @@ namespace ACS.Service
             String eqpId = Secs.MachineName;
             String portId = "";
             String agvName = (vehicleMessage.VehicleId != null) ? vehicleMessage.VehicleId : "";
-            String jobId = (transportCommand.Id != null) ? transportCommand.Id : "";
+            String jobId = (transportCommand.JobId != null) ? transportCommand.JobId : "";
             String jobType = (transportCommand.JobType != null) ? transportCommand.JobType : "";
             String currentLoc = (vehicleMessage.Vehicle.CurrentNodeId != null) ? vehicleMessage.Vehicle.CurrentNodeId : "";
             String source = (transportCommand.Source != null) ? transportCommand.Source : "";
@@ -296,7 +296,7 @@ namespace ACS.Service
             String eqpId = Secs.MachineName;
             String portId = "";
             String agvName = (vehicleMessage.VehicleId != null) ? vehicleMessage.VehicleId : "";
-            String jobId = (transportCommand.Id != null) ? transportCommand.Id : "";
+            String jobId = (transportCommand.JobId != null) ? transportCommand.JobId : "";
             String jobType = (transportCommand.JobType != null) ? transportCommand.JobType : "";
             String currentLoc = vehicleMessage.NodeId;
             String source = (transportCommand.Source != null) ? transportCommand.Source : "";
@@ -366,7 +366,7 @@ namespace ACS.Service
             String eqpId = Secs.MachineName;
             String portId = "";
             String agvName = (vehicleMessage.VehicleId != null) ? vehicleMessage.VehicleId : "";
-            String jobId = (transportCommand.Id != null) ? transportCommand.Id : "";
+            String jobId = (transportCommand.JobId != null) ? transportCommand.JobId : "";
             String jobType = (transportCommand.JobType != null) ? transportCommand.JobType : "";
             String currentLoc = (vehicleMessage.Vehicle.CurrentNodeId != null) ? vehicleMessage.Vehicle.CurrentNodeId : "";
             String source = (transportCommand.Source != null) ? transportCommand.Source : "";
@@ -438,7 +438,7 @@ namespace ACS.Service
             }
             else
             {
-                jobId = (transportCommand.Id != null) ? transportCommand.Id : "";
+                jobId = (transportCommand.JobId != null) ? transportCommand.JobId : "";
                 jobType = (transportCommand.JobType != null) ? transportCommand.JobType : "";
                 source = (transportCommand.Source != null) ? transportCommand.Source : "";
                 dest = (transportCommand.Dest != null) ? transportCommand.Dest : "";
@@ -451,7 +451,7 @@ namespace ACS.Service
             String eqpId = Secs.MachineName;
             String portId = "";
             String agvName = (vehicleMessage.VehicleId != null) ? vehicleMessage.VehicleId : "";
-            //String jobId = (transportCommand.Id != null) ? transportCommand.Id : "";
+            //String jobId = (transportCommand.JobId != null) ? transportCommand.JobId : "";
             //String jobType = (transportCommand.JobType != null) ? transportCommand.JobType : "";
             //String currentLoc = (vehicleMessage.Vehicle.CurrentNodeId != null) ? vehicleMessage.Vehicle.CurrentNodeId : "";
             String currentLoc = vehicleMessage.NodeId;
@@ -643,7 +643,7 @@ namespace ACS.Service
         //    String agvName = vehicleMessage.VehicleId;
 
         //    TransportCommand transportCommand = vehicleMessage.TransportCommand;
-        //    String jobId = transportCommand.Id;
+        //    String jobId = transportCommand.JobId;
         //    String jobType = "";
         //    String currentLoc = transportCommand.Dest;
         //    String source = transportCommand.Source;

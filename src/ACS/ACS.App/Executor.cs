@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using ACS.App.Modules;
 using Site = ACS.App.Modules.Site;
 using ACS.Core.Application;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace ACS.App
@@ -130,6 +131,13 @@ namespace ACS.App
                 {
                     var dbContext = _container.Resolve<ACS.Database.AcsDbContext>();
                     dbContext.Database.EnsureCreated();
+
+                    // 기존 DB 마이그레이션
+                    MigrateTransportCommandTable(dbContext);
+                    MigrateVehicleTable(dbContext);
+                    MigrateLocationTable(dbContext);
+                    MigrateBayTable(dbContext);
+                    MigrateZoneTable(dbContext);
                 }
                 catch (Exception ex)
                 {
@@ -255,6 +263,198 @@ namespace ACS.App
                 case "NAMUGA":
                     builder.RegisterModule<Site.NamugaSiteModule>();
                     break;
+            }
+        }
+
+        /// <summary>
+        /// 기존 NA_T_TRANSPORTCMD 테이블 마이그레이션.
+        /// id(string PK) → id(bigserial PK) + jobId(varchar) 컬럼 추가.
+        /// jobId 컬럼이 이미 존재하면 마이그레이션 완료된 것으로 판단하여 건너뜀.
+        /// </summary>
+        private void MigrateTransportCommandTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    -- jobId 컬럼이 없으면 마이그레이션 수행
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_T_TRANSPORTCMD' AND column_name = 'jobId'
+    ) THEN
+        -- 1. jobId 컬럼 추가 및 기존 id 값 복사
+        ALTER TABLE ""NA_T_TRANSPORTCMD"" ADD COLUMN ""jobId"" VARCHAR(64);
+        UPDATE ""NA_T_TRANSPORTCMD"" SET ""jobId"" = ""id"";
+
+        -- 2. 기존 PK 제약조건 삭제
+        ALTER TABLE ""NA_T_TRANSPORTCMD"" DROP CONSTRAINT IF EXISTS ""PK_NA_T_TRANSPORTCMD"";
+
+        -- 3. 기존 id 컬럼 삭제 후 bigserial로 재생성
+        ALTER TABLE ""NA_T_TRANSPORTCMD"" DROP COLUMN ""id"";
+        ALTER TABLE ""NA_T_TRANSPORTCMD"" ADD COLUMN ""id"" BIGSERIAL PRIMARY KEY;
+
+        RAISE NOTICE 'NA_T_TRANSPORTCMD migration completed: id -> bigserial, jobId column added';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("TransportCommand table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "TransportCommand table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// 기존 NA_R_VEHICLE 테이블 마이그레이션.
+        /// id(string PK) → id(bigserial PK) + vehicleId(varchar) 컬럼 추가.
+        /// vehicleId 컬럼이 이미 존재하면 마이그레이션 완료된 것으로 판단하여 건너뜀.
+        /// </summary>
+        private void MigrateVehicleTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_R_VEHICLE' AND column_name = 'vehicleId'
+    ) THEN
+        ALTER TABLE ""NA_R_VEHICLE"" ADD COLUMN ""vehicleId"" VARCHAR(64);
+        UPDATE ""NA_R_VEHICLE"" SET ""vehicleId"" = ""id"";
+
+        ALTER TABLE ""NA_R_VEHICLE"" DROP CONSTRAINT IF EXISTS ""PK_NA_R_VEHICLE"";
+        ALTER TABLE ""NA_R_VEHICLE"" DROP COLUMN ""id"";
+        ALTER TABLE ""NA_R_VEHICLE"" ADD COLUMN ""id"" BIGSERIAL PRIMARY KEY;
+
+        RAISE NOTICE 'NA_R_VEHICLE migration completed: id -> bigserial, vehicleId column added';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("Vehicle table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "Vehicle table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// 기존 NA_R_LOCATION 테이블 마이그레이션.
+        /// portId(string PK) → id(bigserial PK) + locationId(varchar) 컬럼으로 변환.
+        /// </summary>
+        private void MigrateLocationTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    -- Step 1: portId → locationId 컬럼 변환 + id bigserial PK 추가
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_R_LOCATION' AND column_name = 'locationId'
+    ) THEN
+        ALTER TABLE ""NA_R_LOCATION"" RENAME COLUMN ""portId"" TO ""locationId"";
+        ALTER TABLE ""NA_R_LOCATION"" DROP CONSTRAINT IF EXISTS ""PK_NA_R_LOCATION"";
+        ALTER TABLE ""NA_R_LOCATION"" ADD COLUMN ""id"" BIGSERIAL PRIMARY KEY;
+
+        RAISE NOTICE 'NA_R_LOCATION migration completed: portId -> locationId, id bigserial added';
+    END IF;
+
+    -- Step 2: locationId에 NOT NULL + UNIQUE 제약 추가
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'NA_R_LOCATION' AND constraint_name = 'uq_location_locationId'
+    ) THEN
+        UPDATE ""NA_R_LOCATION"" SET ""locationId"" = 'UNKNOWN_' || ""id"" WHERE ""locationId"" IS NULL;
+        ALTER TABLE ""NA_R_LOCATION"" ALTER COLUMN ""locationId"" SET NOT NULL;
+        ALTER TABLE ""NA_R_LOCATION"" ADD CONSTRAINT ""uq_location_locationId"" UNIQUE (""locationId"");
+
+        RAISE NOTICE 'NA_R_LOCATION: locationId NOT NULL + UNIQUE constraint added';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("Location table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "Location table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// 기존 NA_R_BAY 테이블 마이그레이션.
+        /// id(string PK) → id(bigserial PK) + bayId(varchar) 컬럼 추가.
+        /// </summary>
+        private void MigrateBayTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_R_BAY' AND column_name = 'bayId'
+    ) THEN
+        ALTER TABLE ""NA_R_BAY"" ADD COLUMN ""bayId"" VARCHAR(64);
+        UPDATE ""NA_R_BAY"" SET ""bayId"" = ""id"";
+
+        ALTER TABLE ""NA_R_BAY"" DROP CONSTRAINT IF EXISTS ""PK_NA_R_BAY"";
+        ALTER TABLE ""NA_R_BAY"" DROP COLUMN ""id"";
+        ALTER TABLE ""NA_R_BAY"" ADD COLUMN ""id"" BIGSERIAL PRIMARY KEY;
+
+        RAISE NOTICE 'NA_R_BAY migration completed: id -> bigserial, bayId column added';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("Bay table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "Bay table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// 기존 NA_R_ZONE 테이블 마이그레이션.
+        /// id(string PK) → id(bigserial PK) + zoneId(varchar) 컬럼 추가.
+        /// </summary>
+        private void MigrateZoneTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_R_ZONE' AND column_name = 'zoneId'
+    ) THEN
+        ALTER TABLE ""NA_R_ZONE"" ADD COLUMN ""zoneId"" VARCHAR(64);
+        UPDATE ""NA_R_ZONE"" SET ""zoneId"" = ""id"";
+
+        ALTER TABLE ""NA_R_ZONE"" DROP CONSTRAINT IF EXISTS ""PK_NA_R_ZONE"";
+        ALTER TABLE ""NA_R_ZONE"" DROP COLUMN ""id"";
+        ALTER TABLE ""NA_R_ZONE"" ADD COLUMN ""id"" BIGSERIAL PRIMARY KEY;
+
+        RAISE NOTICE 'NA_R_ZONE migration completed: id -> bigserial, zoneId column added';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("Zone table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "Zone table migration skipped or failed (table may not exist yet).");
             }
         }
 

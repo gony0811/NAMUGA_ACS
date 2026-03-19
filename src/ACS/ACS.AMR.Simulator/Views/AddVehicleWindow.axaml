@@ -1,0 +1,70 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.AMR.Simulator.Views.AddVehicleWindow"
+        Title="Add Vehicle"
+        Width="400" Height="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20" RowDefinitions="Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="새 Vehicle 추가" FontSize="18" FontWeight="Bold" Margin="0,0,0,16" />
+
+        <StackPanel Grid.Row="1" Spacing="12">
+
+            <!-- Vehicle ID (필수) -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Vehicle ID *" FontSize="12" Foreground="Gray" />
+                <TextBox Name="VehicleIdTextBox" Watermark="예: AMR01" />
+            </StackPanel>
+
+            <!-- Bay ID -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Bay ID" FontSize="12" Foreground="Gray" />
+                <TextBox Name="BayIdTextBox" Watermark="예: BAY01" />
+            </StackPanel>
+
+            <!-- Current Node ID -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Current Node ID" FontSize="12" Foreground="Gray" />
+                <TextBox Name="CurrentNodeIdTextBox" Watermark="예: N001" />
+            </StackPanel>
+
+            <!-- Connection State -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Connection State" FontSize="12" Foreground="Gray" />
+                <ComboBox Name="ConnectionStateComboBox" HorizontalAlignment="Stretch"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="CONNECT" />
+                    <ComboBoxItem Content="DISCONNECT" />
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Processing State -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Processing State" FontSize="12" Foreground="Gray" />
+                <ComboBox Name="ProcessingStateComboBox" HorizontalAlignment="Stretch"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="IDLE" />
+                    <ComboBoxItem Content="RUN" />
+                    <ComboBoxItem Content="CHARGE" />
+                    <ComboBoxItem Content="PARK" />
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Battery Rate -->
+            <StackPanel Spacing="3">
+                <TextBlock Text="Battery Rate (%)" FontSize="12" Foreground="Gray" />
+                <NumericUpDown Name="BatteryRateUpDown" Value="100" Minimum="0" Maximum="100" Increment="1" />
+            </StackPanel>
+
+        </StackPanel>
+
+        <!-- 버튼 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="취소" Name="CancelButton" Width="80" />
+            <Button Content="추가" Name="AddButton" Width="80" Classes="accent" />
+        </StackPanel>
+    </Grid>
+</Window>

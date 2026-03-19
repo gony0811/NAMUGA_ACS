@@ -228,7 +228,7 @@ namespace ACS.Manager.History
         {
             TransportCommandHistoryEx transportCommandHistoryEx = new TransportCommandHistoryEx();
             transportCommandHistoryEx.State = transportCommand.State;
-            transportCommandHistoryEx.JobId = transportCommand.Id;
+            transportCommandHistoryEx.JobId = transportCommand.JobId;
             transportCommandHistoryEx.CarrierId = transportCommand.CarrierId;
             transportCommandHistoryEx.Source = transportCommand.Source;
             transportCommandHistoryEx.Dest = transportCommand.Dest;
@@ -332,7 +332,7 @@ namespace ACS.Manager.History
         {
             VehicleBatteryHistoryEx vehicleBatteryHistory = new VehicleBatteryHistoryEx();
 
-            vehicleBatteryHistory.VehicleId = vehicle.Id;
+            vehicleBatteryHistory.VehicleId = vehicle.VehicleId;
             vehicleBatteryHistory.BatteryRate = vehicle.BatteryRate;
             vehicleBatteryHistory.BatteryVoltage = vehicle.BatteryVoltage;
             vehicleBatteryHistory.Time = DateTime.Now; //TimeUtils.getCurrentTimestamp());
@@ -411,7 +411,7 @@ namespace ACS.Manager.History
         {
             VehicleHistoryEx vehicleHistory = new VehicleHistoryEx();
 
-            vehicleHistory.VehicleId = vehicle.Id;
+            vehicleHistory.VehicleId = vehicle.VehicleId;
             vehicleHistory.BayId = vehicle.BayId;
             vehicleHistory.CarrierType = vehicle.CarrierType;
             vehicleHistory.ConnectionState = vehicle.ConnectionState;

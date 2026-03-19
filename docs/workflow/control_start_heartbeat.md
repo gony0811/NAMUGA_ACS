@@ -1,4 +1,4 @@
-# CONTROL_STARTHEARTBEAT 워크플로우
+# CONTROL-STARTHEARTBEAT 워크플로우
 
 ## 개요
 
@@ -6,7 +6,7 @@ Primary 서버(CS01_P)에서 동일 하드웨어의 모든 관리 Application(DS
 
 ## 트리거
 
-- **커맨드명**: `CONTROL_STARTHEARTBEAT`
+- **커맨드명**: `CONTROL-STARTHEARTBEAT`
 - **라우팅**: `elsa-migration.json`의 `ElsaCommands`에 등록되어 Elsa 워크플로우 엔진으로 라우팅
 - **실행 방식**: `ElsaWorkflowManagerBridge` → `IWorkflowRunner.RunAsync()` (동기 실행)
 
