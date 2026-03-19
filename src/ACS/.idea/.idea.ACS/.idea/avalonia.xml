@@ -13,6 +13,7 @@
         <entry key="ACS.UI/Views/MainWindow.axaml" value="ACS.UI/ACS.UI.csproj" />
         <entry key="ACS.UI/Views/MapView.axaml" value="ACS.UI/ACS.UI.csproj" />
         <entry key="ACS.UI/Views/NioView.axaml" value="ACS.UI/ACS.UI.csproj" />
+        <entry key="ACS.UI/Views/StationEditWindow.axaml" value="ACS.UI/ACS.UI.csproj" />
         <entry key="ACS.UI/Views/SummaryView.axaml" value="ACS.UI/ACS.UI.csproj" />
         <entry key="ACS.UI/Views/VehicleListView.axaml" value="ACS.UI/ACS.UI.csproj" />
       </map>
