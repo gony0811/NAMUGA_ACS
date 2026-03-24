@@ -3,8 +3,8 @@
         xmlns:vm="using:ACS.Host.Test.ViewModels"
         x:Class="ACS.Host.Test.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="MES Simulator - Host Communication Tester"
-        Width="850" Height="800"
+        Title="ACS Simulator - Communication Tester"
+        Width="800" Height="750"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -27,14 +27,8 @@
         </Style>
         <Style Selector="TextBlock.label">
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Width" Value="90"/>
+            <Setter Property="Width" Value="80"/>
             <Setter Property="Foreground" Value="#555"/>
-        </Style>
-        <Style Selector="TextBlock.field-label">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Width" Value="90"/>
-            <Setter Property="Foreground" Value="#555"/>
-            <Setter Property="Margin" Value="0,4,0,0"/>
         </Style>
     </Window.Styles>
 
@@ -44,16 +38,16 @@
         <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
             <StackPanel Spacing="6">
                 <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="label" Text="Listen Port:" />
+                    <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding !IsConnected}"/>
+                    <TextBlock Text="(MES로부터 MOVECMD/ACTIONCMD 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Classes="label" Text="Send Host:" />
                     <TextBox Width="120" Text="{Binding SendHost}" IsEnabled="{Binding !IsConnected}"/>
                     <TextBlock Classes="label" Text="Send Port:" Width="70"/>
                     <TextBox Width="80" Text="{Binding SendPort}" IsEnabled="{Binding !IsConnected}"/>
-                    <TextBlock Text="(ACS로 MOVECMD/ACTIONCMD 송신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Classes="label" Text="Listen Port:" />
-                    <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding !IsConnected}"/>
-                    <TextBlock Text="(ACS로부터 JOBREPORT 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                    <TextBlock Text="(MES로 JOBREPORT 송신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                     <Button Classes="action" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" Background="#1565c0" Foreground="White"/>
@@ -66,72 +60,36 @@
             </StackPanel>
         </HeaderedContentControl>
 
-        <!-- Row 1: Command 송신 (MES → ACS) -->
-        <HeaderedContentControl Grid.Row="1" Header="Command 송신 (MES → ACS)">
+        <!-- Row 1: Job Report 송신 (ACS → MES) -->
+        <HeaderedContentControl Grid.Row="1" Header="Job Report 송신 테스트 (ACS → MES)">
             <StackPanel Spacing="6">
-                <!-- Command Type 선택 -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Classes="label" Text="Command:" FontWeight="SemiBold"/>
-                    <ComboBox ItemsSource="{Binding CommandTypes}"
-                              SelectedItem="{Binding SelectedCommandType}"
-                              Width="160"/>
-                    <Button Classes="action" Content="Send" Command="{Binding SendCommandCommand}"
-                            Background="#1565c0" Foreground="White" FontWeight="Bold" MinWidth="100"/>
-                </StackPanel>
+                <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding JobId}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AmrId:"/>
+                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding AmrId}"/>
 
-                <!-- 공통 필드 -->
-                <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
-                    <!-- Row 0: AcsId / JobID -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="AcsId:"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CmdAcsId}"/>
-                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="JobID:"/>
-                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding CmdJobId}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AcsId:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AcsId}" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding MaterialType}" Margin="0,4,0,0"/>
 
-                    <!-- Row 1: MaterialType / UserID -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="MaterialType:"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CmdMaterialType}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="field-label" Text="UserID:"/>
-                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding CmdUserId}" Margin="0,4,0,0"/>
-
-                    <!-- Row 2: ActionType -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="ActionType:"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CmdActionType}" Margin="0,4,0,0" Watermark="LOAD / UNLOAD"/>
-
-                    <!-- Row 3: SourceLoc / SourcePort (MOVECMD, MOVECANCEL) -->
-                    <TextBlock Grid.Row="3" Grid.Column="0" Classes="field-label" Text="SourceLoc:"
-                               IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CmdSourceLoc}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBlock Grid.Row="3" Grid.Column="3" Classes="field-label" Text="SourcePort:"
-                               IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding CmdSourcePort}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowMoveFields}"/>
-
-                    <!-- Row 4: DestLoc / DestPort (MOVECMD, MOVECANCEL) -->
-                    <TextBlock Grid.Row="4" Grid.Column="0" Classes="field-label" Text="DestLoc:"
-                               IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CmdDestLoc}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBlock Grid.Row="4" Grid.Column="3" Classes="field-label" Text="DestPort:"
-                               IsVisible="{Binding ShowMoveFields}"/>
-                    <TextBox Grid.Row="4" Grid.Column="4" Text="{Binding CmdDestPort}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowMoveFields}"/>
-
-                    <!-- Row 5: TargetLoc / TargetPort (ACTIONCMD) -->
-                    <TextBlock Grid.Row="5" Grid.Column="0" Classes="field-label" Text="TargetLoc:"
-                               IsVisible="{Binding ShowActionFields}"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding CmdTargetLoc}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowActionFields}"/>
-                    <TextBlock Grid.Row="5" Grid.Column="3" Classes="field-label" Text="TargetPort:"
-                               IsVisible="{Binding ShowActionFields}"/>
-                    <TextBox Grid.Row="5" Grid.Column="4" Text="{Binding CmdTargetPort}" Margin="0,4,0,0"
-                             IsVisible="{Binding ShowActionFields}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="UserID:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding UserId}" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="Port:" Margin="0,4,0,0"/>
+                    <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding CompletedPort}" Margin="0,4,0,0" Watermark="COMPLETE용"/>
                 </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button Classes="action" Content="RECEIVE" Command="{Binding SendReceiveCommand}" Background="#43a047" Foreground="White"/>
+                    <Button Classes="action" Content="START" Command="{Binding SendStartCommand}" Background="#1565c0" Foreground="White"/>
+                    <Button Classes="action" Content="ARRIVED" Command="{Binding SendArrivedCommand}" Background="#fb8c00" Foreground="White"/>
+                    <Button Classes="action" Content="COMPLETE" Command="{Binding SendCompletedCommand}" Background="#7b1fa2" Foreground="White" MinWidth="110"/>
+                </StackPanel>
             </StackPanel>
         </HeaderedContentControl>
 
-        <!-- Row 2: Report 수신 (ACS → MES) -->
-        <HeaderedContentControl Grid.Row="2" Header="Report 수신 (ACS → MES)">
+        <!-- Row 2: Command 수신 (MES → ACS) -->
+        <HeaderedContentControl Grid.Row="2" Header="Command 수신 (MES → ACS)">
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Command:" />
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LastReceivedCommand}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#0d47a1"/>
