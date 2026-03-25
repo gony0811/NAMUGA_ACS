@@ -37,9 +37,13 @@ namespace ACS.Elsa.Workflows
             var moveCmdXml = new Variable<XmlDocument> { Name = "MoveCmdXml" };
             var jobReportXml = new Variable<XmlDocument> { Name = "JobReportXml" };
             var transportCommandId = new Variable<string> { Name = "TransportCommandId" };
+            var errCode = new Variable<string> { Name = "ErrCode" };
+            var errMsg = new Variable<string> { Name = "ErrMsg" };
             builder.WithVariable(moveCmdXml);
             builder.WithVariable(jobReportXml);
             builder.WithVariable(transportCommandId);
+            builder.WithVariable(errCode);
+            builder.WithVariable(errMsg);
 
             builder.Root = new Sequence
             {
@@ -51,23 +55,27 @@ namespace ACS.Elsa.Workflows
                         OutputXml = new(moveCmdXml)
                     },
 
-                    // Step 2: JOBREPORT(RECEIVE) 응답 전송
+                    // Step 2: TransportCommand 생성 시도 (BayId 검증 포함)
+                    new CreateTransportCommandActivity
+                    {
+                        MoveCmdXml = new(moveCmdXml),
+                        TransportCommandId = new(transportCommandId),
+                        ErrCode = new(errCode),
+                        ErrMsg = new(errMsg)
+                    },
+
+                    // Step 3: JOBREPORT(RECEIVE) 응답 전송 — 에러 정보 포함
                     new SendJobReportActivity
                     {
                         MoveCmdXml = new(moveCmdXml),
                         ReportType = new("RECEIVE"),
+                        ErrCode = new(errCode),
+                        ErrMsg = new(errMsg),
                         JobReportXml = new(jobReportXml)
                     },
 
-                    // Step 3: TransportCommand 생성 (DB 저장)
-                    new CreateTransportCommandActivity
-                    {
-                        MoveCmdXml = new(moveCmdXml),
-                        TransportCommandId = new(transportCommandId)
-                    },
-
                     // Step 4: 로그 출력
-                    new WriteLine("MOVECMD workflow completed: JOBREPORT(RECEIVE) sent, TransportCommand created")
+                    new WriteLine("MOVECMD workflow completed: TransportCommand processed, JOBREPORT(RECEIVE) sent")
 
                     // TODO: 향후 추가 Step
                     // - 차량 배정 로직

@@ -53,7 +53,8 @@ namespace ACS.Manager
         Dictionary<string, List<PathEx>> dynamicLink = new Dictionary<string, List<PathEx>>();
         #endregion
 
-        public IResourceManagerExs ResourceManager { get; set; }
+        public Lazy<IResourceManagerEx> ResourceManagerLazy { get; set; }
+        private IResourceManagerEx ResourceManager => ResourceManagerLazy?.Value;
  
         public Dictionary<string, LinkEx> LinkMap { get { return linkMap; } set { value = linkMap; } }
         public Dictionary<string, ZoneEx> ZoneMap { get { return zoneMap; } set { value = zoneMap; } }

@@ -42,7 +42,10 @@ public partial class PortViewModel : ObservableObject
                 Locations.Add(loc);
             TotalCount = Locations.Count;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PortViewModel] LoadLocationsAsync error: {ex.Message}");
+        }
     }
 
     [RelayCommand]

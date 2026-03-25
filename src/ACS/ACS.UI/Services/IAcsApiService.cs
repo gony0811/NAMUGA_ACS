@@ -31,6 +31,7 @@ public interface IAcsApiService
     Task<bool> CreateLocationAsync(LocationDto location);
     Task<bool> UpdateLocationAsync(LocationDto location);
     Task<bool> DeleteLocationAsync(string locationId);
+    Task<List<LinkZoneDto>> GetLinkZonesAsync();
     Task<List<LinkZoneDto>> GetLinkZonesByLinkIdAsync(string linkId);
     Task<bool> CreateLinkZoneAsync(LinkZoneDto linkZone);
     Task<bool> DeleteLinkZoneAsync(string linkZoneId);

@@ -10,6 +10,11 @@ public class AcsApiService : IAcsApiService
 {
     private readonly HttpClient _httpClient;
 
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public AcsApiService(string baseUrl)
     {
         _httpClient = new HttpClient
@@ -21,25 +26,25 @@ public class AcsApiService : IAcsApiService
 
     public async Task<List<VehicleDto>> GetVehiclesAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<VehicleDto>>("/api/vehicles")
+        return await _httpClient.GetFromJsonAsync<List<VehicleDto>>("/api/vehicles", _jsonOptions)
                ?? new List<VehicleDto>();
     }
 
     public async Task<List<NodeDto>> GetNodesAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<NodeDto>>("/api/nodes")
+        return await _httpClient.GetFromJsonAsync<List<NodeDto>>("/api/nodes", _jsonOptions)
                ?? new List<NodeDto>();
     }
 
     public async Task<List<LinkDto>> GetLinksAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<LinkDto>>("/api/links")
+        return await _httpClient.GetFromJsonAsync<List<LinkDto>>("/api/links", _jsonOptions)
                ?? new List<LinkDto>();
     }
 
     public async Task<List<TransportCommandDto>> GetTransportCommandsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<TransportCommandDto>>("/api/commands")
+        return await _httpClient.GetFromJsonAsync<List<TransportCommandDto>>("/api/commands", _jsonOptions)
                ?? new List<TransportCommandDto>();
     }
 
@@ -102,7 +107,7 @@ public class AcsApiService : IAcsApiService
 
     public async Task<List<StationDto>> GetStationsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<StationDto>>("/api/stations")
+        return await _httpClient.GetFromJsonAsync<List<StationDto>>("/api/stations", _jsonOptions)
                ?? new List<StationDto>();
     }
 
@@ -194,7 +199,7 @@ public class AcsApiService : IAcsApiService
 
     public async Task<List<ZoneDto>> GetZonesAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<ZoneDto>>("/api/zones")
+        return await _httpClient.GetFromJsonAsync<List<ZoneDto>>("/api/zones", _jsonOptions)
                ?? new List<ZoneDto>();
     }
 
@@ -243,7 +248,7 @@ public class AcsApiService : IAcsApiService
 
     public async Task<List<BayDto>> GetBaysAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<BayDto>>("/api/bays")
+        return await _httpClient.GetFromJsonAsync<List<BayDto>>("/api/bays", _jsonOptions)
                ?? new List<BayDto>();
     }
 
@@ -292,7 +297,7 @@ public class AcsApiService : IAcsApiService
 
     public async Task<List<LocationDto>> GetLocationsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<LocationDto>>("/api/locations")
+        return await _httpClient.GetFromJsonAsync<List<LocationDto>>("/api/locations", _jsonOptions)
                ?? new List<LocationDto>();
     }
 
@@ -330,9 +335,15 @@ public class AcsApiService : IAcsApiService
         catch { return false; }
     }
 
+    public async Task<List<LinkZoneDto>> GetLinkZonesAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<List<LinkZoneDto>>("/api/linkzones", _jsonOptions)
+               ?? new List<LinkZoneDto>();
+    }
+
     public async Task<List<LinkZoneDto>> GetLinkZonesByLinkIdAsync(string linkId)
     {
-        return await _httpClient.GetFromJsonAsync<List<LinkZoneDto>>($"/api/linkzones/{linkId}")
+        return await _httpClient.GetFromJsonAsync<List<LinkZoneDto>>($"/api/linkzones/{linkId}", _jsonOptions)
                ?? new List<LinkZoneDto>();
     }
 

@@ -636,24 +636,24 @@ namespace ACS.Communication.Http.Handlers
         {
             var dtos = new List<LinkZoneDto>();
 
-            if (!string.IsNullOrEmpty(linkId))
+            // linkId가 있으면 특정 Link의 LinkZone, 없으면 전체 LinkZone 목록
+            IList linkZones = string.IsNullOrEmpty(linkId)
+                ? _resourceManager.GetLinkZones()
+                : _resourceManager.GetLinkZonesByLinkId(linkId);
+
+            if (linkZones != null)
             {
-                // GET /api/linkzones/{linkId} — 특정 Link의 LinkZone 목록
-                IList linkZones = _resourceManager.GetLinkZonesByLinkId(linkId);
-                if (linkZones != null)
+                foreach (var item in linkZones)
                 {
-                    foreach (var item in linkZones)
+                    var lz = item as LinkZoneEx;
+                    if (lz == null) continue;
+                    dtos.Add(new LinkZoneDto
                     {
-                        var lz = item as LinkZoneEx;
-                        if (lz == null) continue;
-                        dtos.Add(new LinkZoneDto
-                        {
-                            Id = lz.Id,
-                            LinkId = lz.LinkId,
-                            ZoneId = lz.ZoneId,
-                            TransferFlag = lz.TransferFlag
-                        });
-                    }
+                        Id = lz.Id,
+                        LinkId = lz.LinkId,
+                        ZoneId = lz.ZoneId,
+                        TransferFlag = lz.TransferFlag
+                    });
                 }
             }
 

@@ -44,6 +44,7 @@ public partial class DataViewViewModel : ObservableObject
             "Bay View" => "Bay",
             "Zone View" => "Zone",
             "Port View" => "Port",
+            "LinkZone View" => "LinkZone",
             _ => (string?)null
         };
         if (viewName != null)

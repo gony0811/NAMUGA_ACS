@@ -60,6 +60,9 @@ public partial class MainWindowViewModel : ObservableObject
     private PortViewModel _portViewModel;
 
     [ObservableProperty]
+    private LinkZoneViewModel _linkZoneViewModel;
+
+    [ObservableProperty]
     private string _connectionStatus = "Disconnected";
 
     [ObservableProperty]
@@ -111,6 +114,7 @@ public partial class MainWindowViewModel : ObservableObject
         _bayViewModel = new BayViewModel(_apiService);
         _zoneViewModel = new ZoneViewModel(_apiService);
         _portViewModel = new PortViewModel(_apiService);
+        _linkZoneViewModel = new LinkZoneViewModel(_apiService);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -140,6 +144,7 @@ public partial class MainWindowViewModel : ObservableObject
             "Bay" => ("Bay", (Control)new BayView { DataContext = BayViewModel }),
             "Zone" => ("Zone", (Control)new ZoneView { DataContext = ZoneViewModel }),
             "Port" => ("Port", (Control)new PortView { DataContext = PortViewModel }),
+            "LinkZone" => ("LinkZone", (Control)new LinkZoneView { DataContext = LinkZoneViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -169,6 +174,8 @@ public partial class MainWindowViewModel : ObservableObject
             _ = ZoneViewModel.LoadZonesAsync();
         if (viewName == "Port")
             _ = PortViewModel.LoadLocationsAsync();
+        if (viewName == "LinkZone")
+            _ = LinkZoneViewModel.LoadLinkZonesAsync();
     }
 
     public async Task LoadInitialDataAsync() => await RefreshAsync();

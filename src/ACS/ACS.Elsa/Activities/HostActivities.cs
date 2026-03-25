@@ -6,6 +6,8 @@ using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
 using ACS.Core.Host;
 using ACS.Core.Logging;
+using ACS.Core.Base;
+using ACS.Core.Path;
 using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
 using ACS.Elsa.Bridge;
@@ -68,6 +70,14 @@ namespace ACS.Elsa.Activities
         [Input(Description = "사용자 ID (미설정 시 MOVECMD XML에서 추출)")]
         public Input<string> UserId { get; set; }
 
+        /// <summary>에러 코드 (0=정상, 그 외=에러)</summary>
+        [Input(Description = "에러 코드 (0=정상, 그 외=에러)")]
+        public Input<string> ErrCode { get; set; }
+
+        /// <summary>에러 메시지</summary>
+        [Input(Description = "에러 메시지")]
+        public Input<string> ErrMsg { get; set; }
+
         /// <summary>빌드된 JOBREPORT XML (후속 Activity에서 사용 가능)</summary>
         [Output(Description = "빌드된 JOBREPORT XmlDocument")]
         public Output<XmlDocument> JobReportXml { get; set; }
@@ -88,6 +98,8 @@ namespace ACS.Elsa.Activities
                 }
 
                 string reportType = ReportType?.Get(context) ?? "RECEIVE";
+                string errCode = ErrCode?.Get(context) ?? "0";
+                string errMsg = ErrMsg?.Get(context) ?? "";
                 var moveCmdXml = MoveCmdXml?.Get(context);
                 XmlDocument jobReport;
 
@@ -121,6 +133,19 @@ namespace ACS.Elsa.Activities
                         materialType: MaterialType?.Get(context) ?? "",
                         acsId: AcsId?.Get(context) ?? "",
                         userId: UserId?.Get(context) ?? "");
+                }
+
+                // ErrCode/ErrMsg를 DataLayer에 추가
+                var dataLayer = jobReport.SelectSingleNode("//DataLayer");
+                if (dataLayer != null)
+                {
+                    var errCodeNode = jobReport.CreateElement("ErrCode");
+                    errCodeNode.InnerText = errCode;
+                    dataLayer.AppendChild(errCodeNode);
+
+                    var errMsgNode = jobReport.CreateElement("ErrMsg");
+                    errMsgNode.InnerText = errMsg;
+                    dataLayer.AppendChild(errMsgNode);
                 }
 
                 // Host로 전송
@@ -286,6 +311,14 @@ namespace ACS.Elsa.Activities
         [Output(Description = "생성된 TransportCommand ID")]
         public Output<string> TransportCommandId { get; set; }
 
+        /// <summary>에러 코드 (성공 시 "0")</summary>
+        [Output(Description = "에러 코드 (성공 시 '0')")]
+        public Output<string> ErrCode { get; set; }
+
+        /// <summary>에러 메시지 (성공 시 빈 문자열)</summary>
+        [Output(Description = "에러 메시지 (성공 시 빈 문자열)")]
+        public Output<string> ErrMsg { get; set; }
+
         protected override void Execute(ActivityExecutionContext context)
         {
             try
@@ -296,6 +329,8 @@ namespace ACS.Elsa.Activities
                 if (transferManager == null)
                 {
                     logger.Error("CreateTransportCommandActivity: ITransferManagerEx not available");
+                    context.Set(ErrCode, "03");
+                    context.Set(ErrMsg, "ITransferManagerEx not available");
                     context.Set(Result, false);
                     return;
                 }
@@ -304,6 +339,8 @@ namespace ACS.Elsa.Activities
                 if (moveCmdXml == null)
                 {
                     logger.Error("CreateTransportCommandActivity: MoveCmdXml is required");
+                    context.Set(ErrCode, "03");
+                    context.Set(ErrMsg, "MoveCmdXml is required");
                     context.Set(Result, false);
                     return;
                 }
@@ -330,12 +367,48 @@ namespace ACS.Elsa.Activities
                 // Source, Dest 조합: "SourceLoc:SourcePort" 형식
                 string source = string.IsNullOrEmpty(sourcePort) ? sourceLoc : $"{sourceLoc}:{sourcePort}";
                 string dest = string.IsNullOrEmpty(destPort) ? destLoc : $"{destLoc}:{destPort}";
-                
+
                 // 중복 검증: 동일 JobID가 이미 DB에 존재하면 생성하지 않음
                 if (transferManager.ExistTransportCommand(jobId))
                 {
                     logger.Warn($"CreateTransportCommandActivity: TransportCommand already exists - Id={jobId}, skipping creation");
                     context.Set(TransportCommandId, jobId);
+                    context.Set(ErrCode, AbstractManager.ID_RESULT_TRANSPORTCOMMAND_ALREADYREQUESTED.Item1);
+                    context.Set(ErrMsg, AbstractManager.ID_RESULT_TRANSPORTCOMMAND_ALREADYREQUESTED.Item2);
+                    context.Set(Result, false);
+                    return;
+                }
+
+                // Source/Dest 동일 Bay 검증
+                var pathManager = accessor.Resolve<IPathManagerEx>();
+                var sourceLocation = pathManager.GetLocationByLocationId(source);
+                if (sourceLocation == null)
+                {
+                    logger.Warn($"CreateTransportCommandActivity: Source location not found - Source={source}");
+                    context.Set(ErrCode, AbstractManager.ID_RESULT_SOURCEMACHINE_NOTFOUND.Item1);
+                    context.Set(ErrMsg, AbstractManager.ID_RESULT_SOURCEMACHINE_NOTFOUND.Item2);
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var destLocation = pathManager.GetLocationByLocationId(dest);
+                if (destLocation == null)
+                {
+                    logger.Warn($"CreateTransportCommandActivity: Dest location not found - Dest={dest}");
+                    context.Set(ErrCode, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item1);
+                    context.Set(ErrMsg, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item2);
+                    context.Set(Result, false);
+                    return;
+                }
+
+                string sameBayId = pathManager.GetCommonUseBayIdBySourceDest(
+                    sourceLocation.StationId, destLocation.StationId, "Y");
+
+                if (sameBayId == null)
+                {
+                    logger.Warn($"CreateTransportCommandActivity: No common Bay - Source={source}({sourceLocation.StationId}), Dest={dest}({destLocation.StationId})");
+                    context.Set(ErrCode, AbstractManager.ID_RESULT_NOTSAMEBAY.Item1);
+                    context.Set(ErrMsg, AbstractManager.ID_RESULT_NOTSAMEBAY.Item2);
                     context.Set(Result, false);
                     return;
                 }
@@ -346,6 +419,7 @@ namespace ACS.Elsa.Activities
                     JobId = jobId,
                     Source = source,
                     Dest = dest,
+                    BayId = sameBayId,
                     Priority = TransportCommandEx.DEFAULT_PRIORITY,
                     State = TransportCommandEx.STATE_QUEUED,
                     JobType = actionType,
@@ -369,13 +443,17 @@ namespace ACS.Elsa.Activities
                 transferManager.CreateTransportCommand(transportCommand);
 
                 context.Set(TransportCommandId, jobId);
+                context.Set(ErrCode, "0");
+                context.Set(ErrMsg, "");
                 context.Set(Result, true);
 
-                logger.Info($"CreateTransportCommandActivity: TransportCommand created - Id={jobId}, Source={source}, Dest={dest}, JobType={actionType}");
+                logger.Info($"CreateTransportCommandActivity: TransportCommand created - Id={jobId}, Source={source}, Dest={dest}, BayId={sameBayId}, JobType={actionType}");
             }
             catch (Exception ex)
             {
                 logger.Error($"CreateTransportCommandActivity: {ex.Message}", ex);
+                context.Set(ErrCode, "03");
+                context.Set(ErrMsg, ex.Message);
                 context.Set(Result, false);
             }
         }

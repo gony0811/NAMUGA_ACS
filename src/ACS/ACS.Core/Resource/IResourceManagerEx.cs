@@ -146,6 +146,7 @@ namespace ACS.Core.Resource
         void CreateLinkZone(LinkZoneEx paramLinkZone);
         void DeleteLinkZone(LinkZoneEx paramLinkZone);
         int DeleteLinkZone(string paramString);
+        IList GetLinkZones();
         Machine GetMachineByName(string machineName);
         Unit GetUnitByName(string unitName, string machineName);
         int UpdateVehicleState(VehicleEx vehicle, String State, String messageName);

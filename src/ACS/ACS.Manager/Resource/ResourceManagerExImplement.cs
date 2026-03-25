@@ -1275,6 +1275,11 @@ namespace ACS.Manager.Resource
             return this.PersistentDao.Delete(typeof(LinkZoneEx), sbId);
         }
 
+        public IList GetLinkZones()
+        {
+            return this.PersistentDao.FindAll(typeof(LinkZoneEx));
+        }
+
         public IList GetLinkZonesByZoneId(String zoneId)
         {
             Dictionary<string, object> attributes = new Dictionary<string, object>();

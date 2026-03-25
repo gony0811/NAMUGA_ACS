@@ -41,10 +41,10 @@ namespace ACS.Scheduling
                 {
                     if (listBays.Count != 0)
                     {
-                        foreach (var listbay in listBays)
+                        foreach (var bay in listBays)
                         {
 
-                            IList queueList = _transferManager.GetQueuedTransportCommands();
+                            IList queueList = _transferManager.GetQueuedTransportCommandsByBayId(((BayEx)bay).BayId);
 
                             if (queueList != null)
                             {
