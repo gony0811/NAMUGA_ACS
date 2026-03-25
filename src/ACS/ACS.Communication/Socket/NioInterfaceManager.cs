@@ -85,7 +85,7 @@ namespace ACS.Communication.Socket
             this.ResourceManager = lifetimeScope.Resolve<IResourceManagerEx>();
 
             VehicleEx vehicle = this.ResourceManager.GetVehicle(name);
-            SocketClient socketClient = (SocketClient)this.nioInterfaces[vehicle.NioId];
+            SocketClient socketClient = (SocketClient)this.nioInterfaces[vehicle.CommId];
             return socketClient;
         }
 

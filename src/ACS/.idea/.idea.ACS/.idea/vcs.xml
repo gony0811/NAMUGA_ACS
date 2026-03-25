@@ -4,6 +4,7 @@
     <mapping directory="$PROJECT_DIR$/../../../ACS" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../.." vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../NAMUGA_ACS 복사본" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../NAMUGA_AMR/AMR" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../NEW_ACS" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../Works/NAMUGA_ACS" vcs="Git" />
   </component>

@@ -1,0 +1,12 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: amr-rabbitmq-mqtt-broker
+    ports:
+      - "5672:5672"       # AMQP 프로토콜 포트 (ACS RabbitMQ 클라이언트)
+      - "1883:1883"       # MQTT 통신 포트
+      - "15672:15672"     # 관리자 웹 화면 포트 (ID/PW: guest)
+    # 실행 시 MQTT 플러그인을 자동으로 활성화하는 설정
+    command: >
+      sh -c "rabbitmq-plugins enable --offline rabbitmq_mqtt && rabbitmq-server"
+    restart: always

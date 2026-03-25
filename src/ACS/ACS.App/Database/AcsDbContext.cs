@@ -20,6 +20,7 @@ using ACS.Core.Logging.Model;
 using ACS.Core.Material.Model;
 // Communication domain
 using ACS.Communication.Socket.Model;
+using ACS.Communication.Mqtt.Model;
 
 namespace ACS.Database
 {
@@ -89,6 +90,7 @@ namespace ACS.Database
 
         // ===== Communication Domain =====
         public DbSet<Nio> Nios { get; set; }
+        public DbSet<MqttConfig> MqttConfigs { get; set; }
 
         private readonly IConfiguration _configuration;
 
@@ -260,7 +262,8 @@ namespace ACS.Database
                 e.Property(x => x.Seq).HasColumnName("id").ValueGeneratedOnAdd();
                 e.Ignore(x => x.Id); // Entity 베이스의 string Id — DB 매핑 제외
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
-                e.Property(x => x.NioId).HasColumnName("NIOID").HasMaxLength(32);
+                e.Property(x => x.CommType).HasColumnName("COMMTYPE").HasMaxLength(10);
+                e.Property(x => x.CommId).HasColumnName("COMMID").HasMaxLength(64);
                 e.Property(x => x.Vendor).HasColumnName("vendor").HasMaxLength(32);
                 e.Property(x => x.Version).HasColumnName("version").HasMaxLength(32);
                 e.Property(x => x.PlcVersion).HasColumnName("plcVersion").HasMaxLength(32);
@@ -812,6 +815,30 @@ namespace ACS.Database
                 e.Property(x => x.Creator).HasColumnName("creator").HasMaxLength(45);
                 e.Property(x => x.Editor).HasColumnName("editor").HasMaxLength(45);
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
+                e.Property(x => x.EditTime).HasColumnName("editTime");
+            });
+
+            modelBuilder.Entity<MqttConfig>(e =>
+            {
+                e.ToTable("NA_C_MQTT");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Name).HasColumnName("NAME").HasMaxLength(64);
+                e.Property(x => x.ApplicationName).HasColumnName("applicationName").HasMaxLength(64);
+                e.Property(x => x.WorkflowManagerName).HasColumnName("workflowManagerName").HasMaxLength(255);
+                e.Property(x => x.BrokerIp).HasColumnName("brokerIp").HasMaxLength(64);
+                e.Property(x => x.BrokerPort).HasColumnName("brokerPort");
+                e.Property(x => x.TopicPrefix).HasColumnName("topicPrefix").HasMaxLength(128);
+                e.Property(x => x.ClientId).HasColumnName("clientId").HasMaxLength(128);
+                e.Property(x => x.UserName).HasColumnName("userName").HasMaxLength(64);
+                e.Property(x => x.Password).HasColumnName("password").HasMaxLength(128);
+                e.Property(x => x.KeepAliveSeconds).HasColumnName("keepAliveSeconds");
+                e.Property(x => x.ReconnectDelayMs).HasColumnName("reconnectDelayMs");
+                e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
+                e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
+                e.Property(x => x.CreateTime).HasColumnName("createTime");
+                e.Property(x => x.Creator).HasColumnName("creator").HasMaxLength(45);
+                e.Property(x => x.Editor).HasColumnName("editor").HasMaxLength(45);
                 e.Property(x => x.EditTime).HasColumnName("editTime");
             });
 

@@ -2949,7 +2949,7 @@ namespace ACS.Manager.Message
                         return;
                     }
 
-                    IList listZigbeeNio = this.nioInterfaceManager.GetNiosByAGVName(vehicle.NioId, "ZIGBEE");
+                    IList listZigbeeNio = this.nioInterfaceManager.GetNiosByAGVName(vehicle.CommId, "ZIGBEE");
                     
                     if ((listZigbeeNio != null) && (listZigbeeNio.Count > 0))
                     {

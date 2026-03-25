@@ -45,7 +45,7 @@ namespace ACS.Communication.Socket.Emulator
             this.ResourceManager = LifetimeScope.Resolve<IResourceManagerEx>();
 
             VehicleEx vehicle = this.ResourceManager.GetVehicle(name);
-            SocketServer socketServer = (SocketServer)this.NioInterfaces[vehicle.NioId];
+            SocketServer socketServer = (SocketServer)this.NioInterfaces[vehicle.CommId];
             return socketServer;
         }
 

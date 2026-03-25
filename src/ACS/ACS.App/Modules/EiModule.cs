@@ -10,6 +10,7 @@ using ACS.Core.Cache;
 using ACS.Core.Message;
 using ACS.Core.Alarm;
 using ACS.Communication.Socket;
+using ACS.Communication.Mqtt;
 
 namespace ACS.App.Modules
 {
@@ -64,6 +65,11 @@ namespace ACS.App.Modules
                     .PropertiesAutowired();
 
             builder.RegisterType<NioInterfaceManager>()
+                .AsSelf()
+                .SingleInstance()
+                .PropertiesAutowired();
+
+            builder.RegisterType<MqttInterfaceManager>()
                 .AsSelf()
                 .SingleInstance()
                 .PropertiesAutowired();

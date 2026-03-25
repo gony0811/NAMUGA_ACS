@@ -48,7 +48,8 @@ public class Vehicle : Entity
     public static string VENDOR_SPECIAL = "SPECIAL";
     public static string VENDOR_COMMON = "COMMON";
 
-    public virtual string NioId { get; set; }
+    public virtual string CommType { get; set; } = "NIO";
+    public virtual string CommId { get; set; }
     public virtual string Vendor { get; set; }
     public virtual string Version { get; set; }
     public virtual string BayId { get; set; }
@@ -77,7 +78,8 @@ public class Vehicle : Entity
         StringBuilder sb = new StringBuilder();
         sb.Append("vehicle{");
         sb.Append("id=").Append(this.Id);
-        sb.Append(", NioName=").Append(this.NioId);
+        sb.Append(", commType=").Append(this.CommType);
+        sb.Append(", commId=").Append(this.CommId);
         sb.Append(", vendor=").Append(this.Vendor);
         sb.Append(", version=").Append(this.Version);
         sb.Append(", plcVersion=").Append(this.PlcVersion);

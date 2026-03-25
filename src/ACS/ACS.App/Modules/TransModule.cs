@@ -12,6 +12,7 @@ using ACS.Core.Message;
 using ACS.Core.Host;
 using ACS.Core.Alarm;
 using ACS.Communication.Socket;
+using ACS.Communication.Mqtt;
 using ACS.Communication.Msb;
 
 namespace ACS.App.Modules
@@ -75,6 +76,11 @@ namespace ACS.App.Modules
                     .OnActivated(e => ((AbstractManager)e.Instance).Init());
 
             builder.RegisterType<NioInterfaceManager>()
+                .AsSelf()
+                .SingleInstance()
+                .PropertiesAutowired();
+
+            builder.RegisterType<MqttInterfaceManager>()
                 .AsSelf()
                 .SingleInstance()
                 .PropertiesAutowired();

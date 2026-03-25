@@ -14,6 +14,9 @@ static class Program
 {
     static void Main(string[] args)
     {
+        // Npgsql 6+ DateTime UTC 제약 해제 — 기존 DateTime.Now(Local) 사용 코드와 호환
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
         Console.WriteLine("[ACS] Starting ACS Server...");
 
         var appDir = AppDomain.CurrentDomain.BaseDirectory;

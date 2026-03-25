@@ -13,11 +13,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
+    <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="elsa-migration.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Workflows\Json\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Workflows\Ei\" />
   </ItemGroup>
 
 </Project>

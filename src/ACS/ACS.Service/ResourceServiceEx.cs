@@ -1911,7 +1911,7 @@ namespace ACS.Service
                     if (!"DISCONNECT".Equals(vehicle.ConnectionState, StringComparison.OrdinalIgnoreCase))
                     {
                         //only WIFI Mode AGV
-                        IList nios = this.NioInterfaceManager.GetNioes(vehicle.NioId);
+                        IList nios = this.NioInterfaceManager.GetNioes(vehicle.CommId);
                         if (nios == null || nios.Count < 1)
                         {
                             continue;
@@ -1959,7 +1959,7 @@ namespace ACS.Service
                     }
                     else
                     {
-                        IList nios = this.NioInterfaceManager.GetNioes(vehicle.NioId);
+                        IList nios = this.NioInterfaceManager.GetNioes(vehicle.CommId);
                         for (IEnumerator iterator2 = nios.GetEnumerator(); iterator2.MoveNext();)
                         {
 
