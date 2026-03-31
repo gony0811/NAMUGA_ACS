@@ -454,7 +454,7 @@ namespace ACS.Manager
                             if (nextNode.Type.Equals("S_WAIT_P") || nextNode.Type.Equals("A_WAIT_P"))
                             {
                                 cost += this.waitPointCost;
-                                if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.Id))
+                                if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.NodeId))
                                 {
                                     continue;
                                 }
@@ -845,7 +845,7 @@ namespace ACS.Manager
                             if (nextNode.Type.Equals("S_WAIT_P") || nextNode.Type.Equals("A_WAIT_P"))
                             {
                                 cost += this.waitPointCost;
-                                if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.Id))
+                                if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.NodeId))
                                 {
                                     continue;
                                 }
@@ -1031,7 +1031,7 @@ namespace ACS.Manager
                                     if (nextNode.Type.Equals("S_WAIT_P") || nextNode.Type.Equals("A_WAIT_P"))
                                     {
                                         cost += this.waitPointCost;
-                                        if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.Id))
+                                        if (this.ResourceManager.IsHaveVehicleGoToDestNode(nextNode.NodeId))
                                         {
                                             continue;
                                         }
@@ -1439,7 +1439,7 @@ namespace ACS.Manager
                     for (IEnumerator iterator = vehicles.GetEnumerator(); iterator.MoveNext();)
                     {
                         VehicleEx vehicle = (VehicleEx)iterator.Current;
-                        logger.Info("Logging Target(" + sourceNode.Id + ") Vehicle : " + vehicle.ToString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Vehicle : " + vehicle.ToString());
                     }
 
                     BayEx bay = this.ResourceManager.GetBay(bayId);
@@ -1455,7 +1455,7 @@ namespace ACS.Manager
                     Dictionary<string, IList> vehicleMap = this.ConvertVehiclesToMap(vehicles);
 
                     List<string> pathed = new List<string>();
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
                     List<List<string>> paths = new List<List<string>>();
                     paths.Add(pathed);
@@ -1464,7 +1464,7 @@ namespace ACS.Manager
                     pathMap.Add(pathed, 0);
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
                     Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
                     long startTime = System.DateTime.Now.Ticks;
@@ -1529,7 +1529,7 @@ namespace ACS.Manager
 
                     foreach (VehicleEx vehicle in vehicles)
                     {
-                        logger.Info("Logging Target(" + sourceNode.Id + ") Candidate-Vehicle : " + vehicle.ToString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Candidate-Vehicle : " + vehicle.ToString());
                     }
 
                     BayEx bay = this.ResourceManager.GetBay(bayId);
@@ -1544,7 +1544,7 @@ namespace ACS.Manager
                     IDictionary vehicleMap = this.ConvertVehiclesToMap(vehicles);
 
                     List<string> pathed = new List<string>();
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
                     List<List<string>> paths = new List<List<string>>();
                     paths.Add(pathed);
@@ -1553,7 +1553,7 @@ namespace ACS.Manager
                     pathMap.Add(pathed, 0);
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
                     Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
                     long startTime = System.DateTime.Now.Ticks;
@@ -1638,13 +1638,13 @@ namespace ACS.Manager
                     }
                     foreach (VehicleEx vehicle in vehicles)
                     {
-                        logger.Info("Logging Target(" + sourceNode.Id + ") Parking Vehicle : " + vehicle.ToString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Parking Vehicle : " + vehicle.ToString());
                     }
 
                     IDictionary vehicleMap = this.ConvertVehiclesToMap(vehicles);
 
                     List<string> pathed = new List<string>();
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
                     List<List<string>> paths = new List<List<string>>();
                     paths.Add(pathed);
@@ -1653,7 +1653,7 @@ namespace ACS.Manager
                     pathMap.Add(pathed, 0);
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
                     Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
                     long startTime = System.DateTime.Now.Ticks;
@@ -1714,13 +1714,13 @@ namespace ACS.Manager
                     }
                     foreach (VehicleEx vehicle in vehicles)
                     {
-                        logger.Info("Logging Target(" + sourceNode.Id + ") Parking Vehicle : " + vehicle.ToString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Parking Vehicle : " + vehicle.ToString());
                     }
 
                     Dictionary<string, IList> vehicleMap = this.ConvertVehiclesToMap(vehicles);
 
                     List<string> pathed = new List<string>();
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
                     List<List<string>> paths = new List<List<string>>();
                     paths.Add(pathed);
@@ -1729,7 +1729,7 @@ namespace ACS.Manager
                     pathMap.Add(pathed, 0);
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
                     Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
                     long startTime = System.DateTime.Now.Ticks;
@@ -1794,7 +1794,7 @@ namespace ACS.Manager
 
                     foreach (VehicleEx vehicle in vehicles)
                     {
-                        logger.Info("Logging Target(" + sourceNode.Id + ") Candidate-Vehicle : " + vehicle.ToString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Candidate-Vehicle : " + vehicle.ToString());
                     }
 
                     BayEx bay = this.ResourceManager.GetBay(bayId);
@@ -1809,7 +1809,7 @@ namespace ACS.Manager
                     IDictionary vehicleMap = this.ConvertVehiclesToMap(vehicles);
 
                     List<string> pathed = new List<string>();
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
                     List<List<string>> paths = new List<List<string>>();
                     paths.Add(pathed);
@@ -1818,7 +1818,7 @@ namespace ACS.Manager
                     pathMap.Add(pathed, 0);
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
                     Dictionary<int, VehicleEx> vehicleCost = new Dictionary<int, VehicleEx>();
                     long startTime = System.DateTime.Now.Ticks;
@@ -2369,7 +2369,7 @@ namespace ACS.Manager
                     {
                         string singleBay = (String)bayGroupCharge[i];
 
-                        LocationViewEx loc = this.CacheManager.GetLocationViewChargeByStationIdAndBayId(destnode.Id, singleBay);
+                        LocationViewEx loc = this.CacheManager.GetLocationViewChargeByStationIdAndBayId(destnode.NodeId, singleBay);
                         if (loc != null)
                         {
                             logger.Info("Find vehicle for location" + destnode + " in bay " + singleBay);

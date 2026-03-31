@@ -24,6 +24,7 @@ namespace ACS.Elsa.Workflows.Ei
                 Activities =
                 {
                     new ProcessAmrStatusActivity(),
+                    new ProcessAmrLocationChangeActivity(),
                 }
             };
         }

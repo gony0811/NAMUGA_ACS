@@ -320,12 +320,16 @@ namespace ACS.Communication.Mqtt
                     new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        Converters = { new FlexibleStringConverter() }
                     });
 
                 if (status != null)
                 {
                     status.VehicleId = vehicleId;
+                    logger.Debug($"AMR status parsed: vehicleId={vehicleId}, runState={status.State?.RunState}, " +
+                                 $"workState={status.State?.WorkState}, fullState={status.State?.FullState}, " +
+                                 $"errorCode={status.Error?.Code}");
                     _workflowManager?.Execute("VEHICLE-MESSAGERECEIVED",
                         new object[] { status, vehicleId });
                 }

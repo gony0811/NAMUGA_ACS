@@ -14,9 +14,9 @@ public class Node : Entity
     public static string TYPE_MONITOR = "MONITOR";
 
     public virtual string Type { get; set; }
-    public virtual int Xpos { get; set; }
-    public virtual int Ypos { get; set; }
-    public virtual int Zpos { get; set; }
+    public virtual double Xpos { get; set; }
+    public virtual double Ypos { get; set; }
+    public virtual double Zpos { get; set; }
 
     public override string ToString()
     {

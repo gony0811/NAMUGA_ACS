@@ -34,22 +34,37 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 ```json
 {
-  "robotState": "Running",
-  "errorCode": 0,
+  "state": {
+    "runState": "Running",
+    "fullState": "full",
+    "workState": "Idle",
+    "vehicleDestNode": "N0001"
+  },
+  
   "pose": {
     "x": 1.23,
     "y": 4.56,
     "angle": 0.78
   },
-  "mapStatusPercent": 95.5,
-  "navigationStatus": "Moving",
+  
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  
   "battery": {
-    "voltagePercent": 87.3,
-    "currentS": 1.2,
-    "currentA": -0.5,
+    "levelPercent": 87.3,
+    "voltage": 27.3,
+    "current": 1.2,
     "temperatureCelsius": 32.1,
     "chargingState": "Charging"
-  }
+  },
+  
+  "abnormal": {
+    "type": "CHARGING_FAIL",
+    "node": "N0001",
+    "timestamp": "2026-03-25T16:05:05Z"
+  } 
 }
 ```
 
@@ -57,14 +72,22 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 #### 최상위 필드
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `robotState` | string (enum) | 로봇 동작 상태 |
-| `errorCode` | number (ushort) | 에러 코드 (0 = 정상) |
-| `pose` | object | 로봇 현재 위치 |
-| `mapStatusPercent` | number (float) | 맵 상태 (0~100%) |
-| `navigationStatus` | string (enum) | 주행 상태 |
-| `battery` | object | 배터리 상태 |
+| 필드           | 타입     | 설명             |
+|--------------|--------|----------------|
+| `state`      | object | 로봇 동작 상태       |
+| `error`      | object | 에러 코드 (0 = 정상) |
+| `pose`       | object | 로봇 현재 위치       |
+| `battery`    | object | 베터리 상태         |
+| `abnormal`   | object | 비정상 상황 보고      |
+
+#### `state` 객체
+
+| 필드                  | 타입            | 단위 | 설명                         |
+|---------------------|---------------|----|----------------------------|
+| `runState`          | string (enum) | -  | run/stop                   |
+| `fullState`         | string (enum) | -  | full/empty                 |
+| `workState`         | string (enum) | -  | standby/moving/docking/jog |
+| `vehicleDestNode`   | string (enum) | -  | 현재 설정된 목적지                 |
 
 #### `pose` 객체
 
@@ -74,39 +97,55 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 | `y` | float | meters | Y 좌표 |
 | `angle` | float | radian | 각도 |
 
+#### `error` 객체
+
+| 필드               | 타입     | 단위 | 설명                    |
+|------------------|--------|----|-----------------------|
+| `error`          | int    | -  | error code            |
+| `message`        | string | -  | error message         |
+
 #### `battery` 객체
 
-| 필드 | 타입 | 단위 | 설명 |
-|------|------|------|------|
-| `voltagePercent` | float | % (0~100) | 배터리 잔량 |
-| `currentS` | float | A | 배터리 전류 S |
-| `currentA` | float | A | 배터리 전류 A (부호 있음) |
-| `temperatureCelsius` | float | °C | 배터리 온도 |
-| `chargingState` | string (enum) | - | 충전 상태 |
+| 필드                  | 타입 | 단위        | 설명               |
+|---------------------|------|-----------|------------------|
+| `levelPercent`      | float | % (0~100) | 배터리 잔량           |
+| `voltage`           | float | V         | 배터리 전압 V         |
+| `current`           | float | A         | 배터리 전류 A (부호 있음) |
+| `temperatureCelsius` | float | °C        | 배터리 온도           |
+| `chargingState`     | string (enum) | -         | 충전 상태            |
 
 ### Enum 값 정의
 
-#### `robotState`
+#### `runState`
 
-| 값 | 코드 | 설명 |
-|----|------|------|
-| `Off` | 1 | 정지 |
-| `Running` | 2 | 주행 중 |
-| `Paused` | 3 | 일시 정지 |
+| 값      | 코드 | 설명    |
+|--------|------|-------|
+| `Stop` | 1 | 정지    |
+| `Run`  | 2 | 시작    |
 
-#### `navigationStatus`
+#### 'fullState'
 
-| 값 | 코드 | 설명 |
-|----|------|------|
-| `WaitingForArrival` | 1 | 도착 대기 |
-| `Moving` | 2 | 이동 중 |
+| 값       | 코드 | 설명                  |
+|---------|---|---------------------|
+| `Empty` | 1 | 적재물 없음              |
+| `Full`  | 2 | 적재중                 |
+
+
+#### `workState`
+
+| 값         | 코드 | 설명       |
+|-----------|----|----------|
+| `Idle`    | 1  | 대기 중     |
+| `Moving`  | 2  | 이동 중     |
+| `Docking` | 3  | 도킹 중     |
+| `Jog`     | 4  | 조그 이동중   |
 
 #### `chargingState`
 
-| 값 | 코드 | 설명 |
-|----|------|------|
-| `Charging` | 1 | 충전 중 |
-| `FullyCharged` | 2 | 완충 |
+| 값             | 코드 | 설명   |
+|---------------|------|------|
+| `Charging`    | 1 | 충전 중 |
+| `Discharging` | 2 | 소비 중 |
 
 ---
 

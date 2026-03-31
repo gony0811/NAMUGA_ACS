@@ -22,8 +22,8 @@ public partial class MapViewModel : ObservableObject
 
     // ── Node 배치 모드 ──
     [ObservableProperty] private bool _isNodePlacementMode;
-    public List<(int X, int Y)> PendingPlacementNodes { get; } = new();
-    public event Action<List<(int X, int Y)>> NodePlacementCompleted;
+    public List<(double X, double Y)> PendingPlacementNodes { get; } = new();
+    public event Action<List<(double X, double Y)>> NodePlacementCompleted;
     public event Action? NodePlacementCancelled;
 
     public void EnterNodePlacementMode()
@@ -33,7 +33,7 @@ public partial class MapViewModel : ObservableObject
         DataChanged?.Invoke();
     }
 
-    public void AddPendingNode(int x, int y)
+    public void AddPendingNode(double x, double y)
     {
         PendingPlacementNodes.Add((x, y));
         DataChanged?.Invoke();
@@ -42,7 +42,7 @@ public partial class MapViewModel : ObservableObject
     public void FinishNodePlacement()
     {
         IsNodePlacementMode = false;
-        var result = new List<(int X, int Y)>(PendingPlacementNodes);
+        var result = new List<(double X, double Y)>(PendingPlacementNodes);
         PendingPlacementNodes.Clear();
         DataChanged?.Invoke();
         if (result.Count > 0)
@@ -67,9 +67,9 @@ public partial class MapViewModel : ObservableObject
     }
 
     // ── Node 드래그 이동 ──
-    public event Action<string, int, int>? NodePositionChanged;
+    public event Action<string, double, double>? NodePositionChanged;
 
-    public void UpdateNodePosition(string nodeId, int x, int y)
+    public void UpdateNodePosition(string nodeId, double x, double y)
     {
         var node = _nodes.FirstOrDefault(n => n.Id == nodeId);
         if (node != null)
@@ -80,7 +80,7 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
-    public void CommitNodePosition(string nodeId, int x, int y)
+    public void CommitNodePosition(string nodeId, double x, double y)
     {
         NodePositionChanged?.Invoke(nodeId, x, y);
     }

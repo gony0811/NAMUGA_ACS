@@ -83,7 +83,10 @@ public partial class NodeViewModel : ObservableObject
         {
             var success = await _apiService.CreateNodeAsync(dialog.Node);
             if (success)
+            {
                 await LoadNodesAsync();
+                await RefreshMapNodesAsync();
+            }
         }
     }
 
@@ -99,7 +102,10 @@ public partial class NodeViewModel : ObservableObject
         {
             var success = await _apiService.UpdateNodeAsync(dialog.Node);
             if (success)
+            {
                 await LoadNodesAsync();
+                await RefreshMapNodesAsync();
+            }
         }
     }
 
@@ -135,6 +141,7 @@ public partial class NodeViewModel : ObservableObject
                 await _apiService.DeleteNodeAsync(node.Id);
             }
             await LoadNodesAsync();
+            await RefreshMapNodesAsync();
         }
     }
 
@@ -155,7 +162,7 @@ public partial class NodeViewModel : ObservableObject
         }
 
         // 배치 완료 이벤트
-        void OnPlacementCompleted(List<(int X, int Y)> positions)
+        void OnPlacementCompleted(List<(double X, double Y)> positions)
         {
             Unsubscribe();
 
@@ -180,8 +187,9 @@ public partial class NodeViewModel : ObservableObject
                     if (success) created++;
                 }
 
-                // 목록 갱신 + 팝업 다시 표시
+                // 목록 갱신 + 맵 갱신 + 팝업 다시 표시
                 await LoadNodesAsync();
+                await RefreshMapNodesAsync();
                 ownerWindow?.Show();
                 ownerWindow?.Activate();
             });
@@ -200,7 +208,7 @@ public partial class NodeViewModel : ObservableObject
         }
 
         // 기존 노드 드래그 이동 완료 이벤트
-        void OnNodePositionChanged(string nodeId, int x, int y)
+        void OnNodePositionChanged(string nodeId, double x, double y)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
             {
@@ -214,6 +222,7 @@ public partial class NodeViewModel : ObservableObject
                 }
                 await _apiService!.UpdateNodeAsync(node);
                 await LoadNodesAsync();
+                await RefreshMapNodesAsync();
             });
         }
 
@@ -221,6 +230,20 @@ public partial class NodeViewModel : ObservableObject
         _mapViewModel.NodePlacementCancelled += OnPlacementCancelled;
         _mapViewModel.NodePositionChanged += OnNodePositionChanged;
         _mapViewModel.EnterNodePlacementMode();
+    }
+
+    /// <summary>
+    /// 맵 캔버스의 노드 데이터를 최신 상태로 갱신
+    /// </summary>
+    private async Task RefreshMapNodesAsync()
+    {
+        if (_apiService == null || _mapViewModel == null) return;
+        try
+        {
+            var nodes = await _apiService.GetNodesAsync();
+            _mapViewModel.UpdateNodes(nodes);
+        }
+        catch { }
     }
 
     /// <summary>

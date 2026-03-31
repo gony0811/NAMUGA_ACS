@@ -12,8 +12,10 @@ public class MapCanvas : Control
     private MapViewModel _viewModel;
     private double _zoom = 1.0;
     private Point _pan = new(0, 0);
+    private double _rotation = 0; // 회전 각도 (radians)
     private Point _lastMousePos;
     private bool _isPanning;
+    private bool _isRotating;
 
     // 히트테스트용 캐시 (Render 시 갱신)
     private Dictionary<string, Point> _cachedNodeScreenPositions = new();
@@ -26,9 +28,9 @@ public class MapCanvas : Control
     private string? _draggingNodeId;
     private bool _isDraggingNode;
 
-    // Coordinate transform
-    private double _scaleX = 1;
-    private double _scaleY = 1;
+    // Coordinate transform: 월드(m) → 화면(px)
+    // 기본 스케일: 1px = 1m. zoom으로 확대/축소 (최대 1px=1mm, 최소 1px=1m)
+    private double _baseScale = 1.0; // fit-to-screen 기본 스케일 (px per meter)
     private double _offsetX;
     private double _offsetY;
     private const double Padding = 40;
@@ -73,6 +75,12 @@ public class MapCanvas : Control
     // Link 선택 모드
     private static readonly IPen NodeHoverPen = new Pen(Brushes.White, 3);
     private static readonly IPen NodeSelectedFromPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 60, 60)), 3);
+
+    /// <summary>
+    /// 현재 유효 스케일 (px per meter). baseScale * zoom.
+    /// zoom=1일 때 fit-to-screen, 최대 확대 시 1px=1mm(1000px/m), 최소 축소 시 1px/m.
+    /// </summary>
+    private double EffectiveScale => _baseScale * _zoom;
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -164,6 +172,12 @@ public class MapCanvas : Control
             _lastMousePos = e.GetPosition(this);
             e.Handled = true;
         }
+        else if (point.Properties.IsRightButtonPressed)
+        {
+            _isRotating = true;
+            _lastMousePos = e.GetPosition(this);
+            e.Handled = true;
+        }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -193,6 +207,19 @@ public class MapCanvas : Control
         {
             var nodeId = FindNodeAtScreen(e.GetPosition(this));
             Cursor = nodeId != null ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Cross);
+            return;
+        }
+
+        if (_isRotating)
+        {
+            var pos = e.GetPosition(this);
+            double centerX = Bounds.Width / 2;
+            double centerY = Bounds.Height / 2;
+            double prevAngle = Math.Atan2(_lastMousePos.Y - centerY, _lastMousePos.X - centerX);
+            double currAngle = Math.Atan2(pos.Y - centerY, pos.X - centerX);
+            _rotation += currAngle - prevAngle;
+            _lastMousePos = pos;
+            InvalidateVisual();
             return;
         }
 
@@ -233,6 +260,7 @@ public class MapCanvas : Control
         }
 
         _isPanning = false;
+        _isRotating = false;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -261,6 +289,13 @@ public class MapCanvas : Control
                 e.Handled = true;
             }
         }
+        else if (e.Key == Key.R)
+        {
+            // R 키: 회전 초기화
+            _rotation = 0;
+            InvalidateVisual();
+            e.Handled = true;
+        }
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -274,7 +309,11 @@ public class MapCanvas : Control
             pos.X - (pos.X - _pan.X) * delta,
             pos.Y - (pos.Y - _pan.Y) * delta);
         _zoom *= delta;
-        _zoom = Math.Clamp(_zoom, 0.1, 20);
+
+        // zoom 범위 제한: 기본 1px=0.1m(10px/m), 최대 확대 1px=1mm(1000px/m), 최소 축소 1px=1m(1px/m)
+        double minZoom = Math.Max(0.05, 1.0 / Math.Max(_baseScale, 1));
+        double maxZoom = Math.Max(20, 1000.0 / Math.Max(_baseScale, 1));
+        _zoom = Math.Clamp(_zoom, minZoom, maxZoom);
 
         InvalidateVisual();
         e.Handled = true;
@@ -309,13 +348,21 @@ public class MapCanvas : Control
         var stations = _viewModel.Stations;
         var locations = _viewModel.Locations;
 
-        // Calculate bounding box and scale
+        // Calculate base transform (fit-to-screen)
         if (nodes.Count > 0)
             CalculateTransform(nodes);
         else
             CalculateDefaultTransform();
 
-        // Apply pan and zoom transform
+        // Apply pan, zoom, rotation transform
+        // 순서: 화면 중심 이동 → 회전 → 되돌리기 → zoom → pan
+        double cx = Bounds.Width / 2;
+        double cy = Bounds.Height / 2;
+        var rotationMatrix = Matrix.CreateTranslation(-cx, -cy)
+            * Matrix.CreateRotation(_rotation)
+            * Matrix.CreateTranslation(cx, cy);
+
+        using (context.PushTransform(rotationMatrix))
         using (context.PushTransform(Matrix.CreateTranslation(_pan.X, _pan.Y)))
         using (context.PushTransform(Matrix.CreateScale(_zoom, _zoom)))
         {
@@ -327,13 +374,19 @@ public class MapCanvas : Control
                 nodePositions[node.Id] = pos;
             }
 
-            // 히트테스트용 화면 좌표 캐싱 (pan/zoom 적용)
+            // 히트테스트용 화면 좌표 캐싱 (pan/zoom/rotation 적용)
             _cachedNodeScreenPositions.Clear();
             foreach (var (id, pos) in nodePositions)
             {
-                _cachedNodeScreenPositions[id] = new Point(
-                    pos.X * _zoom + _pan.X,
-                    pos.Y * _zoom + _pan.Y);
+                // zoom + pan 적용
+                double sx = pos.X * _zoom + _pan.X;
+                double sy = pos.Y * _zoom + _pan.Y;
+                // 화면 중심 기준 회전 적용
+                double cos = Math.Cos(_rotation);
+                double sin = Math.Sin(_rotation);
+                double rx = (sx - cx) * cos - (sy - cy) * sin + cx;
+                double ry = (sx - cx) * sin + (sy - cy) * cos + cy;
+                _cachedNodeScreenPositions[id] = new Point(rx, ry);
             }
 
             // Link lookup 사전 계산
@@ -380,17 +433,24 @@ public class MapCanvas : Control
                 }
             }
 
+            // 줌만 보정하여 화면 고정 크기 계산 (base-screen 좌표 단위)
+            // TransformPoint가 이미 _baseScale을 적용하므로, _zoom만 역보정해야 화면 px 고정
+            double nodeSize = Math.Clamp(7.0 / _zoom, 0.3, 500);           // 노드 사각형 반 크기
+            double vehicleRadius = Math.Clamp(14.0 / _zoom, 0.5, 1000);    // 차량 원 반지름
+            double fontSize = Math.Clamp(9.0 / _zoom, 0.3, 500);           // 라벨 폰트 크기
+            double linkWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);         // 링크 선 굵기
+
             // Draw links
-            DrawLinks(context, links, nodePositions);
+            DrawLinks(context, links, nodePositions, linkWidth);
 
             // Draw nodes (사각형 + 내부 방향 화살표)
-            DrawNodes(context, nodes, nodePositions, outgoingLinks, incomingLinks);
+            DrawNodes(context, nodes, nodePositions, outgoingLinks, incomingLinks, nodeSize, fontSize);
 
             // Draw stations (진행방향 사각형 마커)
-            DrawStations(context, links, nodePositions, stationsByLink, locationsByStation);
+            DrawStations(context, links, nodePositions, stationsByLink, locationsByStation, nodeSize, fontSize);
 
             // Draw vehicles
-            DrawVehicles(context, vehicles, nodePositions);
+            DrawVehicles(context, vehicles, nodePositions, vehicleRadius, fontSize);
 
             // Draw pending placement nodes (임시 마커)
             if (_viewModel.IsNodePlacementMode)
@@ -398,15 +458,17 @@ public class MapCanvas : Control
                 foreach (var (px, py) in _viewModel.PendingPlacementNodes)
                 {
                     var pos = TransformPoint(px, py);
-                    double s = 8;
+                    double s = nodeSize;
+                    double penWidth = Math.Clamp(2.0 / _zoom, 0.1, 100);
+                    var pendingPen = new Pen(PendingNodeBrush, penWidth);
                     // 십자 마커
-                    context.DrawLine(PendingNodePen, new Point(pos.X - s, pos.Y), new Point(pos.X + s, pos.Y));
-                    context.DrawLine(PendingNodePen, new Point(pos.X, pos.Y - s), new Point(pos.X, pos.Y + s));
+                    context.DrawLine(pendingPen, new Point(pos.X - s, pos.Y), new Point(pos.X + s, pos.Y));
+                    context.DrawLine(pendingPen, new Point(pos.X, pos.Y - s), new Point(pos.X, pos.Y + s));
                     // 좌표 라벨
-                    var label = new FormattedText($"({px},{py})",
+                    var label = new FormattedText($"({px:F1},{py:F1})",
                         System.Globalization.CultureInfo.InvariantCulture,
-                        FlowDirection.LeftToRight, DefaultTypeface, 9, PendingNodeBrush);
-                    context.DrawText(label, new Point(pos.X + 6, pos.Y - 14));
+                        FlowDirection.LeftToRight, DefaultTypeface, fontSize, PendingNodeBrush);
+                    context.DrawText(label, new Point(pos.X + s * 0.8, pos.Y - fontSize * 1.5));
                 }
             }
         }
@@ -434,6 +496,9 @@ public class MapCanvas : Control
             context.DrawRectangle(PlacementBannerBrush, null, new Rect(0, 0, Bounds.Width, bannerH));
             context.DrawText(bannerText, new Point(10, 5));
         }
+
+        // 스케일 표시 (우하단)
+        DrawScaleIndicator(context);
     }
 
     private void CalculateTransform(IReadOnlyList<NodeDto> nodes)
@@ -452,38 +517,35 @@ public class MapCanvas : Control
         double rangeX = maxX - minX;
         double rangeY = maxY - minY;
 
-        if (rangeX < 1) rangeX = 1;
-        if (rangeY < 1) rangeY = 1;
+        if (rangeX < 0.001) rangeX = 1;
+        if (rangeY < 0.001) rangeY = 1;
 
         double availableW = Math.Max(Bounds.Width - Padding * 2, 100);
         double availableH = Math.Max(Bounds.Height - Padding * 2, 100);
 
-        _scaleX = availableW / rangeX;
-        _scaleY = availableH / rangeY;
+        double scaleX = availableW / rangeX;
+        double scaleY = availableH / rangeY;
 
-        // Uniform scale
-        double scale = Math.Min(_scaleX, _scaleY);
-        _scaleX = scale;
-        _scaleY = scale;
+        // Uniform scale (px per meter at zoom=1)
+        _baseScale = Math.Min(scaleX, scaleY);
 
-        _offsetX = Padding - minX * _scaleX + (availableW - rangeX * scale) / 2;
-        _offsetY = Padding - minY * _scaleY + (availableH - rangeY * scale) / 2;
+        _offsetX = Padding - minX * _baseScale + (availableW - rangeX * _baseScale) / 2;
+        _offsetY = Padding - minY * _baseScale + (availableH - rangeY * _baseScale) / 2;
     }
 
     /// <summary>
-    /// 노드가 없을 때 기본 transform 설정 (1cm = 1px, 원점 중앙)
+    /// 노드가 없을 때 기본 transform 설정 (1px = 0.1m = 10px/m, 원점 중앙)
     /// </summary>
     private void CalculateDefaultTransform()
     {
-        _scaleX = 1;
-        _scaleY = 1;
+        _baseScale = 10; // 10px per meter → 1px = 0.1m
         _offsetX = Bounds.Width / 2;
         _offsetY = Bounds.Height / 2;
     }
 
     private Point TransformPoint(double x, double y)
     {
-        return new Point(x * _scaleX + _offsetX, y * _scaleY + _offsetY);
+        return new Point(x * _baseScale + _offsetX, y * _baseScale + _offsetY);
     }
 
     /// <summary>
@@ -530,32 +592,41 @@ public class MapCanvas : Control
     }
 
     /// <summary>
-    /// 화면 좌표를 월드 좌표(cm)로 역변환. zoom/pan 보정 포함.
+    /// 화면 좌표를 월드 좌표(m)로 역변환. rotation/zoom/pan 보정 포함.
     /// </summary>
-    private (int X, int Y) ScreenToWorld(Point screenPoint)
+    private (double X, double Y) ScreenToWorld(Point screenPoint)
     {
+        // 회전 역변환 (화면 중심 기준)
+        double cx = Bounds.Width / 2;
+        double cy = Bounds.Height / 2;
+        double cos = Math.Cos(-_rotation);
+        double sin = Math.Sin(-_rotation);
+        double rx = (screenPoint.X - cx) * cos - (screenPoint.Y - cy) * sin + cx;
+        double ry = (screenPoint.X - cx) * sin + (screenPoint.Y - cy) * cos + cy;
         // pan과 zoom 역변환
-        double x = (screenPoint.X - _pan.X) / _zoom;
-        double y = (screenPoint.Y - _pan.Y) / _zoom;
+        double x = (rx - _pan.X) / _zoom;
+        double y = (ry - _pan.Y) / _zoom;
         // offset과 scale 역변환
-        double worldX = (x - _offsetX) / _scaleX;
-        double worldY = (y - _offsetY) / _scaleY;
-        return ((int)Math.Round(worldX), (int)Math.Round(worldY));
+        double worldX = (x - _offsetX) / _baseScale;
+        double worldY = (y - _offsetY) / _baseScale;
+        return (Math.Round(worldX, 3), Math.Round(worldY, 3));
     }
 
-    private void DrawLinks(DrawingContext context, IReadOnlyList<LinkDto> links, Dictionary<string, Point> nodePositions)
+    private void DrawLinks(DrawingContext context, IReadOnlyList<LinkDto> links,
+        Dictionary<string, Point> nodePositions, double linkWidth)
     {
         foreach (var link in links)
         {
             if (!nodePositions.TryGetValue(link.FromNodeId ?? "", out var from)) continue;
             if (!nodePositions.TryGetValue(link.ToNodeId ?? "", out var to)) continue;
 
-            IPen pen = link.Availability switch
+            IBrush brush = link.Availability switch
             {
-                "1" => LinkUnavailablePen,
-                "2" => LinkBannedPen,
-                _ => LinkAvailablePen
+                "1" => LinkUnavailableBrush,
+                "2" => LinkBannedBrush,
+                _ => LinkAvailableBrush
             };
+            var pen = new Pen(brush, linkWidth);
 
             context.DrawLine(pen, from, to);
         }
@@ -564,13 +635,13 @@ public class MapCanvas : Control
     private void DrawNodes(DrawingContext context, IReadOnlyList<NodeDto> nodes,
         Dictionary<string, Point> nodePositions,
         Dictionary<string, List<LinkDto>> outgoingLinks,
-        Dictionary<string, List<LinkDto>> incomingLinks)
+        Dictionary<string, List<LinkDto>> incomingLinks,
+        double size, double fontSize)
     {
         bool isLinkMode = _viewModel?.IsLinkSelectionMode == true;
         string? hoveredId = _viewModel?.HoveredNodeId;
         string? fromId = _viewModel?.SelectedFromNodeId;
-
-        const double size = 7;
+        double penWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);
 
         foreach (var node in nodes)
         {
@@ -580,9 +651,9 @@ public class MapCanvas : Control
             bool isSelectedFrom = isLinkMode && node.Id == fromId;
 
             // border 색상: 타입별 색상 또는 하이라이트
-            IPen borderPen = isSelectedFrom ? NodeSelectedFromPen
-                           : isHovered ? NodeHoverPen
-                           : new Pen(GetNodeBrush(node.Type), 1.5);
+            IPen borderPen = isSelectedFrom ? new Pen(NodeSelectedFromPen.Brush, penWidth * 2)
+                           : isHovered ? new Pen(Brushes.White, penWidth * 2)
+                           : new Pen(GetNodeBrush(node.Type), penWidth);
 
             // 사각형: 흰색 채우기 + 타입별 border
             context.DrawRectangle(Brushes.White, borderPen,
@@ -596,7 +667,6 @@ public class MapCanvas : Control
 
                 if (outLinks.Count > 1 && incomingLinks.TryGetValue(node.Id, out var inLinks) && inLinks.Count > 0)
                 {
-                    // 들어오는 방향 (마지막 incoming의 from→to 방향)
                     var inLink = inLinks[0];
                     if (nodePositions.TryGetValue(inLink.FromNodeId ?? "", out var inFrom))
                     {
@@ -608,7 +678,6 @@ public class MapCanvas : Control
                             double inUx = inDx / inLen;
                             double inUy = inDy / inLen;
 
-                            // 각 나가는 Link에 대해 직진도 계산 (dot product)
                             double bestDot = double.MinValue;
                             foreach (var ol in outLinks)
                             {
@@ -639,14 +708,17 @@ public class MapCanvas : Control
                         double ux = dx / len;
                         double uy = dy / len;
 
-                        // 사각형 내부에 작은 삼각형 화살표
-                        double arrowSize = size * 0.65;
-                        double tipX = pos.X + ux * arrowSize;
-                        double tipY = pos.Y + uy * arrowSize;
-                        double bx = pos.X - ux * arrowSize;
-                        double by = pos.Y - uy * arrowSize;
-                        double px = -uy * arrowSize * 0.7;
-                        double py = ux * arrowSize * 0.7;
+                        // 사각형 내부 정삼각형 화살표
+                        double h = size * 1.3;                      // 삼각형 높이
+                        double halfBase = h / Math.Sqrt(3);         // 정삼각형: 밑변/2 = h/√3
+                        double tipDist = h * 2.0 / 3.0;            // 무게중심→꼭짓점
+                        double baseDist = h / 3.0;                  // 무게중심→밑변
+                        double tipX = pos.X + ux * tipDist;
+                        double tipY = pos.Y + uy * tipDist;
+                        double bx = pos.X - ux * baseDist;
+                        double by = pos.Y - uy * baseDist;
+                        double px = -uy * halfBase;
+                        double py = ux * halfBase;
 
                         IBrush arrowBrush = primaryLink.Availability switch
                         {
@@ -668,15 +740,15 @@ public class MapCanvas : Control
                 }
             }
 
-            // Node ID 라벨 표시
+            // Node ID 라벨 표시 (화면에서 충분히 클 때만)
             double screenSize = size * _zoom;
             if (screenSize >= 4 || isHovered || isSelectedFrom)
             {
                 var labelBrush = isSelectedFrom ? NodeSelectedFromPen.Brush : GetNodeBrush(node.Type);
                 var label = new FormattedText(node.Id ?? "",
                     System.Globalization.CultureInfo.InvariantCulture,
-                    FlowDirection.LeftToRight, DefaultTypeface, 9, labelBrush);
-                context.DrawText(label, new Point(pos.X + size + 3, pos.Y - 6));
+                    FlowDirection.LeftToRight, DefaultTypeface, fontSize, labelBrush);
+                context.DrawText(label, new Point(pos.X + size + size * 0.3, pos.Y - fontSize * 0.7));
             }
         }
     }
@@ -687,10 +759,12 @@ public class MapCanvas : Control
     private void DrawStations(DrawingContext context, IReadOnlyList<LinkDto> links,
         Dictionary<string, Point> nodePositions,
         Dictionary<string, List<StationDto>> stationsByLink,
-        Dictionary<string, List<string>> locationsByStation)
+        Dictionary<string, List<string>> locationsByStation,
+        double nodeSize, double fontSize)
     {
-        const double size = 7;
-        const double offset = size * 2;
+        double size = nodeSize;
+        double penWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);
+        double gap = penWidth;
 
         _cachedStationScreenPositions.Clear();
 
@@ -706,34 +780,37 @@ public class MapCanvas : Control
             double len = Math.Sqrt(dx * dx + dy * dy);
             if (len < 0.1) continue;
 
-            double ux = dx / len;  // 진행 방향
+            double ux = dx / len;
             double uy = dy / len;
 
-            // 방향별 인덱스 (같은 방향에 여러 Station이 있으면 순차 배치)
             var directionIndex = new Dictionary<string, int>();
 
             foreach (var station in stList)
             {
-                // Direction에 따른 offset 벡터 결정
                 var dir = (station.Direction ?? "").ToUpperInvariant();
-                double ox, oy;
+
+                // 링크 진행 방향 기준 offset 방향 벡터 (원시)
+                double rawOx, rawOy;
+                bool isDiagonal = false;
                 switch (dir)
                 {
                     case "RIGHT":
-                        ox = -uy;
-                        oy = ux;
+                        rawOx = -uy;
+                        rawOy = ux;
                         break;
                     case "LEFTBACK":
-                        ox = (uy - ux) * 0.707;
-                        oy = (-ux - uy) * 0.707;
+                        rawOx = (uy - ux) * 0.707;
+                        rawOy = (-ux - uy) * 0.707;
+                        isDiagonal = true;
                         break;
                     case "RIGHTBACK":
-                        ox = (-uy - ux) * 0.707;
-                        oy = (ux - uy) * 0.707;
+                        rawOx = (-uy - ux) * 0.707;
+                        rawOy = (ux - uy) * 0.707;
+                        isDiagonal = true;
                         break;
-                    default:
-                        ox = uy;
-                        oy = -ux;
+                    default: // LEFT
+                        rawOx = uy;
+                        rawOy = -ux;
                         break;
                 }
 
@@ -741,19 +818,51 @@ public class MapCanvas : Control
                     idx = 0;
                 directionIndex[dir] = idx + 1;
 
-                double stX = from.X + ox * (offset + idx * size * 2.2);
-                double stY = from.Y + oy * (offset + idx * size * 2.2);
+                // 축 정렬 사각형끼리 edge-flush 배치
+                // 원시 방향을 cardinal (상/하/좌/우) 또는 diagonal로 snap
+                double unitOffset = size * 2 + gap;
+                double stX, stY;
+                if (isDiagonal)
+                {
+                    // LEFTBACK/RIGHTBACK: 양축 모두 offset (대각선 코너)
+                    double sx = rawOx >= 0 ? 1 : -1;
+                    double sy = rawOy >= 0 ? 1 : -1;
+                    stX = from.X + sx * unitOffset * (1 + idx);
+                    stY = from.Y + sy * unitOffset * (1 + idx);
+                }
+                else
+                {
+                    // LEFT/RIGHT: 주 축 방향으로 snap하여 edge 정렬
+                    if (Math.Abs(rawOx) > Math.Abs(rawOy))
+                    {
+                        stX = from.X + (rawOx >= 0 ? 1 : -1) * unitOffset * (1 + idx);
+                        stY = from.Y;
+                    }
+                    else
+                    {
+                        stX = from.X;
+                        stY = from.Y + (rawOy >= 0 ? 1 : -1) * unitOffset * (1 + idx);
+                    }
+                }
 
-                // 화면 좌표 캐싱 (히트테스트용)
-                _cachedStationScreenPositions[station.Id] = new Point(
-                    stX * _zoom + _pan.X,
-                    stY * _zoom + _pan.Y);
+                // 화면 좌표 캐싱 (히트테스트용, 회전 포함)
+                {
+                    double ssx = stX * _zoom + _pan.X;
+                    double ssy = stY * _zoom + _pan.Y;
+                    double cos = Math.Cos(_rotation);
+                    double sin = Math.Sin(_rotation);
+                    double scx = Bounds.Width / 2;
+                    double scy = Bounds.Height / 2;
+                    _cachedStationScreenPositions[station.Id] = new Point(
+                        (ssx - scx) * cos - (ssy - scy) * sin + scx,
+                        (ssx - scx) * sin + (ssy - scy) * cos + scy);
+                }
 
                 bool isHovered = station.Id == _hoveredStationId;
 
                 // 사각형 마커
                 context.DrawRectangle(Brushes.White,
-                    isHovered ? new Pen(StationBrush, 2.5) : StationPen,
+                    isHovered ? new Pen(StationBrush, penWidth * 1.7) : new Pen(StationPen.Brush, penWidth),
                     new Rect(stX - size, stY - size, size * 2, size * 2));
 
                 // Hover 시 Port ID (LocationId) 라벨 표시
@@ -767,40 +876,44 @@ public class MapCanvas : Control
 
                     var label = new FormattedText(portLabel,
                         System.Globalization.CultureInfo.InvariantCulture,
-                        FlowDirection.LeftToRight, DefaultTypeface, 9, StationBrush);
-                    context.DrawText(label, new Point(stX + size + 3, stY - 6));
+                        FlowDirection.LeftToRight, DefaultTypeface, fontSize, StationBrush);
+                    context.DrawText(label, new Point(stX + size + size * 0.3, stY - fontSize * 0.7));
                 }
             }
         }
     }
 
-    private void DrawVehicles(DrawingContext context, IReadOnlyList<VehicleDto> vehicles, Dictionary<string, Point> nodePositions)
+    private void DrawVehicles(DrawingContext context, IReadOnlyList<VehicleDto> vehicles,
+        Dictionary<string, Point> nodePositions, double radius, double fontSize)
     {
+        double penWidth = Math.Clamp(2.0 / _zoom, 0.1, 100);
+        var outlinePen = new Pen(VehicleOutlinePen.Brush, penWidth);
+
         foreach (var vehicle in vehicles)
         {
             if (!nodePositions.TryGetValue(vehicle.CurrentNodeId ?? "", out var pos)) continue;
 
-            double radius = 14;
             IBrush brush = GetVehicleBrush(vehicle);
 
             // Vehicle circle
-            context.DrawEllipse(brush, VehicleOutlinePen, pos, radius, radius);
+            context.DrawEllipse(brush, outlinePen, pos, radius, radius);
 
             // Vehicle ID label (dark text for light theme)
+            double labelSize = fontSize * 1.1;
             var text = new FormattedText(
                 vehicle.VehicleId ?? "?",
                 System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
                 DefaultTypeface,
-                10,
+                labelSize,
                 Brushes.White);
 
             context.DrawText(text, new Point(pos.X - text.Width / 2, pos.Y - text.Height / 2));
 
             // Battery indicator bar below vehicle
-            double barWidth = 20;
-            double barHeight = 3;
-            double barY = pos.Y + radius + 3;
+            double barWidth = radius * 1.4;
+            double barHeight = radius * 0.2;
+            double barY = pos.Y + radius + radius * 0.2;
             double fillWidth = barWidth * vehicle.BatteryRate / 100.0;
 
             context.DrawRectangle(new SolidColorBrush(Color.FromRgb(200, 200, 200)), null,
@@ -811,6 +924,31 @@ public class MapCanvas : Control
             context.DrawRectangle(batteryBrush, null,
                 new Rect(pos.X - barWidth / 2, barY, fillWidth, barHeight));
         }
+    }
+
+    /// <summary>
+    /// 우하단에 현재 스케일 비율 표시
+    /// </summary>
+    private void DrawScaleIndicator(DrawingContext context)
+    {
+        double es = EffectiveScale;
+        string scaleText;
+        if (es >= 500)
+            scaleText = $"1px = {1000.0 / es:F1}mm";
+        else if (es >= 1)
+            scaleText = $"1px = {1.0 / es:F2}m";
+        else
+            scaleText = $"1px = {1.0 / es:F0}m";
+
+        double degrees = _rotation * 180.0 / Math.PI;
+        degrees = ((degrees % 360) + 360) % 360;
+        scaleText += $"  |  {degrees:F1}°";
+
+        var ft = new FormattedText(scaleText,
+            System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight, DefaultTypeface, 11,
+            new SolidColorBrush(Color.FromRgb(100, 100, 100)));
+        context.DrawText(ft, new Point(Bounds.Width - ft.Width - 10, Bounds.Height - ft.Height - 8));
     }
 
     private static IBrush GetNodeBrush(string type)

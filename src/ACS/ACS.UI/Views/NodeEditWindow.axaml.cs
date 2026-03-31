@@ -42,8 +42,8 @@ public partial class NodeEditWindow : Window
         if (TypeComboBox.SelectedIndex < 0)
             TypeComboBox.SelectedIndex = 0;
 
-        XPosNumeric.Value = Node.Xpos;
-        YPosNumeric.Value = Node.Ypos;
+        XPosNumeric.Value = (decimal)Node.Xpos;
+        YPosNumeric.Value = (decimal)Node.Ypos;
 
         Title = isEditMode ? "Modify Node" : "Add Node";
     }
@@ -52,8 +52,8 @@ public partial class NodeEditWindow : Window
     {
         Node.Id = IdTextBox.Text ?? "";
         Node.Type = (TypeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "COMMON";
-        Node.Xpos = (int)(XPosNumeric.Value ?? 0);
-        Node.Ypos = (int)(YPosNumeric.Value ?? 0);
+        Node.Xpos = (double)(XPosNumeric.Value ?? 0);
+        Node.Ypos = (double)(YPosNumeric.Value ?? 0);
         Close(true);
     }
 

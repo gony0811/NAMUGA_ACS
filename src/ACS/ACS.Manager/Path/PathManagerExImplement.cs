@@ -78,13 +78,13 @@ namespace ACS.Manager.Path
                 Dictionary<string, IList> vehicleMap = ConvertVehiclesToMap(vehicles);
 
                 PathEx path = new PathEx();
-                path.NodeIds.Add(sourceNode.Id);
+                path.NodeIds.Add(sourceNode.NodeId);
 
                 IList paths = new List<PathEx>();
                 paths.Add(path);
 
                 List<string> checkedNodeIds = new List<string>();
-                checkedNodeIds.Add(sourceNode.Id);
+                checkedNodeIds.Add(sourceNode.NodeId);
 
                 suitableVehicle = SearchSuitableVehicle(paths, linksMap, vehicleMap, checkedNodeIds);
             }
@@ -120,7 +120,7 @@ namespace ACS.Manager.Path
 
                     List<string> pathed = new List<string>();
 
-                    pathed.Add(sourceNode.Id);
+                    pathed.Add(sourceNode.NodeId);
 
 
                     IList paths = new List<IList>();
@@ -130,7 +130,7 @@ namespace ACS.Manager.Path
 
                     Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
 
-                    checkedPaths.Add(sourceNode.Id, paths);
+                    checkedPaths.Add(sourceNode.NodeId, paths);
 
 
                     VehicleEx vehicle = SearchSuitableVehicleDijkstra(paths, linksMap, vehicleMap, checkedPaths);
@@ -289,13 +289,13 @@ namespace ACS.Manager.Path
             startPath.CurrentNode = pathInfo.CurrentNode;
             startPath.CurrentStation = pathInfo.CurrentStation;
 
-            startPath.AddNodeId(sourceNode.Id);
+            startPath.AddNodeId(sourceNode.NodeId);
 
             bool isSameNode = false;
-            if (!sourceNode.Id.Equals(destNode.Id))
+            if (!sourceNode.NodeId.Equals(destNode.NodeId))
             {
-                startPath.CurrentNodeId = sourceNode.Id;
-                startPath.DestNodeId = destNode.Id;
+                startPath.CurrentNodeId = sourceNode.NodeId;
+                startPath.DestNodeId = destNode.NodeId;
 
                 //logger.info(" before getLinks");
                 IList links = GetLinks(useCarrierProcessType, carrierProcessTypeNames, isContainDeadNode);
@@ -331,8 +331,8 @@ namespace ACS.Manager.Path
             }
             else
             {
-                startPath.CurrentNodeId = sourceNode.Id;
-                startPath.DestNodeId = destNode.Id;
+                startPath.CurrentNodeId = sourceNode.NodeId;
+                startPath.DestNodeId = destNode.NodeId;
                 if (paths == null)
                 {
                     paths = new List<PathEx>();
@@ -354,7 +354,7 @@ namespace ACS.Manager.Path
             {
                 LinkEx link = value;
                 if ((!currentPath.ContainNodeId(link.ToNodeId)) ||
-                  (link.ToNodeId.Equals(destNode.Id)))
+                  (link.ToNodeId.Equals(destNode.NodeId)))
                 {
                     PathEx newPath = (PathEx)currentPath.Clone();
 
@@ -367,7 +367,7 @@ namespace ACS.Manager.Path
                       (!ExceedMaxTotalCost(newPath, pathInfo)))
                     {
                         SetPathAvailability(newPath, link);
-                        if (!link.ToNodeId.Equals(destNode.Id))
+                        if (!link.ToNodeId.Equals(destNode.NodeId))
                         {
                             List<PathEx> nextPaths = SearchDynamicPaths(pathInfo, newPath, destNode, linksMap);
                             if (nextPaths.Count > 0)
@@ -727,8 +727,10 @@ namespace ACS.Manager.Path
         
         public NodeEx GetNode(String id)
         {
-            StringBuilder sbId = new StringBuilder(id);
-            return (NodeEx)this.PersistentDao.Find(typeof(NodeEx), sbId, false);
+            IList results = this.PersistentDao.FindByAttribute(typeof(NodeEx), "NodeId", id, false);
+            if (results != null && results.Count > 0)
+                return (NodeEx)results[0];
+            return null;
         }
 
         public StationEx GetStation(String id)
@@ -1313,13 +1315,13 @@ namespace ACS.Manager.Path
                     //    Dictionary<string, IList> vehicleMap = ConvertVehiclesToMap(listVehicles);
 
                     //    List<string> pathed = new List<string>();                        
-                    //    pathed.Add(destNode.Id);
+                    //    pathed.Add(destNode.NodeId);
 
                     //    List<List<string>> paths = new List<List<string>>();
                     //    paths.Add(pathed);
 
                     //    Dictionary<string, List<List<string>>> checkedPaths = new Dictionary<string, List<List<string>>>();
-                    //    checkedPaths.Add(destNode.Id, paths);
+                    //    checkedPaths.Add(destNode.NodeId, paths);
 
                     //    VehicleEx vehicle = SearchSuitableVehicleDijkstra(paths, linksMap, vehicleMap, checkedPaths);
                     //    if (vehicle != null)

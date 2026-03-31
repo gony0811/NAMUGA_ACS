@@ -150,7 +150,7 @@ namespace ACS.Elsa.Activities
                 return 0;
             }
 
-            // d. vehicle 상태 확인: IDLE + CONNECT 여야 함
+            // d. vehicle 상태 확인: IDLE or CHARGE + CONNECT 여야 함
             if (vehicle.ProcessingState != VehicleEx.PROCESSINGSTATE_IDLE)
             {
                 return 0;

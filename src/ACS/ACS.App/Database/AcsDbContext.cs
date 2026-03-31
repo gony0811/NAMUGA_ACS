@@ -104,7 +104,7 @@ namespace ACS.Database
         }
 
         private static readonly string DefaultConnectionString =
-            "Host=localhost;Port=5432;Database=acsdb;Username=postgres;Password=P@4083w0rd";
+            "Host=localhost;Port=5432;Database=acsdb;Username=postgres;Password=1234";
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -138,7 +138,10 @@ namespace ACS.Database
             {
                 e.ToTable("NA_R_NODE");
                 e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Id).HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+                e.Property(x => x.NodeId).HasColumnName("node_id").HasMaxLength(64);
+                e.HasIndex(x => x.NodeId).IsUnique();
                 e.Property(x => x.Type).HasColumnName("type").HasMaxLength(20);
                 e.Property(x => x.Xpos).HasColumnName("xpos");
                 e.Property(x => x.Ypos).HasColumnName("ypos");

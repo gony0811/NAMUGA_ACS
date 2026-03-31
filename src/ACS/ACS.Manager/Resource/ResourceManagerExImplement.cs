@@ -123,8 +123,13 @@ namespace ACS.Manager.Resource
 
         public int DeleteNode(String nodeId)
         {
-            StringBuilder sbNodeId = new StringBuilder(nodeId);
-            return this.PersistentDao.Delete(typeof(NodeEx), sbNodeId);
+            var node = GetNode(nodeId);
+            if (node != null)
+            {
+                this.PersistentDao.Delete(node, false);
+                return 1;
+            }
+            return 0;
         }
 
         public void DeleteStation(StationEx station)
@@ -223,8 +228,10 @@ namespace ACS.Manager.Resource
 
         public NodeEx GetNode(String nodeId)
         {
-            StringBuilder sbNodeId = new StringBuilder(nodeId);
-            return (NodeEx)this.PersistentDao.Find(typeof(NodeEx), sbNodeId, false);
+            IList results = this.PersistentDao.FindByAttribute(typeof(NodeEx), "NodeId", nodeId, false);
+            if (results != null && results.Count > 0)
+                return (NodeEx)results[0];
+            return null;
         }
 
         public StationEx GetStation(String stationId)

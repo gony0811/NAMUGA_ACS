@@ -1376,7 +1376,7 @@ namespace ACS.Service
                 //					
                 //					if (node.Type.Equals(NodeEx.TYPE_WAIT_P)) 
                 //					{
-                //						vehicleMessage.setDestPortId(node.Id);
+                //						vehicleMessage.setDestPortId(node.NodeId);
                 //						return true;
                 //					}
                 //				}
@@ -1391,7 +1391,7 @@ namespace ACS.Service
                 for (IEnumerator iterator = listWaitNodes.GetEnumerator(); iterator.MoveNext();)
                 {
                     NodeEx node = (NodeEx)iterator.Current;
-                    String nodeId = node.Id;
+                    String nodeId = node.NodeId;
 
                     IList listLinkZones = this.PathManager.GetLinkZoneByFromNodeId(nodeId);
                     if (listLinkZones == null)
@@ -1405,7 +1405,7 @@ namespace ACS.Service
 
                         if (linkZone.ZoneId.Equals(bayId) && linkZone.TransferFlag.Equals("Y"))
                         {
-                            vehicleMessage.DestPortId = node.Id;
+                            vehicleMessage.DestPortId = node.NodeId;
                             return true;
                         }
                     }
@@ -1454,7 +1454,7 @@ namespace ACS.Service
                 //					
                 //					if (node.Type.Equals(NodeEx.TYPE_WAIT_P)) 
                 //					{
-                //						transferMessage.DestNodeId=(node.Id);
+                //						transferMessage.DestNodeId=(node.NodeId);
                 //						return true;
                 //					}
                 //				}
@@ -1469,7 +1469,7 @@ namespace ACS.Service
                 for (IEnumerator iterator = listWaitNodes.GetEnumerator(); iterator.MoveNext();)
                 {
                     NodeEx node = (NodeEx)iterator.Current;
-                    String nodeId = node.Id;
+                    String nodeId = node.NodeId;
 
                     IList listLinkZones = this.PathManager.GetLinkZoneByFromNodeId(nodeId);
                     if (listLinkZones == null)
@@ -1482,7 +1482,7 @@ namespace ACS.Service
 
                         if (linkZone.ZoneId.Equals(bayId) && linkZone.TransferFlag.Equals("Y"))
                         {
-                            transferMessage.DestNodeId = node.Id;
+                            transferMessage.DestNodeId = node.NodeId;
                             return true;
                         }
                     }
@@ -1527,7 +1527,7 @@ namespace ACS.Service
 
                         if (node.Type.Equals(NodeEx.TYPE_STOCK_STATION))
                         {
-                            vehicleMessage.DestNodeId = node.Id;
+                            vehicleMessage.DestNodeId = node.NodeId;
                             return true;
                         }
                     }
@@ -3950,7 +3950,7 @@ namespace ACS.Service
                 for (IEnumerator iterator = listWaitNodes.GetEnumerator(); iterator.MoveNext();)
                 {
                     NodeEx node = (NodeEx)iterator.Current;
-                    String nodeId = node.Id;
+                    String nodeId = node.NodeId;
 
                     IList listLinkZones = this.PathManager.GetLinkZoneByFromNodeId(nodeId);
                     if (listLinkZones == null)
@@ -3963,7 +3963,7 @@ namespace ACS.Service
 
                         if (linkZone.ZoneId.Equals(bayId) && linkZone.TransferFlag.Equals("Y"))
                         {
-                            return node.Id;
+                            return node.NodeId;
                         }
                     }
                 }

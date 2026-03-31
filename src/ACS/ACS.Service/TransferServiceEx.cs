@@ -631,7 +631,7 @@ namespace ACS.Service
                     //				if(!result) {
                     //					
                     //					transferMessage.Cause=(AbstractManager.RESULT_ROUTE_NOTFOUND);
-                    //					//logger.Warn("can not find Path sourceNode{" + sourceNode.Id + "}, destLocation{" + destLocation.StationId + "}"]=transferMessage);
+                    //					//logger.Warn("can not find Path sourceNode{" + sourceNode.NodeId + "}, destLocation{" + destLocation.StationId + "}"]=transferMessage);
                     //				}
                 }
                 else
@@ -1404,14 +1404,14 @@ namespace ACS.Service
 
             if (vhc != null && currentNode != null && destNode != null)
             {
-                string startNode = currentNode.Id;
+                string startNode = currentNode.NodeId;
 
-                if (vehicleMessage.CurrentPath != null && vehicleMessage.CurrentPath.Count > 2 && vehicleMessage.CurrentPath[2].Equals(destNode.Id))
+                if (vehicleMessage.CurrentPath != null && vehicleMessage.CurrentPath.Count > 2 && vehicleMessage.CurrentPath[2].Equals(destNode.NodeId))
                 {
                     startNode = (string)vehicleMessage.CurrentPath[0];
                     remainPath = string.Empty;
                 }
-                else if (vehicleMessage.CurrentPath != null && vehicleMessage.CurrentPath[0].Equals(destNode.Id))
+                else if (vehicleMessage.CurrentPath != null && vehicleMessage.CurrentPath[0].Equals(destNode.NodeId))
                 {
                     IList links = this.CacheManager.GetLinkByFromNodeId((string)(vehicleMessage.CurrentPath[0]));
                     if (links != null && links.Count > 0)
@@ -1437,18 +1437,18 @@ namespace ACS.Service
                 }
 
 
-                PathEx originalPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.Id, linkMap, true, false);
+                PathEx originalPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.NodeId, linkMap, true, false);
 
                 PathEx foundPath;
 
                 //if (bay != null && !string.IsNullOrEmpty(bay.Traffic) && bay.Traffic.Equals("Y", StringComparison.OrdinalIgnoreCase))
                 if (bay != null)
                 {
-                    foundPath = this.PathManager.SearchDynamicPathsDijkstraDivide(startNode, destNode.Id, linkMap);
+                    foundPath = this.PathManager.SearchDynamicPathsDijkstraDivide(startNode, destNode.NodeId, linkMap);
                 }
                 else
                 {
-                    foundPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.Id, linkMap, true, true);
+                    foundPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.NodeId, linkMap, true, true);
                 }
 
 
@@ -1460,7 +1460,7 @@ namespace ACS.Service
                     {
 
                         startNode = vhc.CurrentNodeId;
-                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.Id, linkMap, true, true);
+                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(startNode, destNode.NodeId, linkMap, true, true);
                         if (foundPath == null)
                         {
 
@@ -1490,7 +1490,7 @@ namespace ACS.Service
                     //
 
                     this.UpdateVehiclePath(vhc, path + ":" + totalTime);
-                    this.ResourceManager.UpdateVehicle(vhc, "VehicleDestNodeId", destNode.Id);
+                    this.ResourceManager.UpdateVehicle(vhc, "VehicleDestNodeId", destNode.NodeId);
 
                     vehicleMessage.Vehicle = vhc;
 
@@ -3053,11 +3053,11 @@ namespace ACS.Service
 
                 StationEx sourceStation = this.PathManager.GetStation(sourceLocation.StationId);
                 NodeEx sourceNode = this.PathManager.SearchNodeByStationAsDest(sourceStation);
-                if (!sourceNode.Id.Equals(commandVehicleNodeId))
+                if (!sourceNode.NodeId.Equals(commandVehicleNodeId))
                 {
 
-                    int commandVehicleLength = this.GetLength(commandVehicleNodeId, sourceNode.Id, linksMap, depthLimit);
-                    int currentVehicleLength = this.GetLength(currentVehicleNodeId, sourceNode.Id, linksMap, depthLimit);
+                    int commandVehicleLength = this.GetLength(commandVehicleNodeId, sourceNode.NodeId, linksMap, depthLimit);
+                    int currentVehicleLength = this.GetLength(currentVehicleNodeId, sourceNode.NodeId, linksMap, depthLimit);
                     if (currentVehicleLength < commandVehicleLength)
                     {
 
@@ -3172,9 +3172,9 @@ namespace ACS.Service
 
                     StationEx sourceStation = this.PathManager.GetStation(sourceLocation.StationId);
                     NodeEx sourceNode = this.PathManager.SearchNodeByStationAsDest(sourceStation);
-                    if (transportCommandMap.ContainsKey(sourceNode.Id))
+                    if (transportCommandMap.ContainsKey(sourceNode.NodeId))
                     {
-                        IList transportCommandsSameNode = (IList)transportCommandMap[sourceNode.Id];
+                        IList transportCommandsSameNode = (IList)transportCommandMap[sourceNode.NodeId];
                         transportCommandsSameNode.Add(transportCommand);
                     }
                     else
@@ -3182,7 +3182,7 @@ namespace ACS.Service
 
                         IList transportCommandsSameNode = new ArrayList();
                         transportCommandsSameNode.Add(transportCommand);
-                        transportCommandMap[sourceNode.Id] = transportCommandsSameNode;
+                        transportCommandMap[sourceNode.NodeId] = transportCommandsSameNode;
                     }
                 }
                 else
@@ -3809,10 +3809,10 @@ namespace ACS.Service
                 if (!vehicleMessage.NodeId.Equals(vhc.CurrentNodeId))
                 {
                     // Calculate missing path from vehicle current node to reporting T-Code node
-                    PathEx missingPath = this.PathManager.SearchDynamicPathsDijkstraEasy(vhc.CurrentNodeId, currentNode.Id);
+                    PathEx missingPath = this.PathManager.SearchDynamicPathsDijkstraEasy(vhc.CurrentNodeId, currentNode.NodeId);
 
                     // Calculate back path from reporting T-Code node to vehicle current node
-                    PathEx backPath = this.PathManager.SearchDynamicPathsDijkstraEasy(currentNode.Id, vhc.CurrentNodeId);
+                    PathEx backPath = this.PathManager.SearchDynamicPathsDijkstraEasy(currentNode.NodeId, vhc.CurrentNodeId);
                     //			List<String> originalPath = new ArrayList<String>();
                     List<String> missingTag = new List<String>();
                     if (missingPath != null)
@@ -3853,7 +3853,7 @@ namespace ACS.Service
                             }
                             else
                             {
-                                logger.Error("AGV report fly location: (" + vhc.Id + ") fly from: " + vhc.CurrentNodeId + " to: " + currentNode.Id);
+                                logger.Error("AGV report fly location: (" + vhc.Id + ") fly from: " + vhc.CurrentNodeId + " to: " + currentNode.NodeId);
                             }
                         }
                         else
@@ -3889,7 +3889,7 @@ namespace ACS.Service
                             }
                             else
                             {
-                                logger.Error("AGV report fly location: (" + vhc.Id + ") fly from: " + vhc.CurrentNodeId + " to: " + currentNode.Id);
+                                logger.Error("AGV report fly location: (" + vhc.Id + ") fly from: " + vhc.CurrentNodeId + " to: " + currentNode.NodeId);
                             }
                         }
 
@@ -3922,7 +3922,7 @@ namespace ACS.Service
             if (currentNode != null && destNode != null)
             {
 
-                PathEx originalPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.Id, destNode.Id, true, false);
+                PathEx originalPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.NodeId, destNode.NodeId, true, false);
 
                 PathEx foundPath = new PathEx();
                 BayEx bay = this.ResourceManager.GetBay(vhc.BayId);
@@ -3932,12 +3932,12 @@ namespace ACS.Service
                     {
                         IList linkViews = this.CacheManager.GetLinkViewByBayId(vhc.BayId);
                         Dictionary<string, IList> linkViewMap = this.PathManager.ConvertLinkViewsToMapByFromNode(linkViews);
-                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.Id, destNode.Id, linkViewMap, true, false);
+                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.NodeId, destNode.NodeId, linkViewMap, true, false);
                         originalPath = foundPath;
                     }
                     else
                     {
-                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.Id, destNode.Id, true, true);
+                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.NodeId, destNode.NodeId, true, true);
                     }
                 }
                 else
@@ -3946,10 +3946,10 @@ namespace ACS.Service
                     //			PathACS foundPath = ((PathManagerACSImplEx) this.pathManager).searchDynamicPathsDijkstra(currentNode.getId(), destNode.getId());
                     if (sp != null && ResourceManager.CheckValueBySpecialConfig(sp.Values, vhc.BayId))
                     {
-                        foundPath = this.PathManager.SearchDynamicPathsDijkstraDivide(currentNode.Id, destNode.Id);
+                        foundPath = this.PathManager.SearchDynamicPathsDijkstraDivide(currentNode.NodeId, destNode.NodeId);
                     }
                     else
-                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.Id, destNode.Id, true, true);
+                        foundPath = this.PathManager.SearchDynamicPathsDijkstra(currentNode.NodeId, destNode.NodeId, true, true);
                 }
 
                 if (foundPath != null && originalPath != null)
@@ -4076,7 +4076,7 @@ namespace ACS.Service
             if (currentNode != null && destNode != null)
             {
                 List<string> pathed = new List<string>();
-                pathed.Add(destNode.Id);
+                pathed.Add(destNode.NodeId);
 
                 IList paths = new ArrayList();
                 paths.Add(pathed);
@@ -4085,9 +4085,9 @@ namespace ACS.Service
                 pathMap.Add(pathed, 0);
 
                 Dictionary<string, IList> checkedPaths = new Dictionary<string, IList>();
-                checkedPaths.Add(currentNode.Id, paths);
+                checkedPaths.Add(currentNode.NodeId, paths);
 
-                Dictionary<int, List<string>> foundPath = this.PathManager.SearchPathFromVehicleToDest(pathMap, linksMap, currentNode.Id, checkedPaths, 0);
+                Dictionary<int, List<string>> foundPath = this.PathManager.SearchPathFromVehicleToDest(pathMap, linksMap, currentNode.NodeId, checkedPaths, 0);
 
                 if (foundPath != null && foundPath.Count > 0)
                 {

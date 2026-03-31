@@ -172,7 +172,7 @@ namespace ACS.Communication.Http.Handlers
                     var dto = ParseBody<NodeDto>(request);
                     var node = new NodeEx
                     {
-                        Id = dto.Id,
+                        NodeId = dto.Id,
                         Type = dto.Type,
                         Xpos = dto.Xpos,
                         Ypos = dto.Ypos,
@@ -358,7 +358,7 @@ namespace ACS.Communication.Http.Handlers
                     if (n == null) continue;
                     dtos.Add(new NodeDto
                     {
-                        Id = n.Id,
+                        Id = n.NodeId,
                         Type = n.Type,
                         Xpos = n.Xpos,
                         Ypos = n.Ypos,

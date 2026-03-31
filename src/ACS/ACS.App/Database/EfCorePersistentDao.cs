@@ -74,11 +74,25 @@ namespace ACS.Database
                     return cached;
             }
 
-            // EF Core 모델에서 엔티티 타입 검색
+            // EF Core 모델에서 엔티티 타입 검색 (정확한 이름 매칭)
             var entityType = _db.Model.GetEntityTypes()
                 .FirstOrDefault(et =>
                     et.ClrType.FullName == className ||
                     et.ClrType.Name == className);
+
+            // 정확한 매칭 실패 시, 상속 관계 검색 (예: VehicleEx → VehicleExs)
+            if (entityType == null)
+            {
+                var requestedType = AppDomain.CurrentDomain.GetAssemblies()
+                    .Select(a => a.GetType(className))
+                    .FirstOrDefault(t => t != null);
+
+                if (requestedType != null)
+                {
+                    entityType = _db.Model.GetEntityTypes()
+                        .FirstOrDefault(et => requestedType.IsAssignableFrom(et.ClrType));
+                }
+            }
 
             Type resolved = entityType?.ClrType;
 

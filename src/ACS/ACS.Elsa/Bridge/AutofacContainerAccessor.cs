@@ -45,5 +45,13 @@ namespace ACS.Elsa.Bridge
         {
             return Container?.ResolveNamed<T>(name);
         }
+
+        /// <summary>
+        /// Autofac 컨테이너에서 Type으로 서비스를 resolve.
+        /// </summary>
+        public object Resolve(System.Type serviceType)
+        {
+            return Container?.Resolve(serviceType);
+        }
     }
 }

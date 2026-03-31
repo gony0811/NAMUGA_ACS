@@ -2,6 +2,7 @@ using System;
 using Autofac;
 using ACS.Core.Base;
 using ACS.Core.Resource;
+using ACS.Core.Path;
 using ACS.Core.Cache;
 
 namespace ACS.App.Modules.Site

@@ -916,13 +916,22 @@ namespace ACS.Manager
             Dictionary<String, NodeEx> nodeMap = new Dictionary<string, NodeEx>();
 
             this.nodeEx = this.ResourceManager.GetNodes();
+            this.nodes = new List<NodeEx>();
 
-            foreach (NodeEx node in this.nodeEx)
+            logger.Info($"SynchronizeNodeACS: DB에서 {(this.nodeEx != null ? this.nodeEx.Count : 0)}개 노드 로드");
+
+            if (this.nodeEx != null)
             {
-                nodeMap.Add(node.Id, node);
+                foreach (NodeEx node in this.nodeEx)
+                {
+                    nodeMap.Add(node.NodeId, node);
+                    this.nodes.Add(node);
+                    logger.Debug($"SynchronizeNodeACS: nodeId={node.NodeId}, xpos={node.Xpos}, ypos={node.Ypos}");
+                }
             }
 
             this.nodeExMap = nodeMap;
+            logger.Info($"SynchronizeNodeACS: 캐시 동기화 완료. nodes={this.nodes.Count}, nodeExMap={this.nodeExMap.Count}");
             return true;
         }
 
