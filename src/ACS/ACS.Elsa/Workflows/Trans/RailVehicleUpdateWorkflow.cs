@@ -6,10 +6,12 @@ using Elsa.Workflows.Activities;
 using Elsa.Workflows.Attributes;
 using ACS.Core.Cache;
 using ACS.Core.Logging;
+using ACS.Core.Message.Model;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Communication.Mqtt.Model;
+using ACS.Service;
 
 namespace ACS.Elsa.Workflows.Trans
 {
@@ -149,6 +151,27 @@ namespace ACS.Elsa.Workflows.Trans
                 {
                     resourceManager.UpdateVehicleVehicleDestNodeId(vehicle, data.VehicleDestNodeId);
                     logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
+                }
+
+                // 7-1. ProcessingState 업데이트
+                if (string.IsNullOrEmpty(data.VehicleDestNodeId))
+                {
+                    // 목적지가 없으면 IDLE 상태로 전환
+                    resourceManager.UpdateVehicleProcessingState(data.VehicleId,
+                        VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
+                    logger.Info($"Vehicle ProcessingState → IDLE (VehicleDestNodeId 없음): vehicleId={data.VehicleId}");
+                }
+                else
+                {
+                    // 목적지가 있으면 ChangeVehicleProcessingState로 충전→IDLE 전환 로직 수행
+                    var resourceService = accessor.Resolve<ResourceServiceEx>();
+                    if (resourceService != null)
+                    {
+                        var vehicleMessage = new VehicleMessageEx();
+                        vehicleMessage.VehicleId = data.VehicleId;
+                        vehicleMessage.MessageName = "RAIL-VEHICLEUPDATE";
+                        resourceService.ChangeVehicleProcessingState(vehicleMessage);
+                    }
                 }
 
                 // 8. 노드 변경 시 CurrentNodeId 업데이트
