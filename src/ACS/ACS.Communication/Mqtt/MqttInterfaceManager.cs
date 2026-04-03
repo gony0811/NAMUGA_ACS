@@ -330,7 +330,7 @@ namespace ACS.Communication.Mqtt
                     logger.Debug($"AMR status parsed: vehicleId={vehicleId}, runState={status.State?.RunState}, " +
                                  $"workState={status.State?.WorkState}, fullState={status.State?.FullState}, " +
                                  $"errorCode={status.Error?.Code}");
-                    _workflowManager?.Execute("VEHICLE-MESSAGERECEIVED",
+                    _workflowManager?.Execute("VEHICLE-STATUS",
                         new object[] { status, vehicleId });
                 }
             }
@@ -343,7 +343,7 @@ namespace ACS.Communication.Mqtt
         private void HandleHeartbeatMessage(string vehicleId, string payload)
         {
             logger.Debug($"AMR heartbeat 수신: vehicleId={vehicleId}");
-            _workflowManager?.Execute("AMR-HEARTBEAT-RECEIVED",
+            _workflowManager?.Execute("VEHICLE-HEARTBEAT",
                 new object[] { payload, vehicleId });
         }
 
