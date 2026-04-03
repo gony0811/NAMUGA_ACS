@@ -115,7 +115,6 @@ namespace ACS.App
             }
             else if (executor.Type.Equals(TYPE_DS))
             {
-
                 SetApplicationContextToApplicationControlManager();
                 StartMsb(executor);
                 application = CreateOrUpdateApplication(executor);

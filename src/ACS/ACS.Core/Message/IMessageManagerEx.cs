@@ -252,6 +252,8 @@ namespace ACS.Core.Message
         void SendRestartNio(VehicleEx paramVehicleACS);
 
         UiTruncateMessageEx CreateUiTruncateMessage(XmlDocument paramDocument);
+
+        void SendVehicleUpdateJson(string jsonMessage);
     }
 
 }

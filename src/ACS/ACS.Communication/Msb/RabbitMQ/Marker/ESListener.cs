@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -29,6 +30,15 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
 
+                // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
+                string trimmed = message.TrimStart();
+                if (trimmed.StartsWith("{"))
+                {
+                    OnJsonMessage(message);
+                    return;
+                }
+
+                // 기존 XML 메시지 처리
                 object obj = null;
 
                 if (this.MsbConverter != null)
@@ -98,6 +108,14 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
 
+                // JSON 메시지 감지
+                string trimmed = message.TrimStart();
+                if (trimmed.StartsWith("{"))
+                {
+                    OnJsonMessage(message);
+                    return;
+                }
+
                 object obj = null;
 
                 if (this.MsbConverter != null)
@@ -165,6 +183,14 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
 
+                // JSON 메시지 감지
+                string trimmed = message.TrimStart();
+                if (trimmed.StartsWith("{"))
+                {
+                    OnJsonMessage(message);
+                    return;
+                }
+
                 object obj = null;
 
                 if (this.MsbConverter != null)
@@ -177,7 +203,7 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                 }
 
                 string dest = String.IsNullOrEmpty(ea.BasicProperties.AppId) ? "" : ea.BasicProperties.AppId;
-                
+
                 if (obj is ExtendDocument)
                 {
                     ExtendDocument document = (ExtendDocument)obj;
@@ -217,6 +243,30 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
             finally
             {
 
+            }
+        }
+
+        /// <summary>
+        /// JSON 형식 메시지 처리. header.messageName으로 워크플로우를 라우팅하고
+        /// JSON 원본 문자열을 Arguments로 전달한다.
+        /// </summary>
+        private void OnJsonMessage(string json)
+        {
+            try
+            {
+                using var jsonDoc = JsonDocument.Parse(json);
+                string messageName = jsonDoc.RootElement
+                    .GetProperty("header").GetProperty("messageName").GetString();
+                string transactionId = jsonDoc.RootElement
+                    .GetProperty("header").GetProperty("transactionId").GetString();
+
+                logger.Info($"JSON message received: messageName={messageName}, transactionId={transactionId}");
+
+                ExecuteWorkflow(transactionId, messageName, new object[] { json });
+            }
+            catch (Exception e)
+            {
+                logger.Error("JSON 메시지 처리 오류: " + json, e);
             }
         }
     }

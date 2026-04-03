@@ -1592,6 +1592,13 @@ namespace ACS.Manager.Message
             this.tsAgent.Send(document);
         }
 
+        public void SendVehicleUpdateJson(string jsonMessage)
+        {
+            // Send(object) → Send(object, DefaultDestination) 경로를 사용.
+            // Send(string) 경로는 NotImplementedException을 던지므로 object 캐스팅 사용.
+            this.tsAgent.Send((object)jsonMessage);
+        }
+
         public void SendVehicleMessageTCodePermission(String messageName, VehicleMessageEx vehicleMessage)
         {
             XmlDocument document = CreateTCodePermissionDocument(vehicleMessage);

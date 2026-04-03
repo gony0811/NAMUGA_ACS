@@ -51,16 +51,16 @@ namespace ACS.App.Modules
             // Awake 잡 10개: daemon 프로세스에서만 등록
             if (string.Equals(_processType, "daemon", StringComparison.OrdinalIgnoreCase))
             {
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeChargeTransportJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeChargeTransportJob, ACS.App");
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeQueueTransportJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.App");
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckVehiclesJob, ACS.App");
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckServerTimeJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteUiInformJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.App");
-                RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeTruncateHistoryJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteUiInformJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.App");
+                //RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeTruncateHistoryJob, ACS.App");
             }
         }
 

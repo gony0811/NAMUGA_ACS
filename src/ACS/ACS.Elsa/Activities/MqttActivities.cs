@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.Json;
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
@@ -143,15 +144,20 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
-    /// AMR 상태 메시지를 수신하여 Vehicle 상태를 업데이트하는 Activity.
-    /// MqttInterfaceManager에서 VEHICLE-MESSAGERECEIVED 워크플로우로 전달된
-    /// AmrStatusMessage를 파싱하여 VehicleEx의 각 필드를 갱신한다.
+    /// AMR 상태 메시지를 수신하여 RAIL-VEHICLEUPDATE JSON 메시지를 생성하고
+    /// RabbitMQ를 통해 Trans 프로세스로 전송하는 Activity.
+    ///
+    /// 기존 ProcessAmrStatusActivity(DB 직접 업데이트)와
+    /// ProcessAmrLocationChangeActivity(위치 변경 시 XML 전송)를 통합하여,
+    /// 모든 상태+위치를 하나의 JSON 메시지로 Trans에 전달한다.
+    /// DB 업데이트는 Trans 프로세스의 RailVehicleUpdateActivity에서 수행.
     /// </summary>
-    [Activity("ACS.Mqtt", "Process AMR Status",
-        "AMR 상태 메시지 수신 후 Vehicle 상태 업데이트")]
-    public class ProcessAmrStatusActivity : CodeActivity
+    [Activity("ACS.Mqtt", "Send AMR Vehicle Update",
+        "AMR 상태+위치를 RAIL-VEHICLEUPDATE JSON으로 Trans에 전송")]
+    public class SendAmrVehicleUpdateActivity : CodeActivity
     {
-        private static readonly Logger logger = Logger.GetLogger(typeof(ProcessAmrStatusActivity));
+        private static readonly Logger logger = Logger.GetLogger(typeof(SendAmrVehicleUpdateActivity));
+        private static readonly NearestNodeFinder _nodeFinder = new NearestNodeFinder();
 
         protected override void Execute(ActivityExecutionContext context)
         {
@@ -161,32 +167,28 @@ namespace ACS.Elsa.Activities
                 var input = context.WorkflowExecutionContext.Input;
                 if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 2)
                 {
-                    logger.Error("ProcessAmrStatusActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    logger.Error("SendAmrVehicleUpdateActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
                     return;
                 }
-
                 var status = args[0] as AmrStatusMessage;
                 var vehicleId = args[1] as string;
 
                 if (status == null || string.IsNullOrEmpty(vehicleId))
                 {
-                    logger.Error("ProcessAmrStatusActivity: AmrStatusMessage 또는 vehicleId가 null입니다.");
+                    logger.Error("SendAmrVehicleUpdateActivity: AmrStatusMessage 또는 vehicleId가 null입니다.");
                     return;
                 }
 
-                // Autofac에서 ResourceManager 해결
                 var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
                 if (accessor == null)
                 {
-                    logger.Error("ProcessAmrStatusActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    logger.Error("SendAmrVehicleUpdateActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
                     return;
                 }
 
                 // CommId로 Vehicle 조회 (MQTT vehicleId == VehicleEx.CommId)
-                // DB: VehicleExs 타입으로 매핑되어 있으므로 PersistentDao로 직접 조회
                 var persistentDao = accessor.Resolve<IPersistentDao>();
                 VehicleEx vehicle = null;
-                // EF Core는 VehicleExs(VehicleEx 상속)로 매핑되어 있음
                 var vehicleExsType = System.Type.GetType("ACS.Core.Resource.Model.VehicleExs, ACS.Core");
 
                 if (persistentDao != null)
@@ -205,98 +207,117 @@ namespace ACS.Elsa.Activities
 
                 if (vehicle == null)
                 {
-                    logger.Warn($"ProcessAmrStatusActivity: Vehicle을 찾을 수 없습니다. commId={vehicleId}, commType=MQTT");
+                    logger.Warn($"SendAmrVehicleUpdateActivity: Vehicle을 찾을 수 없습니다. commId={vehicleId}, commType=MQTT");
                     return;
                 }
 
-                // VehicleExs 타입 (EF Core 매핑 타입)으로 직접 DB 업데이트
                 string dbVehicleId = vehicle.VehicleId;
-                var dbType = vehicleExsType ?? typeof(VehicleEx);
 
-                logger.Info($"ProcessAmrStatusActivity: commId={vehicleId}, dbVehicleId={dbVehicleId}, " +
+                logger.Info($"SendAmrVehicleUpdateActivity: commId={vehicleId}, dbVehicleId={dbVehicleId}, " +
                             $"runState={status.State?.RunState}, workState={status.State?.WorkState}, " +
                             $"errorCode={status.Error?.Code}, fullState={status.State?.FullState}");
 
-                // PersistentDao로 직접 업데이트 (VehicleExs 타입, VehicleId 조건)
-                // 1. RunState 업데이트: Run→RUN, Stop→STOP
-                string runState = MapRunState(status.State?.RunState);
-                if (!string.IsNullOrEmpty(runState) && runState != vehicle.RunState)
-                {
-                    persistentDao.UpdateByAttribute(dbType, "RunState", runState, "VehicleId", dbVehicleId);
-                    logger.Info($"Vehicle RunState 업데이트: {vehicle.RunState} → {runState}, vehicleId={dbVehicleId}");
-                }
-
-                // 2. FullState 업데이트: Full→FULL, Empty→EMPTY
-                string fullState = MapFullState(status.State?.FullState);
-                if (!string.IsNullOrEmpty(fullState) && fullState != vehicle.FullState)
-                {
-                    persistentDao.UpdateByAttribute(dbType, "FullState", fullState, "VehicleId", dbVehicleId);
-                    logger.Info($"Vehicle FullState 업데이트: {vehicle.FullState} → {fullState}, vehicleId={dbVehicleId}");
-                }
-
-                // 3. VehicleDestNodeId 업데이트
-                string destNode = status.State?.VehicleDestNode;
-                if (!string.IsNullOrEmpty(destNode) && destNode != vehicle.VehicleDestNodeId)
-                {
-                    persistentDao.UpdateByAttribute(dbType, "VehicleDestNodeId", destNode, "VehicleId", dbVehicleId);
-                    logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {destNode}, vehicleId={dbVehicleId}");
-                }
-
-                // 4. AlarmState 업데이트: error.code 0→NOALARM, >0→ALARM
+                // 상태값 매핑
+                string runState = MapRunState(status.State?.RunState) ?? vehicle.RunState;
+                string fullState = MapFullState(status.State?.FullState) ?? vehicle.FullState;
                 int errorCode = status.Error?.Code ?? 0;
-                string alarmState = errorCode == 0
-                    ? VehicleEx.ALARMSTATE_NOALARM
-                    : VehicleEx.ALARMSTATE_ALARM;
-                if (alarmState != vehicle.AlarmState)
-                {
-                    persistentDao.UpdateByAttribute(dbType, "AlarmState", alarmState, "VehicleId", dbVehicleId);
-                    logger.Info($"Vehicle AlarmState 업데이트: {vehicle.AlarmState} → {alarmState}, vehicleId={dbVehicleId}");
-                }
+                string alarmState = errorCode == 0 ? VehicleEx.ALARMSTATE_NOALARM : VehicleEx.ALARMSTATE_ALARM;
+                int batteryRate = status.Battery != null ? (int)status.Battery.LevelPercent : vehicle.BatteryRate;
+                float batteryVoltage = status.Battery != null ? status.Battery.Voltage : vehicle.BatteryVoltage;
+                string vehicleDestNodeId = !string.IsNullOrEmpty(status.State?.VehicleDestNode)
+                    ? status.State.VehicleDestNode : vehicle.VehicleDestNodeId;
 
-                // 5. BatteryRate 업데이트 (battery.levelPercent → 잔량 %)
-                if (status.Battery != null)
-                {
-                    int batteryRate = (int)status.Battery.LevelPercent;
-                    if (batteryRate != vehicle.BatteryRate)
-                    {
-                        persistentDao.UpdateByAttribute(dbType, "BatteryRate", batteryRate, "VehicleId", dbVehicleId);
-                        logger.Info($"Vehicle BatteryRate 업데이트: {vehicle.BatteryRate} → {batteryRate}, vehicleId={dbVehicleId}");
-                    }
+                // Pose → 최근접 노드 판별
+                string currentNodeId = null;
+                bool nodeChanged = false;
 
-                    // 6. BatteryVoltage 업데이트 (battery.voltage → 전압 V)
-                    float batteryVoltage = status.Battery.Voltage;
-                    if (Math.Abs(batteryVoltage - vehicle.BatteryVoltage) > 0.01f)
-                    {
-                        persistentDao.UpdateByAttribute(dbType, "BatteryVoltage", batteryVoltage, "VehicleId", dbVehicleId);
-                        logger.Info($"Vehicle BatteryVoltage 업데이트: {vehicle.BatteryVoltage} → {batteryVoltage}, vehicleId={dbVehicleId}");
-                    }
-                }
-
-                // 7. EventTime 업데이트
-                persistentDao.UpdateByAttribute(dbType, "EventTime", DateTime.UtcNow, "VehicleId", dbVehicleId);
-
-                // 9. Pose 로깅 (현재 VehicleEx에 좌표 필드 없음)
                 if (status.Pose != null)
                 {
                     logger.Info($"AMR Pose: x={status.Pose.X}, y={status.Pose.Y}, angle={status.Pose.Angle}, vehicleId={vehicleId}");
+
+                    var cacheManager = accessor.Resolve<ICacheManagerEx>();
+                    if (cacheManager != null)
+                    {
+                        var nodes = cacheManager.GetNodeACS();
+                        if (nodes != null && nodes.Count > 0)
+                        {
+                            var configuration = accessor.Resolve<IConfiguration>();
+                            double threshold = 2.0;
+                            string thresholdStr = configuration?["Acs:Amr:NearestNodeThresholdMeters"];
+                            if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, out double configThreshold))
+                            {
+                                threshold = configThreshold;
+                            }
+
+                            var nearestNode = _nodeFinder.FindNearestNode(nodes, status.Pose.X, status.Pose.Y, threshold);
+                            if (nearestNode != null &&
+                                !string.Equals(nearestNode.NodeId, vehicle.CurrentNodeId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                currentNodeId = nearestNode.NodeId;
+                                nodeChanged = true;
+                                logger.Info($"SendAmrVehicleUpdateActivity: 노드 변경 감지. " +
+                                            $"vehicleId={dbVehicleId}, 이전={vehicle.CurrentNodeId}, 신규={currentNodeId}");
+                            }
+                        }
+                    }
                 }
 
-                // 10. Abnormal 로깅
+                // Abnormal 로깅
                 if (status.Abnormal != null && !string.IsNullOrEmpty(status.Abnormal.Type))
                 {
                     logger.Warn($"AMR Abnormal: type={status.Abnormal.Type}, node={status.Abnormal.Node}, " +
                                 $"timestamp={status.Abnormal.Timestamp}, vehicleId={vehicleId}");
                 }
+
+                // RAIL-VEHICLEUPDATE JSON 메시지 생성
+                var updateMessage = new RailVehicleUpdateMessage
+                {
+                    Header = new RailVehicleUpdateHeader
+                    {
+                        MessageName = "RAIL-VEHICLEUPDATE",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "EI"
+                    },
+                    Data = new RailVehicleUpdateData
+                    {
+                        VehicleId = dbVehicleId,
+                        CommId = vehicleId,
+                        RunState = runState,
+                        FullState = fullState,
+                        AlarmState = alarmState,
+                        BatteryRate = batteryRate,
+                        BatteryVoltage = batteryVoltage,
+                        VehicleDestNodeId = vehicleDestNodeId,
+                        CurrentNodeId = currentNodeId,
+                        NodeChanged = nodeChanged,
+                        ConnectionState = "CONNECT",
+                        EventTime = DateTime.UtcNow
+                    }
+                };
+
+                string json = JsonSerializer.Serialize(updateMessage);
+
+                // Trans로 JSON 전송
+                var messageManager = accessor.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("SendAmrVehicleUpdateActivity: IMessageManagerEx를 찾을 수 없습니다.");
+                    return;
+                }
+
+                messageManager.SendVehicleUpdateJson(json);
+
+                logger.Info($"SendAmrVehicleUpdateActivity: RAIL-VEHICLEUPDATE 전송 완료. " +
+                            $"vehicleId={dbVehicleId}, nodeChanged={nodeChanged}" +
+                            (nodeChanged ? $", nodeId={currentNodeId}" : ""));
             }
             catch (Exception e)
             {
-                logger.Error("ProcessAmrStatusActivity 오류", e);
+                logger.Error("SendAmrVehicleUpdateActivity 오류", e);
             }
         }
 
-        /// <summary>
-        /// state.runState → VehicleEx.RunState 매핑
-        /// </summary>
         private static string MapRunState(string runState)
         {
             return runState switch
@@ -307,9 +328,6 @@ namespace ACS.Elsa.Activities
             };
         }
 
-        /// <summary>
-        /// state.fullState → VehicleEx.FullState 매핑
-        /// </summary>
         private static string MapFullState(string fullState)
         {
             return fullState switch
@@ -319,7 +337,6 @@ namespace ACS.Elsa.Activities
                 _ => null
             };
         }
-
     }
 
     /// <summary>
@@ -412,142 +429,4 @@ namespace ACS.Elsa.Activities
         }
     }
 
-    /// <summary>
-    /// AMR Pose에서 가장 가까운 Node를 찾고, 노드가 변경되었으면
-    /// RAIL-VEHICLELOCATIONCHANGED XML 메시지를 RabbitMQ로 Trans 프로세스에 전송하는 Activity.
-    ///
-    /// 레거시 T_CODE(RFID 태그 통과 시 nodeId 직접 전달)를 대체하여,
-    /// Pose(X, Y) 좌표 기반으로 가장 가까운 노드를 판별한다.
-    /// 노드가 변경되지 않은 경우(동일 노드 반복 수신) 전송하지 않는다.
-    /// </summary>
-    [Activity("ACS.Mqtt", "Process AMR Location Change",
-        "AMR Pose에서 가장 가까운 Node를 찾고 위치 변경 시 Trans에 전송")]
-    public class ProcessAmrLocationChangeActivity : CodeActivity
-    {
-        private static readonly Logger logger = Logger.GetLogger(typeof(ProcessAmrLocationChangeActivity));
-        private static readonly NearestNodeFinder _nodeFinder = new NearestNodeFinder();
-
-        protected override void Execute(ActivityExecutionContext context)
-        {
-            try
-            {
-                // 워크플로우 Input에서 Arguments 추출: [AmrStatusMessage, vehicleId]
-                var input = context.WorkflowExecutionContext.Input;
-                if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 2)
-                {
-                    return;
-                }
-
-                var status = args[0] as AmrStatusMessage;
-                var vehicleId = args[1] as string;
-
-                if (status?.Pose == null || string.IsNullOrEmpty(vehicleId))
-                {
-                    return;
-                }
-
-                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
-                if (accessor == null)
-                {
-                    logger.Error("ProcessAmrLocationChangeActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
-                    return;
-                }
-
-                // 노드 목록 조회
-                var cacheManager = accessor.Resolve<ICacheManagerEx>();
-                if (cacheManager == null)
-                {
-                    logger.Error("ProcessAmrLocationChangeActivity: ICacheManagerEx를 찾을 수 없습니다.");
-                    return;
-                }
-
-                var nodes = cacheManager.GetNodeACS();
-                if (nodes == null || nodes.Count == 0)
-                {
-                    logger.Warn($"ProcessAmrLocationChangeActivity: 노드 목록이 비어 있습니다. nodes={nodes?.Count ?? -1}");
-                    return;
-                }
-
-                logger.Debug($"ProcessAmrLocationChangeActivity: 노드 {nodes.Count}개 로드됨, pose=({status.Pose.X}, {status.Pose.Y})");
-
-                // threshold 설정 조회
-                var configuration = accessor.Resolve<IConfiguration>();
-                double threshold = 2.0;
-                string thresholdStr = configuration?["Acs:Amr:NearestNodeThresholdMeters"];
-                if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, out double configThreshold))
-                {
-                    threshold = configThreshold;
-                }
-
-                // 가장 가까운 노드 찾기
-                var nearestNode = _nodeFinder.FindNearestNode(nodes, status.Pose.X, status.Pose.Y, threshold);
-                if (nearestNode == null)
-                {
-                    logger.Debug($"ProcessAmrLocationChangeActivity: threshold({threshold}m) 내에 노드 없음. " +
-                                 $"pose=({status.Pose.X}, {status.Pose.Y}), vehicleId={vehicleId}");
-                    return;
-                }
-
-                // Vehicle 조회 (CommId + CommType=MQTT)
-                var persistentDao = accessor.Resolve<IPersistentDao>();
-                VehicleEx vehicle = null;
-                var vehicleExsType = System.Type.GetType("ACS.Core.Resource.Model.VehicleExs, ACS.Core");
-                var dbType = vehicleExsType ?? typeof(VehicleEx);
-
-                if (persistentDao != null)
-                {
-                    var attrs = new Dictionary<string, object>
-                    {
-                        { "CommId", vehicleId },
-                        { "CommType", "MQTT" }
-                    };
-                    IList results = persistentDao.FindByAttributes(dbType, attrs);
-                    if (results != null && results.Count > 0)
-                    {
-                        vehicle = (VehicleEx)results[0];
-                    }
-                }
-
-                if (vehicle == null)
-                {
-                    logger.Warn($"ProcessAmrLocationChangeActivity: Vehicle을 찾을 수 없습니다. commId={vehicleId}");
-                    return;
-                }
-
-                // 노드 변경 확인: 동일 노드이면 스킵
-                if (string.Equals(nearestNode.NodeId, vehicle.CurrentNodeId, StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                logger.Info($"ProcessAmrLocationChangeActivity: 노드 변경 감지. " +
-                            $"vehicleId={vehicle.VehicleId}, commId={vehicleId}, " +
-                            $"이전={vehicle.CurrentNodeId}, 신규={nearestNode.NodeId}, " +
-                            $"pose=({status.Pose.X}, {status.Pose.Y}), " +
-                            $"distance={Math.Sqrt(Math.Pow(nearestNode.Xpos - status.Pose.X, 2) + Math.Pow(nearestNode.Ypos - status.Pose.Y, 2)):F2}m");
-
-                // VehicleMessageEx 생성 및 RAIL-VEHICLELOCATIONCHANGED 메시지 RabbitMQ 전송
-                var messageManager = accessor.Resolve<IMessageManagerEx>();
-                if (messageManager == null)
-                {
-                    logger.Error("ProcessAmrLocationChangeActivity: IMessageManagerEx를 찾을 수 없습니다.");
-                    return;
-                }
-
-                var vehicleMsg = messageManager.CreateVehicleMessage(vehicle);
-                vehicleMsg.NodeId = nearestNode.NodeId;
-                vehicleMsg.MessageName = "RAIL-VEHICLELOCATIONCHANGED";
-
-                // SendVehicleMessageTCodeEnter: XML 생성(RAIL-VEHICLELOCATIONCHANGED) + RabbitMQ 전송
-                messageManager.SendVehicleMessageTCodeEnter("RAIL-VEHICLELOCATIONCHANGED", vehicleMsg);
-
-                logger.Info($"ProcessAmrLocationChangeActivity: RAIL-VEHICLELOCATIONCHANGED 전송 완료. " +
-                            $"vehicleId={vehicle.VehicleId}, nodeId={nearestNode.NodeId}");
-            }
-            catch (Exception e)
-            {
-                logger.Error("ProcessAmrLocationChangeActivity 오류", e);
-            }
-        }
-    }
 }
