@@ -74,21 +74,7 @@ namespace ACS.App.Modules
                     .SingleInstance()
                     .PropertiesAutowired()
                     .OnActivated(e => ((AbstractManager)e.Instance).Init());
-
-            builder.RegisterType<NioInterfaceManager>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
-
-            builder.RegisterType<MqttInterfaceManager>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
-
-            builder.RegisterType<ACS.Communication.Socket.Checker.DuplicatedCheckerImpl>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
+            
 
             builder.RegisterType<ACS.Communication.Msb.Convert.Implement.MsbXmlConverterExImplement>()
                 .As<IMsbConverter>()
@@ -142,14 +128,6 @@ namespace ACS.App.Modules
             var requestMgrType = Type.GetType("ACS.Manager.Transfer.RequestManagerExImplement, ACS.Manager");
             if (requestMgrType != null)
                 builder.RegisterType(requestMgrType)
-                    .AsSelf()
-                    .SingleInstance()
-                    .PropertiesAutowired();
-
-            // InterfaceServiceEx
-            var interfaceServiceType = Type.GetType("ACS.Service.InterfaceServiceEx, ACS.Service");
-            if (interfaceServiceType != null)
-                builder.RegisterType(interfaceServiceType)
                     .AsSelf()
                     .SingleInstance()
                     .PropertiesAutowired();

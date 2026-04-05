@@ -56,6 +56,9 @@ namespace ACS.Communication.Mqtt.Model
 
         [JsonPropertyName("batteryVoltage")]
         public float BatteryVoltage { get; set; }
+        
+        [JsonPropertyName("batteryChargingState")]
+        public string BatteryChargingState { get; set; }
 
         [JsonPropertyName("vehicleDestNodeId")]
         public string VehicleDestNodeId { get; set; }

@@ -11,6 +11,7 @@ using ACS.Core.Path.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Communication.Mqtt.Model;
+using ACS.Core.Database.Model.Resource;
 using ACS.Service;
 
 namespace ACS.Elsa.Workflows.Trans
@@ -111,12 +112,21 @@ namespace ACS.Elsa.Workflows.Trans
                     logger.Info($"Vehicle ConnectionState → {data.ConnectionState}: vehicleId={data.VehicleId}");
                 }
 
+                if (!"BANNED".Equals(vehicle.State))
+                {
+                    resourceManager.UpdateVehicleState(vehicle, Vehicle.STATE_ALIVE, "RAIL-VEHICLEUPDATE");
+                    logger.Info($"Vehicle State → ALIVE: vehicleId={data.VehicleId}");
+                }
+                
+                
+
                 // 2. RunState 업데이트
                 if (!string.IsNullOrEmpty(data.RunState) && data.RunState != vehicle.RunState)
                 {
                     resourceManager.UpdateVehicleRunState(vehicle, data.RunState);
                     logger.Info($"Vehicle RunState 업데이트: {vehicle.RunState} → {data.RunState}, vehicleId={data.VehicleId}");
                 }
+                
 
                 // 3. FullState 업데이트
                 if (!string.IsNullOrEmpty(data.FullState) && data.FullState != vehicle.FullState)
@@ -145,9 +155,10 @@ namespace ACS.Elsa.Workflows.Trans
                     resourceManager.UpdateVehicleBatteryVoltage(vehicle, data.BatteryVoltage);
                     logger.Info($"Vehicle BatteryVoltage 업데이트: {vehicle.BatteryVoltage} → {data.BatteryVoltage}, vehicleId={data.VehicleId}");
                 }
+                
 
                 // 7. VehicleDestNodeId 업데이트
-                if (!string.IsNullOrEmpty(data.VehicleDestNodeId) && data.VehicleDestNodeId != vehicle.VehicleDestNodeId)
+                if (data.VehicleDestNodeId != vehicle.VehicleDestNodeId)
                 {
                     resourceManager.UpdateVehicleVehicleDestNodeId(vehicle, data.VehicleDestNodeId);
                     logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
@@ -161,17 +172,17 @@ namespace ACS.Elsa.Workflows.Trans
                         VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
                     logger.Info($"Vehicle ProcessingState → IDLE (VehicleDestNodeId 없음): vehicleId={data.VehicleId}");
                 }
+                
+                // 7-2. ProcessingState 업데이트 (충전여부)
+                if (string.IsNullOrEmpty(data.BatteryChargingState) && data.BatteryChargingState == "CHARGING")
+                {
+                    resourceManager.UpdateVehicleProcessingState(data.VehicleId, 
+                        Vehicle.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
+                }
                 else
                 {
-                    // 목적지가 있으면 ChangeVehicleProcessingState로 충전→IDLE 전환 로직 수행
-                    var resourceService = accessor.Resolve<ResourceServiceEx>();
-                    if (resourceService != null)
-                    {
-                        var vehicleMessage = new VehicleMessageEx();
-                        vehicleMessage.VehicleId = data.VehicleId;
-                        vehicleMessage.MessageName = "RAIL-VEHICLEUPDATE";
-                        resourceService.ChangeVehicleProcessingState(vehicleMessage);
-                    }
+                    resourceManager.UpdateVehicleProcessingState(data.VehicleId, 
+                        Vehicle.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");    
                 }
 
                 // 8. 노드 변경 시 CurrentNodeId 업데이트

@@ -28,7 +28,7 @@ namespace ACS.Core.Resource.Model
         public static string PROCESSINGSTATE_IDLE = "IDLE";
         public static string PROCESSINGSTATE_RUN = "RUN";
         public static string PROCESSINGSTATE_CHARGE = "CHARGE";
-        public static string PROCESSINGSTATE_PARK = "PARK"; //20200310 LYS Add on Function for Parking Station 
+        public static string PROCESSINGSTATE_PARK = "PARK";
         public static string STATE_ALIVE = "ALIVE";
         public static string STATE_BANNED = "BANNED";
         public static string RUNSTATE_RUN = "RUN";

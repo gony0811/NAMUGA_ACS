@@ -224,8 +224,9 @@ namespace ACS.Elsa.Activities
                 string alarmState = errorCode == 0 ? VehicleEx.ALARMSTATE_NOALARM : VehicleEx.ALARMSTATE_ALARM;
                 int batteryRate = status.Battery != null ? (int)status.Battery.LevelPercent : vehicle.BatteryRate;
                 float batteryVoltage = status.Battery != null ? status.Battery.Voltage : vehicle.BatteryVoltage;
+                string batteryChargingState = status.Battery != null ? status.Battery.ChargingState.ToUpper() : "DISCHARGING";
                 string vehicleDestNodeId = !string.IsNullOrEmpty(status.State?.VehicleDestNode)
-                    ? status.State.VehicleDestNode : vehicle.VehicleDestNodeId;
+                    ? status.State.VehicleDestNode : "";
 
                 // Pose → 최근접 노드 판별
                 string currentNodeId = null;
@@ -288,6 +289,7 @@ namespace ACS.Elsa.Activities
                         AlarmState = alarmState,
                         BatteryRate = batteryRate,
                         BatteryVoltage = batteryVoltage,
+                        BatteryChargingState = batteryChargingState,
                         VehicleDestNodeId = vehicleDestNodeId,
                         CurrentNodeId = currentNodeId,
                         NodeChanged = nodeChanged,
