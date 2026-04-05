@@ -110,7 +110,17 @@ namespace ACS.App.Modules
                     .As<IMessageManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired()
-                    .OnActivated(e => ((AbstractManager)e.Instance).Init());
+                    .OnActivated(e =>
+                    {
+                        ((AbstractManager)e.Instance).Init();
+                        // HostAgent는 Named registration이므로 PropertiesAutowired로 주입되지 않음 — 명시적 주입
+                        var hostAgentProp = e.Instance.GetType().GetProperty("HostAgent");
+                        if (hostAgentProp != null)
+                        {
+                            var hostAgent = e.Context.ResolveNamed<IMessageAgent>("HostAgentSender");
+                            hostAgentProp.SetValue(e.Instance, hostAgent);
+                        }
+                    });
 
             // HostMessageManager
             var hostMsgMgrType = Type.GetType("ACS.Manager.Host.HostMessageManagerImplement, ACS.Manager");
@@ -132,6 +142,14 @@ namespace ACS.App.Modules
             var requestMgrType = Type.GetType("ACS.Manager.Transfer.RequestManagerExImplement, ACS.Manager");
             if (requestMgrType != null)
                 builder.RegisterType(requestMgrType)
+                    .AsSelf()
+                    .SingleInstance()
+                    .PropertiesAutowired();
+
+            // InterfaceServiceEx
+            var interfaceServiceType = Type.GetType("ACS.Service.InterfaceServiceEx, ACS.Service");
+            if (interfaceServiceType != null)
+                builder.RegisterType(interfaceServiceType)
                     .AsSelf()
                     .SingleInstance()
                     .PropertiesAutowired();

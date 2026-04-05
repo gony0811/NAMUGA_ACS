@@ -34,7 +34,6 @@ builder.Services
         })
         .UseWorkflowsApi()
         .AddActivitiesFrom<Program>()
-        .AddActivitiesFrom<ACS.Elsa.Activities.ReflectionActivityBase>()
         .AddWorkflowsFrom<Program>()
     );
 

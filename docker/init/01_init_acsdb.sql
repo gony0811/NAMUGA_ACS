@@ -1774,6 +1774,91 @@ ALTER TABLE ONLY public."NA_R_LOCATION"
 
 
 --
+-- Views for EF Core entity mappings
+--
+
+-- NA_R_LINK_VW: Link + LinkZone + Zone + Node 좌표 결합
+CREATE OR REPLACE VIEW public."NA_R_LINK_VW" AS
+SELECT
+    lz.id,
+    lz."zoneId",
+    lz."transferFlag",
+    z."bayId",
+    l."fromNodeId",
+    fn.xpos::int AS from_xpos,
+    fn.ypos::int AS from_ypos,
+    l."toNodeId",
+    tn.xpos::int AS to_xpos,
+    tn.ypos::int AS to_ypos,
+    l.length,
+    l.speed,
+    l."leftBranch",
+    l.availability,
+    l.load,
+    0 AS loading
+FROM public."NA_R_LINK_ZONE" lz
+JOIN public."NA_R_LINK" l ON l.id = lz."linkId"
+JOIN public."NA_R_ZONE" z ON z."zoneId" = lz."zoneId"
+JOIN public."NA_R_NODE" fn ON fn.node_id = l."fromNodeId"
+JOIN public."NA_R_NODE" tn ON tn.node_id = l."toNodeId";
+
+-- NA_R_LOCATION_VW: Location + Station + LinkZone + Zone + Link + Node 좌표 결합
+CREATE OR REPLACE VIEW public."NA_R_LOCATION_VW" AS
+SELECT
+    loc."locationId" AS "portId",
+    s.id AS "stationId",
+    z."bayId",
+    loc.type AS "location_Type",
+    loc."carrierType",
+    loc.direction,
+    loc.state,
+    lz.id AS "linkId",
+    l."fromNodeId" AS "parentNode",
+    s.type AS "station_type",
+    s.distance,
+    fn.xpos::int AS from_xpos,
+    fn.ypos::int AS from_ypos,
+    tn.xpos::int AS to_xpos,
+    tn.ypos::int AS to_ypos,
+    l.length,
+    l."leftBranch",
+    l.availability,
+    l.load,
+    lz."transferFlag"
+FROM public."NA_R_LOCATION" loc
+JOIN public."NA_R_STATION" s ON s.id = loc."stationId"
+JOIN public."NA_R_LINK_ZONE" lz ON lz.id = s."linkId"
+JOIN public."NA_R_LINK" l ON l.id = lz."linkId"
+JOIN public."NA_R_ZONE" z ON z."zoneId" = lz."zoneId"
+JOIN public."NA_R_NODE" fn ON fn.node_id = l."fromNodeId"
+JOIN public."NA_R_NODE" tn ON tn.node_id = l."toNodeId";
+
+-- NA_R_STATION_VW: Station + Link의 fromNode/toNode 결합
+CREATE OR REPLACE VIEW public."NA_R_STATION_VW" AS
+SELECT
+    s.id,
+    s."linkId",
+    l."fromNodeId" AS "parentNode",
+    l."toNodeId" AS "nextNode",
+    s.type,
+    s.distance
+FROM public."NA_R_STATION" s
+JOIN public."NA_R_LINK_ZONE" lz ON lz.id = s."linkId"
+JOIN public."NA_R_LINK" l ON l.id = lz."linkId";
+
+-- NA_R_WAITP_VW: Node(WAIT_P 타입) + LinkZone에서 zoneId 결합
+CREATE OR REPLACE VIEW public."NA_R_WAITP_VW" AS
+SELECT
+    n.node_id AS id,
+    n.type,
+    lz."zoneId"
+FROM public."NA_R_NODE" n
+JOIN public."NA_R_LINK" l ON l."fromNodeId" = n.node_id OR l."toNodeId" = n.node_id
+JOIN public."NA_R_LINK_ZONE" lz ON lz."linkId" = l.id
+WHERE n.type IN ('WAIT_P', 'S_WAIT_P', 'A_WAIT_P', 'B_WAIT_P')
+GROUP BY n.node_id, n.type, lz."zoneId";
+
+--
 -- PostgreSQL database dump complete
 --
 

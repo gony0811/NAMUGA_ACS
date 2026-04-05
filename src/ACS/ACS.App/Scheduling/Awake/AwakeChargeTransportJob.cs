@@ -1,28 +1,24 @@
 using System;
 using System.Collections;
-using System.Xml;
-using ACS.Core.Message;
+using System.Text.Json;
 using ACS.Communication.Msb;
+using ACS.Communication.Mqtt.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
-using ACS.Core.Message.Model;
 
 namespace ACS.Scheduling
 {
     public class AwakeChargeTransportJob : PeriodicBackgroundService
     {
-        private readonly IMessageManagerEx _messageManager;
         private readonly IMessageAgent _messageAgent;
         private readonly IResourceManagerEx _resourceManager;
 
         protected override TimeSpan Interval => TimeSpan.FromSeconds(20);
 
         public AwakeChargeTransportJob(
-            IMessageManagerEx messageManager,
             IMessageAgent messageAgent,
             IResourceManagerEx resourceManager)
         {
-            _messageManager = messageManager;
             _messageAgent = messageAgent;
             _resourceManager = resourceManager;
         }
@@ -36,18 +32,23 @@ namespace ACS.Scheduling
                 {
                     BayEx bay = (BayEx)listbay;
 
-                    AbstractMessage message = new AbstractMessage();
+                    var message = new DaemonScheduleMessage
+                    {
+                        Header = new DaemonScheduleHeader
+                        {
+                            MessageName = "SCHEDULE-CHARGEJOB",
+                            TransactionId = Guid.NewGuid().ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            Sender = "Daemon"
+                        },
+                        Data = new DaemonScheduleData
+                        {
+                            BayId = bay.BayId
+                        }
+                    };
 
-                    message.MessageName = "SCHEDULE-CHARGEJOB";
-                    XmlDocument document = _messageManager.CreateDocument(message);
-
-                    XmlElement data = document.DocumentElement["DATA"];
-
-                    XmlNode element = document.CreateNode(XmlNodeType.Element, "BAYID", "");
-                    element.InnerText = bay.BayId;
-                    data.AppendChild(element);
-
-                    _messageAgent.Send(document);
+                    string json = JsonSerializer.Serialize(message);
+                    _messageAgent.Send((object)json);
                 }
             }
         }

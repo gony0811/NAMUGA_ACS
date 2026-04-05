@@ -43,9 +43,6 @@ namespace ACS.Elsa
                     // Use default in-memory runtime
                 });
 
-                // ACS.Elsa 어셈블리의 모든 Activity 등록 (ReflectionActivityBase 파생 + HeartBeatActivities + HostActivities 등)
-                elsa.AddActivitiesFrom<Activities.ReflectionActivityBase>();
-
                 // ACS.Elsa 어셈블리의 모든 워크플로우 등록 (ControlStartHeartBeatWorkflow, HostMoveCmdWorkflow 등)
                 elsa.AddWorkflowsFrom<Workflows.ControlStartHeartBeatWorkflow>();
             });

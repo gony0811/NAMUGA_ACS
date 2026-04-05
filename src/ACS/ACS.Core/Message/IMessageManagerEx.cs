@@ -62,6 +62,8 @@ namespace ACS.Core.Message
         VehicleMessageEx CreateVehicleMessageFromTrans(XmlDocument paramDocument);
 
         VehicleMessageEx CreateVehicleMessageFromDaemon(XmlDocument paramDocument);
+
+        VehicleMessageEx CreateVehicleMessageFromDaemon(string jsonMessage);
         AlarmMessage CreateAlarmMessage(XmlDocument paramDocument);
 
         XmlDocument CreateDocument();
@@ -254,6 +256,17 @@ namespace ACS.Core.Message
         UiTruncateMessageEx CreateUiTruncateMessage(XmlDocument paramDocument);
 
         void SendVehicleUpdateJson(string jsonMessage);
+
+        /// <summary>
+        /// JOBREPORT XML을 빌드하여 Host 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        void SendJobReportToHost(string reportType, string jobId, string amrId,
+            string actionType, string materialType);
+
+        /// <summary>
+        /// RAIL-CARRIERTRANSFER JSON을 EI 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        void SendCarrierTransferJson(string jsonMessage);
     }
 
 }

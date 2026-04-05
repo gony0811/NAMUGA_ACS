@@ -30,19 +30,8 @@ namespace ACS.Elsa.Workflows.Trans
                 Activities =
                 {
                     new WriteLine("COMMON-START-TRANS: Trans 서버 초기화 시작"),
-
-                    // MQTT 설정 로드 및 브로커 연결 시작
-                    new LoadAndStartMqttActivity
-                    {
-                        Result = new(mqttResult)
-                    },
-
-                    new If
-                    {
-                        Condition = new(mqttResult),
-                        Then = new WriteLine("COMMON-START-TRANS: MQTT 브로커 연결 시작 완료"),
-                        Else = new WriteLine("COMMON-START-TRANS: MQTT 설정 없음 또는 연결 실패")
-                    },
+                    
+                    
 
                     new WriteLine("COMMON-START-TRANS workflow completed.")
                 }

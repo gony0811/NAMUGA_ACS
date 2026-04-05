@@ -27,8 +27,11 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Text.Json;
 using System.Configuration;
 using System.Diagnostics;
+using ACS.Communication.Mqtt.Model;
+using IConfiguration = Microsoft.Extensions.Configuration.IConfiguration;
 
 
 
@@ -49,6 +52,7 @@ namespace ACS.Manager.Message
         protected IMessageAgent uiAgent;
         protected IMessageAgent esAgent;
         protected IMessageAgent tsAgent;
+        protected IMessageAgent hostAgent;
         //181213 WIFI RF ZIGBEE available
         protected String rfServerName = "";
 
@@ -115,6 +119,14 @@ namespace ACS.Manager.Message
             get { return tsAgent; }
             set { tsAgent = value; }
         }
+
+        public IMessageAgent HostAgent
+        {
+            get { return hostAgent; }
+            set { hostAgent = value; }
+        }
+
+        public IConfiguration Configuration { get; set; }
 
         public String RfServerName
         {
@@ -1289,6 +1301,42 @@ namespace ACS.Manager.Message
             return vehicleMessage;
         }
 
+        public VehicleMessageEx CreateVehicleMessageFromDaemon(string jsonMessage)
+        {
+            VehicleMessageEx vehicleMessage = new VehicleMessageEx();
+
+            var msg = JsonSerializer.Deserialize<DaemonScheduleMessage>(jsonMessage);
+            string messageName = msg.Header?.MessageName ?? "";
+            string bayId = msg.Data?.BayId ?? "";
+
+            vehicleMessage.MessageName = messageName;
+            vehicleMessage.KeyData = jsonMessage;
+
+            if (messageName.Equals("SCHEDULE-CHARGEJOB"))
+            {
+                vehicleMessage.BayId = bayId;
+            }
+            else if (messageName.Equals("SCHEDULE-QUEUEJOB"))
+            {
+                IList listVehicles = this.resourceManager.GetVehiclesByBayId(bayId);
+                vehicleMessage.BayId = bayId;
+                vehicleMessage.Vehicles = listVehicles;
+            }
+            else if (messageName.Equals("SCHEDULE-CHECKVEHICLES"))
+            {
+                IList listVehicles = this.resourceManager.GetVehicles();
+                vehicleMessage.Vehicles = listVehicles;
+            }
+            else if (messageName.Equals("SCHEDULE-CALLIDLEVEHICLE"))
+            {
+                IList listVehicles = this.resourceManager.GetVehiclesByBayId(bayId);
+                vehicleMessage.BayId = bayId;
+                vehicleMessage.Vehicles = listVehicles;
+            }
+
+            return vehicleMessage;
+        }
+
         public AlarmMessage CreateAlarmMessage(XmlDocument document)
         {
             AlarmMessage alarmMessage = new AlarmMessage();
@@ -1597,6 +1645,67 @@ namespace ACS.Manager.Message
             // Send(object) → Send(object, DefaultDestination) 경로를 사용.
             // Send(string) 경로는 NotImplementedException을 던지므로 object 캐스팅 사용.
             this.tsAgent.Send((object)jsonMessage);
+        }
+
+        public void SendJobReportToHost(string reportType, string jobId, string amrId,
+            string actionType, string materialType)
+        {
+            if (this.hostAgent == null)
+            {
+                logger.Error("SendJobReportToHost: hostAgent is not wired");
+                return;
+            }
+
+            string acsId = Configuration?["Acs:Process:Name"] ?? "ACS01";
+            string destSubject = Configuration?["Acs:Host:DestSubject"] ?? "/HQ/MES01";
+            string replySubject = Configuration?["Acs:Host:ReplySubject"] ?? "/HQ/ACS01";
+
+            var doc = new XmlDocument();
+            var decl = doc.CreateXmlDeclaration("1.0", "utf-8", null);
+            doc.AppendChild(decl);
+
+            var msg = doc.CreateElement("Msg");
+            doc.AppendChild(msg);
+
+            var cmdElem = doc.CreateElement("Command");
+            cmdElem.InnerText = "JOBREPORT";
+            msg.AppendChild(cmdElem);
+
+            var header = doc.CreateElement("Header");
+            msg.AppendChild(header);
+            var destElem = doc.CreateElement("DestSubject");
+            destElem.InnerText = destSubject;
+            header.AppendChild(destElem);
+            var replyElem = doc.CreateElement("ReplySubject");
+            replyElem.InnerText = replySubject;
+            header.AppendChild(replyElem);
+
+            var dataLayer = doc.CreateElement("DataLayer");
+            msg.AppendChild(dataLayer);
+            foreach (var (name, value) in new[]
+            {
+                ("AcsId", acsId), ("Type", reportType), ("AmrId", amrId ?? ""),
+                ("ActionType", actionType ?? ""), ("JobID", jobId),
+                ("MaterialType", materialType ?? ""), ("UserID", "")
+            })
+            {
+                var elem = doc.CreateElement(name);
+                elem.InnerText = value;
+                dataLayer.AppendChild(elem);
+            }
+
+            this.hostAgent.Send(doc, true, "TRSJOBREPORT");
+            logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}");
+        }
+
+        public void SendCarrierTransferJson(string jsonMessage)
+        {
+            if (this.esAgent == null)
+            {
+                logger.Error("SendCarrierTransferJson: esAgent is not wired");
+                return;
+            }
+            this.esAgent.Send((object)jsonMessage);
         }
 
         public void SendVehicleMessageTCodePermission(String messageName, VehicleMessageEx vehicleMessage)

@@ -76,11 +76,7 @@ namespace ACS.Elsa.Workflows
 
                     // Step 4: 로그 출력
                     new WriteLine("MOVECMD workflow completed: TransportCommand processed, JOBREPORT(RECEIVE) sent")
-
-                    // TODO: 향후 추가 Step
-                    // - 차량 배정 로직
-                    // - 차량에 이동 명령 전송
-                    // - JOBREPORT(ASSIGNED) 전송
+                    
                 }
             };
         }

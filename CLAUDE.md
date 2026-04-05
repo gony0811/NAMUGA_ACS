@@ -33,6 +33,30 @@ ACS.Elsa.Studio / ACS.Elsa.Studio.Client (워크플로우 디자이너 웹 UI)
 ACS.UI (Avalonia 데스크탑 클라이언트)
 ```
 
+### 프로세스 유형별 프로젝트 구성
+    ## ACS.Manager: 공통 비즈니스 로직
+        - MessageManager : 메시지 처리 및 라우팅
+        - ResourceManager : Vehicle, Node, Path 등 도메인 모델 관리
+        - PathManager : 경로 탐색 및 최적화
+        - AlarmManager : 알람 상태 관리
+        - TransferManager : 반송 작업 관리
+        - MaterialManager : 자재 관리
+        - HistoryManager : 작업 이력 관리
+        - ApplicationManager : 애플리케이션 설정 및 관리
+    ## ACS.Service : 프로세스 유형별 서비스 구현
+        - AlarmService : 알람 상태 관리
+        - TransferService : 반송 작업 관리
+        - MaterialService : 자재 관리
+        - HistoryService : 작업 이력 관리
+        - InterfaceService : 통신 인터페이스 관리
+        - ResourceService : 자원 관리 (Vehicle, Node, Path)
+        - VehicleInterfaceService : 차량 인터페이스 관리
+- ACS.UI: 데스크탑 UI (Avalonia)
+- ACS.Elsa: 워크플로우 정의 및 액티비티 구현
+- ACS.Core: 인터페이스 및 도메인 모델 정의
+- ACS.Communication: 프로토콜별 통신 구현 (예: MQTT, RabbitMQ)
+- ACS.Service: 프로세스 유형별 서비스 구현 (예: `AmrService`,
+
 ## 핵심 아키텍처 패턴
 
 - **Executor 패턴**: `ACS.App/Executor.cs`가 설정 로드 → Autofac 컨테이너 빌드 → DB 초기화 → 스케줄러/서비스 시작을 순차 수행

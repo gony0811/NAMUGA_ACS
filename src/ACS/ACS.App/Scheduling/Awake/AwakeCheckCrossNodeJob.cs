@@ -1,23 +1,19 @@
 using System;
-using System.Xml;
-using ACS.Core.Message;
+using System.Text.Json;
 using ACS.Communication.Msb;
-using ACS.Core.Message.Model;
+using ACS.Communication.Mqtt.Model;
 
 namespace ACS.Scheduling
 {
     public class AwakeCheckCrossNodeJob : PeriodicBackgroundService
     {
-        private readonly IMessageManagerEx _messageManager;
         private readonly IMessageAgent _messageAgent;
 
         protected override TimeSpan Interval => TimeSpan.FromSeconds(5);
 
         public AwakeCheckCrossNodeJob(
-            IMessageManagerEx messageManager,
             IMessageAgent messageAgent)
         {
-            _messageManager = messageManager;
             _messageAgent = messageAgent;
         }
 
@@ -25,23 +21,19 @@ namespace ACS.Scheduling
         {
             try
             {
-                AbstractMessage message = new AbstractMessage();
+                var message = new DaemonScheduleMessage
+                {
+                    Header = new DaemonScheduleHeader
+                    {
+                        MessageName = "SCHEDULE-CHECKCROSSNODE",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "Daemon"
+                    }
+                };
 
-                message.MessageName = "SCHEDULE-CHECKCROSSNODE";
-                XmlDocument document = _messageManager.CreateDocument(message);
-
-                XmlElement data = document.DocumentElement["DATA"];
-
-                XmlNode element = document.CreateNode(XmlNodeType.Element, "NAME", "");
-                element.InnerText = message.MessageName;
-                data.AppendChild(element);
-
-                _messageAgent.Send(document);
-            }
-            catch (NullReferenceException nullEx)
-            {
-                logger.Error(nullEx.StackTrace, nullEx);
-                return;
+                string json = JsonSerializer.Serialize(message);
+                _messageAgent.Send((object)json);
             }
             catch (Exception ex)
             {

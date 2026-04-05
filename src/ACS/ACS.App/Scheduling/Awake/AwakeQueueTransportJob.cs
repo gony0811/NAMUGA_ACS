@@ -1,19 +1,17 @@
 using System;
 using System.Collections;
-using System.Xml;
+using System.Text.Json;
 using ACS.Core.Transfer;
-using ACS.Core.Message;
 using ACS.Communication.Msb;
+using ACS.Communication.Mqtt.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
-using ACS.Core.Message.Model;
 
 namespace ACS.Scheduling
 {
     public class AwakeQueueTransportJob : PeriodicBackgroundService
     {
         private readonly ITransferManagerEx _transferManager;
-        private readonly IMessageManagerEx _messageManager;
         private readonly IMessageAgent _messageAgent;
         private readonly IResourceManagerEx _resourceManager;
 
@@ -21,12 +19,10 @@ namespace ACS.Scheduling
 
         public AwakeQueueTransportJob(
             ITransferManagerEx transferManager,
-            IMessageManagerEx messageManager,
             IMessageAgent messageAgent,
             IResourceManagerEx resourceManager)
         {
             _transferManager = transferManager;
-            _messageManager = messageManager;
             _messageAgent = messageAgent;
             _resourceManager = resourceManager;
         }
@@ -43,22 +39,28 @@ namespace ACS.Scheduling
                     {
                         foreach (var bay in listBays)
                         {
+                            string bayId = ((BayEx)bay).BayId;
+                            IList queueList = _transferManager.GetQueuedTransportCommandsByBayId(bayId);
 
-                            IList queueList = _transferManager.GetQueuedTransportCommandsByBayId(((BayEx)bay).BayId);
-
-                            if (queueList != null)
+                            if (queueList != null && queueList.Count != 0)
                             {
-                                if (queueList.Count != 0)
+                                var message = new DaemonScheduleMessage
                                 {
+                                    Header = new DaemonScheduleHeader
                                     {
-                                        AbstractMessage message = new AbstractMessage();
-
-                                        message.MessageName = "SCHEDULE-QUEUEJOB";
-                                        XmlDocument document = _messageManager.CreateDocument(message);
-
-                                        _messageAgent.Send(document);//SCHEDULE_QUEUEJOB message
+                                        MessageName = "SCHEDULE-QUEUEJOB",
+                                        TransactionId = Guid.NewGuid().ToString(),
+                                        Timestamp = DateTime.UtcNow,
+                                        Sender = "Daemon"
+                                    },
+                                    Data = new DaemonScheduleData
+                                    {
+                                        BayId = bayId
                                     }
-                                }
+                                };
+
+                                string json = JsonSerializer.Serialize(message);
+                                _messageAgent.Send((object)json);
                             }
                         }
                     }

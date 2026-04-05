@@ -26,18 +26,6 @@ namespace ACS.Elsa.Workflows.Trans
             {
                 Activities =
                 {
-                    new StopMqttActivity
-                    {
-                        Result = new(mqttResult)
-                    },
-
-                    new If
-                    {
-                        Condition = new(mqttResult),
-                        Then = new WriteLine("COMMON-STOP-TRANS: MQTT 브로커 연결 종료 완료"),
-                        Else = new WriteLine("COMMON-STOP-TRANS: MQTT 정지 실패")
-                    },
-
                     new WriteLine("COMMON-STOP-TRANS workflow completed.")
                 }
             };

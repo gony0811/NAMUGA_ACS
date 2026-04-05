@@ -28,6 +28,16 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
 
+                string dest = String.IsNullOrEmpty(ea.BasicProperties.AppId) ? "" : ea.BasicProperties.AppId;
+
+                // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
+                if (IsJsonMessage(message))
+                {
+                    logger.Info("received JSON message from Daemon: " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
+                    OnJsonMessage(message, dest);
+                    return;
+                }
+
                 object obj = null;
 
                 if (this.MsbConverter != null)
@@ -38,8 +48,6 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                 {
                     obj = MessageConverterUtils.GetMessageBasedOnXmlString(message);
                 }
-
-                string dest = String.IsNullOrEmpty(ea.BasicProperties.AppId) ? "" : ea.BasicProperties.AppId;
 
                 if (obj is XmlDocument)
                 {
@@ -54,7 +62,6 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     string currentUnitName = XmlUtility.GetDataFromXml(document, "//SourcePort");
 
                     logger.Info("server message received" + Environment.NewLine + XmlUtility.GetLogStringFromXml(document.DocumentElement));
-                    //logger.well(XmlUtils.toStringPrettyFormatWithoutDeclaration(document), transactionId, messageName, carrierName, transportCommandId, currentMachineName, currentUnitName, messageName);
 
                     OnMessage(document, dest);
                 }
@@ -73,7 +80,6 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                     {
                         abstractMessage.OriginatedName = originatedName;
                     }
-                    //logger.receive(abstractMessage);
                     OnMessage(abstractMessage);
                 }
                 else

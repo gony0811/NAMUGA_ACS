@@ -107,13 +107,13 @@ namespace ACS.Manager.Path
                     IList vehicles = GetVehicles(bayId, isContainDeadNode);
                     if ((vehicles == null) || (vehicles.Count < 1))
                     {
-                        //logger.warn("can not fined available vehicles, bayId{" + bayId + "}");
+                        logger.Warn("can not fined available vehicles, bayId{" + bayId + "}");
                         return null;
                     }
                     foreach (var item in vehicles)
                     {
                         VehicleEx obj = (VehicleEx)item;
-                        //logger.info("Logging Target(" + sourceNode.getId() + ") Vehicle : " + object.toString());
+                        logger.Info("Logging Target(" + sourceNode.NodeId + ") Vehicle : " + obj.ToString());
                     }
 
                     Dictionary<string, IList> vehicleMap = ConvertVehiclesToMap(vehicles);
@@ -134,13 +134,13 @@ namespace ACS.Manager.Path
 
 
                     VehicleEx vehicle = SearchSuitableVehicleDijkstra(paths, linksMap, vehicleMap, checkedPaths);
-                    //logger.info("Find Vehicle : " + vehicle);
+                    logger.Info("Find Vehicle : " + vehicle.ToString());
 
                     return vehicle;
                 }
                 catch (Exception e)
                 {
-                    //logger.error("failed to Suitable Vehicle ", e);
+                    logger.Error("failed to Suitable Vehicle ", e);
                 }
             }
             //logger.warn("can not find Source : " + sourceStation);
@@ -171,7 +171,7 @@ namespace ACS.Manager.Path
                         foreach (var value3 in sameNodeVehicles)
                         {
                             VehicleEx obj = value3 as VehicleEx;
-                            //logger.info("logging This Node : " + nodeId + " In Vehicle : " + object.toString());
+                            logger.Info("logging This Node : " + nodeId + " In Vehicle : " + obj.ToString());
                         }
                         IEnumerator iterator2 = sameNodeVehicles.GetEnumerator();
                         if (iterator2.MoveNext())
@@ -179,7 +179,7 @@ namespace ACS.Manager.Path
                             VehicleEx vehicle = (VehicleEx)iterator2.Current;
 
                             suitableVehicle = vehicle;
-                            //logger.info("Find Vehicle : " + vehicle.toString());
+                            logger.Info("Find Vehicle : " + vehicle.ToString());
                         }
                         if (suitableVehicle != null)
                         {

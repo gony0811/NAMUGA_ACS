@@ -12,6 +12,7 @@ using ACS.Communication.Msb.Highway101;
 using ACS.Communication.Msb.RabbitMQ.Message;
 using ACS.Communication.Msb.Util;
 using ACS.Utility;
+using System.Text.Json;
 
 
 namespace ACS.Communication.Msb.RabbitMQ
@@ -48,6 +49,23 @@ namespace ACS.Communication.Msb.RabbitMQ
         public abstract void OnMessage(XmlDocument document, string paramString);
 
         public abstract void OnMessage(AbstractMessage paramAbstractMessage);
+
+        /// <summary>
+        /// JSON 메시지 수신 시 호출. 서브클래스에서 오버라이드하여 처리.
+        /// </summary>
+        public virtual void OnJsonMessage(string jsonMessage, string dest)
+        {
+            logger.Warn($"JSON message received but OnJsonMessage not overridden. dest={dest}");
+        }
+
+        /// <summary>
+        /// 메시지 문자열이 JSON인지 판별 ('{' 로 시작).
+        /// </summary>
+        protected static bool IsJsonMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            return message.TrimStart()[0] == '{';
+        }
 
         public bool Start()
         {
@@ -329,13 +347,23 @@ namespace ACS.Communication.Msb.RabbitMQ
                 IModel session = sender as IModel;
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
-                object obj = null;
 
                 if (logger.IsDebugEnabled)
                 {
                     logger.Debug("destination{" + Destination + "}, received message{" + body + "}");
                 }
 
+                string dest = this.QueueName;
+
+                // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
+                if (IsJsonMessage(message))
+                {
+                    logger.Info("received JSON message : " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
+                    OnJsonMessage(message, dest);
+                    return;
+                }
+
+                object obj = null;
                 if (this.MsbConverter != null)
                 {
                     obj = MessageConverterUtils.GetMessageBasedOnXmlString(body, MsbConverter);
@@ -344,8 +372,6 @@ namespace ACS.Communication.Msb.RabbitMQ
                 {
                     obj = MessageConverterUtils.GetMessageBasedOnXmlString(body);
                 }
-
-                string dest = this.QueueName;
 
                 if (obj is XmlDocument)
                 {

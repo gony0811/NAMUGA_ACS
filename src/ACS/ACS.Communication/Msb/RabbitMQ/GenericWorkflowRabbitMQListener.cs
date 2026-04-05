@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml;
 using ACS.Core.Workflow;
@@ -23,6 +24,7 @@ namespace ACS.Communication.Msb.RabbitMQ
         public ExecuteDocumentWorkflowMassageHandler ExecuteDocumentWorkflow { get; set; }
         public ExecuteAbstractMessageWorkflowMassageHandler ExecuteAbstractMessageWorkflow { get; set; }
 
+        
         public IWorkflowManager WorkflowManager
         {
             get { return workflowManager; }
@@ -46,6 +48,7 @@ namespace ACS.Communication.Msb.RabbitMQ
             get { return xpathOfConversationid; }
             set { xpathOfConversationid = value; }
         }
+        
 
         public void ExecuteWorkflow(string transactionId, string messageName, XmlDocument document)
         {
@@ -95,6 +98,43 @@ namespace ACS.Communication.Msb.RabbitMQ
             string transactionId = abstractMessage.TransactionId;
 
             ExecuteWorkflow(transactionId, messageName, abstractMessage);
+        }
+
+        /// <summary>
+        /// JSON 메시지를 수신하여 header.messageName으로 워크플로우 라우팅.
+        /// JSON 형식: { "header": { "messageName": "...", "transactionId": "..." }, "data": { ... } }
+        /// </summary>
+        public override void OnJsonMessage(string jsonMessage, string dest)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(jsonMessage);
+                var root = doc.RootElement;
+
+                string messageName = "";
+                string transactionId = "";
+
+                if (root.TryGetProperty("header", out var header))
+                {
+                    if (header.TryGetProperty("messageName", out var mn))
+                        messageName = mn.GetString() ?? "";
+                    if (header.TryGetProperty("transactionId", out var tid))
+                        transactionId = tid.GetString() ?? "";
+                }
+
+                if (string.IsNullOrEmpty(messageName))
+                {
+                    logger.Error("JSON message has no header.messageName: " + jsonMessage);
+                    return;
+                }
+
+                // JSON 문자열을 object로 워크플로우에 전달
+                this.workflowManager.Execute(transactionId, messageName, (object)jsonMessage);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Failed to process JSON message: " + ex.Message, ex);
+            }
         }
     }
 }

@@ -23,6 +23,8 @@ using System.Net.NetworkInformation;
 using System.Configuration;
 using ACS.Core.Base;
 using ACS.Manager;
+using System.Text.Json;
+using ACS.Communication.Mqtt.Model;
 
 namespace ACS.Service
 {
@@ -240,6 +242,11 @@ namespace ACS.Service
         public VehicleMessageEx CreateVehicleMessageFromDaemon(XmlDocument document)
         {
             return this.MessageManager.CreateVehicleMessageFromDaemon(document);
+        }
+
+        public VehicleMessageEx CreateVehicleMessageFromDaemon(string jsonMessage)
+        {
+            return this.MessageManager.CreateVehicleMessageFromDaemon(jsonMessage);
         }
 
         //public AlarmEx createAlarmMessage(XmlDocument document) {
@@ -4555,6 +4562,61 @@ namespace ACS.Service
         public void SendVehiclePermit0031Message(VehicleMessageEx vehicleMessage)
         {
             this.MessageManager.SendVehiclePermit0031Command(vehicleMessage);
+        }
+
+        /// <summary>
+        /// JOBREPORT XML을 빌드하여 Host 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        public void SendJobReportToHost(string reportType, string jobId, string amrId,
+            string actionType, string materialType)
+        {
+            this.MessageManager.SendJobReportToHost(reportType, jobId, amrId, actionType, materialType);
+        }
+
+        /// <summary>
+        /// RAIL-CARRIERTRANSFER JSON을 빌드하여 EI 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        public void SendCarrierTransferToEi(TransferMessageEx transferMessage)
+        {
+            string destPortId = transferMessage.DestMachine + ":" + transferMessage.DestUnit;
+            var destNodeId = "";
+            try
+            {
+                var location = this.ResourceManager.GetLocation(destPortId);
+                if (location != null)
+                    destNodeId = location.StationId ?? "";
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"SendCarrierTransferToEi: dest location 조회 실패 - {ex.Message}");
+            }
+
+            var message = new RailCarrierTransferMessage
+            {
+                Header = new RailCarrierTransferHeader
+                {
+                    MessageName = "RAIL-CARRIERTRANSFER",
+                    TransactionId = Guid.NewGuid().ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Sender = "Trans"
+                },
+                Data = new RailCarrierTransferData
+                {
+                    CommandId = transferMessage.TransportCommandId,
+                    VehicleId = transferMessage.VehicleId,
+                    DestPortId = destPortId,
+                    DestNodeId = destNodeId,
+                    Priority = transferMessage.Priority.ToString(),
+                    CarrierType = transferMessage.CarrierType.ToString(),
+                    ResultCode = ""
+                }
+            };
+
+            string json = JsonSerializer.Serialize(message);
+            this.MessageManager.SendCarrierTransferJson(json);
+
+            logger.Info($"SendCarrierTransferToEi: RAIL-CARRIERTRANSFER 전송 완료. " +
+                $"commandId={transferMessage.TransportCommandId}, vehicleId={transferMessage.VehicleId}");
         }
     }
 }
