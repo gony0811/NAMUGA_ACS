@@ -27,5 +27,11 @@ namespace ACS.Communication.Host.Models
 
         [XmlElement("UserID")]
         public string UserID { get; set; } = "";
+
+        [XmlElement("ErrorCode")]
+        public string ErrorCode { get; set; } = "";
+
+        [XmlElement("ErrorMsg")]
+        public string ErrorMsg { get; set; } = "";
     }
 }

@@ -106,6 +106,13 @@ namespace ACS.App.Modules
                             var hostAgent = e.Context.ResolveNamed<IMessageAgent>("HostAgentSender");
                             hostAgentProp.SetValue(e.Instance, hostAgent);
                         }
+                        // EsAgent도 Named registration — RAIL-CARRIERTRANSFER 전송에 필요
+                        var esAgentProp = e.Instance.GetType().GetProperty("EsAgent");
+                        if (esAgentProp != null)
+                        {
+                            var esAgent = e.Context.ResolveNamed<IMessageAgent>("EsAgentSender");
+                            esAgentProp.SetValue(e.Instance, esAgent);
+                        }
                     });
 
             // HostMessageManager

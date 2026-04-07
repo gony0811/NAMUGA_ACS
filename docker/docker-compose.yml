@@ -7,6 +7,10 @@ services:
       - "1883:1883"       # MQTT 통신 포트
       - "15672:15672"     # 관리자 웹 화면 포트 (ID/PW: guest)
     # 실행 시 MQTT 플러그인을 자동으로 활성화하는 설정
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest    
+      RABBITMQ_PLUGINS: "rabbitmq_mqtt"
     command: >
       sh -c "rabbitmq-plugins enable --offline rabbitmq_mqtt && rabbitmq-server"
     restart: always

@@ -2,9 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ACS.Host.Test.ViewModels"
         x:Class="ACS.Host.Test.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Title="MES Simulator - ACS Communication Tester"
-        Width="850" Height="850"
+        x:CompileBindings="False"
+        Title="ACS Communication Tester"
+        Width="900" Height="900"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -32,131 +32,250 @@
         </Style>
     </Window.Styles>
 
-    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
+    <TabControl Margin="4">
 
-        <!-- Row 0: Connection Settings -->
-        <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
-            <StackPanel Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Classes="label" Text="Listen Port:" />
-                    <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding !IsConnected}"/>
-                    <TextBlock Text="(ACS JOBREPORT 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Classes="label" Text="Send Host:" />
-                    <TextBox Width="120" Text="{Binding SendHost}" IsEnabled="{Binding !IsConnected}"/>
-                    <TextBlock Classes="label" Text="Send Port:" Width="70"/>
-                    <TextBox Width="80" Text="{Binding SendPort}" IsEnabled="{Binding !IsConnected}"/>
-                    <TextBlock Text="(ACS에 MOVECMD/ACTIONCMD 송신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                    <Button Classes="action" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnected}" Background="#1565c0" Foreground="White"/>
-                    <Button Classes="action" Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" Background="#e53935" Foreground="White"/>
-                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="16,0,0,0" VerticalAlignment="Center">
-                        <Ellipse Width="10" Height="10" Fill="Gray" Name="StatusIndicator"/>
-                        <TextBlock Text="{Binding ConnectionStatus}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <!-- ============================================================ -->
+        <!-- Tab 1: MES Simulator (기존 기능) -->
+        <!-- ============================================================ -->
+        <TabItem Header="MES Simulator">
+            <Grid Name="MesGrid" Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
+
+                <!-- Row 0: Connection Settings -->
+                <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="label" Text="Listen Port:" />
+                            <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Text="(ACS JOBREPORT 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="label" Text="Send Host:" />
+                            <TextBox Width="120" Text="{Binding SendHost}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Classes="label" Text="Send Port:" Width="70"/>
+                            <TextBox Width="80" Text="{Binding SendPort}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Text="(ACS에 MOVECMD/ACTIONCMD 송신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Button Classes="action" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding IsNotConnected}" Background="#1565c0" Foreground="White"/>
+                            <Button Classes="action" Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" Background="#e53935" Foreground="White"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="16,0,0,0" VerticalAlignment="Center">
+                                <Ellipse Width="10" Height="10" Fill="Gray" Name="MesStatusIndicator"/>
+                                <TextBlock Text="{Binding ConnectionStatus}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </StackPanel>
-        </HeaderedContentControl>
+                </HeaderedContentControl>
 
-        <!-- Row 1: MOVECMD 송신 (MES → ACS) -->
-        <HeaderedContentControl Grid.Row="1" Header="MOVECMD 송신 (MES → ACS)">
-            <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,4">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding JobId}"/>
-                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AcsId:"/>
-                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding AcsId}"/>
+                <!-- Row 1: MOVECMD 송신 (MES → ACS) -->
+                <HeaderedContentControl Grid.Row="1" Header="MOVECMD 송신 (MES → ACS)">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding JobId}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AcsId:"/>
+                            <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding AcsId}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="SourceLoc:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SourceLoc}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="SourcePort:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding SourcePort}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="SourceLoc:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SourceLoc}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="SourcePort:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding SourcePort}" Margin="0,4,0,0"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="DestLoc:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DestLoc}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="DestPort:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding DestPort}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="DestLoc:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DestLoc}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="DestPort:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding DestPort}" Margin="0,4,0,0"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="ActionType:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ActionType}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding MaterialType}" Margin="0,4,0,0"/>
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Classes="label" Text="UserID:" Width="85"/>
-                    <TextBox Width="120" Text="{Binding UserId}"/>
-                    <Button Classes="action" Content="Send MOVECMD" Command="{Binding SendMoveCmdCommand}" Background="#43a047" Foreground="White" MinWidth="130" Margin="16,0,0,0"/>
-                </StackPanel>
-            </StackPanel>
-        </HeaderedContentControl>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="ActionType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ActionType}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding MaterialType}" Margin="0,4,0,0"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Classes="label" Text="UserID:" Width="85"/>
+                            <TextBox Width="120" Text="{Binding UserId}"/>
+                            <Button Classes="action" Content="Send MOVECMD" Command="{Binding SendMoveCmdCommand}" Background="#43a047" Foreground="White" MinWidth="130" Margin="16,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </HeaderedContentControl>
 
-        <!-- Row 2: ACTIONCMD 송신 (MES → ACS) -->
-        <HeaderedContentControl Grid.Row="2" Header="ACTIONCMD 송신 (MES → ACS)">
-            <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ActionJobId}"/>
-                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AcsId:"/>
-                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding ActionAcsId}"/>
+                <!-- Row 2: ACTIONCMD 송신 (MES → ACS) -->
+                <HeaderedContentControl Grid.Row="2" Header="ACTIONCMD 송신 (MES → ACS)">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="JobID:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ActionJobId}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AcsId:"/>
+                            <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding ActionAcsId}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="TargetLoc:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding TargetLoc}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="TargetPort:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding TargetPort}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="TargetLoc:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding TargetLoc}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="TargetPort:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding TargetPort}" Margin="0,4,0,0"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="ActionType:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ActionActionType}" Margin="0,4,0,0"/>
-                    <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
-                    <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding ActionMaterialType}" Margin="0,4,0,0"/>
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Classes="label" Text="UserID:" Width="85"/>
-                    <TextBox Width="120" Text="{Binding ActionUserId}"/>
-                    <Button Classes="action" Content="Send ACTIONCMD" Command="{Binding SendActionCmdCommand}" Background="#fb8c00" Foreground="White" MinWidth="140" Margin="16,0,0,0"/>
-                </StackPanel>
-            </StackPanel>
-        </HeaderedContentControl>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="ActionType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ActionActionType}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding ActionMaterialType}" Margin="0,4,0,0"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Classes="label" Text="UserID:" Width="85"/>
+                            <TextBox Width="120" Text="{Binding ActionUserId}"/>
+                            <Button Classes="action" Content="Send ACTIONCMD" Command="{Binding SendActionCmdCommand}" Background="#fb8c00" Foreground="White" MinWidth="140" Margin="16,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </HeaderedContentControl>
 
-        <!-- Row 3: JOBREPORT 수신 (ACS → MES) -->
-        <HeaderedContentControl Grid.Row="3" Header="JOBREPORT 수신 (ACS → MES)">
-            <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
-                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Type:" />
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LastReceivedType}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#0d47a1"/>
-                <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="JobID:"/>
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding LastReceivedJobId}" VerticalAlignment="Center"/>
+                <!-- Row 3: JOBREPORT 수신 (ACS → MES) -->
+                <HeaderedContentControl Grid.Row="3" Header="JOBREPORT 수신 (ACS → MES)">
+                    <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Type:" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LastReceivedType}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#0d47a1"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="JobID:"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding LastReceivedJobId}" VerticalAlignment="Center"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AmrId:" Margin="0,4,0,0"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastReceivedAmrId}" VerticalAlignment="Center" Margin="0,4,0,0"/>
-                <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="ErrCode:" Margin="0,4,0,0"/>
-                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding LastReceivedErrCode}" VerticalAlignment="Center" Margin="0,4,0,0" FontWeight="SemiBold"
-                           Foreground="#e53935"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AmrId:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastReceivedAmrId}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="ErrCode:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding LastReceivedErrCode}" VerticalAlignment="Center" Margin="0,4,0,0" FontWeight="SemiBold"
+                                   Foreground="#e53935"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="ErrMsg:" Margin="0,4,0,0"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LastReceivedErrMsg}" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="#e53935"/>
-                <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="Detail:" Margin="0,4,0,0"/>
-                <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding LastReceivedDetail}" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="#555" TextWrapping="Wrap"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="ErrMsg:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LastReceivedErrMsg}" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="#e53935"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="Detail:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding LastReceivedDetail}" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="#555" TextWrapping="Wrap"/>
+                    </Grid>
+                </HeaderedContentControl>
+
+                <!-- Row 4: Communication Log -->
+                <Border Grid.Row="4" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
+                        </StackPanel>
+                        <TextBox Name="MesLogTextBox"
+                                 Text="{Binding LogText}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas, Menlo, monospace"
+                                 FontSize="11"
+                                 ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+                    </DockPanel>
+                </Border>
+
             </Grid>
-        </HeaderedContentControl>
+        </TabItem>
 
-        <!-- Row 4: Communication Log -->
-        <Border Grid.Row="4" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                    <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
-                </StackPanel>
-                <TextBox Name="LogTextBox"
-                         Text="{Binding LogText}"
-                         IsReadOnly="True"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         FontFamily="Consolas, Menlo, monospace"
-                         FontSize="11"
-                         ScrollViewer.VerticalScrollBarVisibility="Visible"/>
-            </DockPanel>
-        </Border>
+        <!-- ============================================================ -->
+        <!-- Tab 2: Host Test (ACS Simulator) -->
+        <!-- ============================================================ -->
+        <TabItem Header="Host Test (ACS Simulator)">
+            <Grid Name="HostGrid" Margin="12" RowDefinitions="Auto,Auto,Auto,*">
 
-    </Grid>
+                <!-- Row 0: Connection Settings -->
+                <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="label" Text="Listen Port:" />
+                            <TextBox Width="80" Text="{Binding ListenPort}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Text="(Host MOVECMD/ACTIONCMD 수신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="label" Text="Send Host:" />
+                            <TextBox Width="120" Text="{Binding SendHost}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Classes="label" Text="Send Port:" Width="70"/>
+                            <TextBox Width="80" Text="{Binding SendPort}" IsEnabled="{Binding IsNotConnected}"/>
+                            <TextBlock Text="(Host에 JOBREPORT 송신)" Foreground="#999" VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Button Classes="action" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding IsNotConnected}" Background="#1565c0" Foreground="White"/>
+                            <Button Classes="action" Content="Disconnect" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" Background="#e53935" Foreground="White"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="16,0,0,0" VerticalAlignment="Center">
+                                <Ellipse Width="10" Height="10" Fill="Gray" Name="HostTestStatusIndicator"/>
+                                <TextBlock Text="{Binding ConnectionStatus}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </HeaderedContentControl>
+
+                <!-- Row 1: JOBREPORT 송신 (ACS → MES) -->
+                <HeaderedContentControl Grid.Row="1" Header="JOBREPORT 송신 (ACS → MES)">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Type:"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ReportTypes}" SelectedItem="{Binding ReportType}" HorizontalAlignment="Stretch"/>
+                            <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="AcsId:"/>
+                            <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding AcsId}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AmrId:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AmrId}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="JobID:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding JobId}" Margin="0,4,0,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="ActionType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ActionType}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="MatType:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding MaterialType}" Margin="0,4,0,0"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="ErrCode:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ErrorCode}" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="ErrMsg:" Margin="0,4,0,0"/>
+                            <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding ErrorMsg}" Margin="0,4,0,0"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Classes="label" Text="UserID:" Width="85"/>
+                            <TextBox Width="120" Text="{Binding UserId}"/>
+                            <Button Classes="action" Content="Send JOBREPORT" Command="{Binding SendJobReportCommand}" Background="#0d47a1" Foreground="White" MinWidth="140" Margin="16,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </HeaderedContentControl>
+
+                <!-- Row 2: 수신 명령 (MES → ACS) -->
+                <HeaderedContentControl Grid.Row="2" Header="수신 명령 (MES → ACS)">
+                    <Grid ColumnDefinitions="Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Command:" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LastReceivedCommand}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#0d47a1"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="JobID:"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding LastReceivedJobId}" VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="AcsId:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastReceivedAcsId}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="SourceLoc:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding LastReceivedSourceLoc}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="SourcePort:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LastReceivedSourcePort}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Classes="label" Text="DestLoc:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="4" Text="{Binding LastReceivedDestLoc}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="DestPort:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LastReceivedDestPort}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" Classes="label" Text="Detail:" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="4" Text="{Binding LastReceivedDetail}" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="#555" TextWrapping="Wrap"/>
+                    </Grid>
+                </HeaderedContentControl>
+
+                <!-- Row 3: Communication Log -->
+                <Border Grid.Row="3" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
+                        </StackPanel>
+                        <TextBox Name="HostTestLogTextBox"
+                                 Text="{Binding LogText}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas, Menlo, monospace"
+                                 FontSize="11"
+                                 ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+                    </DockPanel>
+                </Border>
+
+            </Grid>
+        </TabItem>
+
+    </TabControl>
 </Window>

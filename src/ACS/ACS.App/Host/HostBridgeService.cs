@@ -75,6 +75,10 @@ namespace ACS.App.Host
                         HandleActionCommand(e.MessageName, xmlDoc);
                         break;
 
+                    case "MOVECANCEL":
+                        HandleGenericCommand(e.MessageName, xmlDoc);
+                        break;
+
                     case "JOBREPORT":
                         HandleGenericCommand(e.MessageName, xmlDoc);
                         break;

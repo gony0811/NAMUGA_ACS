@@ -25,6 +25,8 @@ namespace ACS.App.Host
     ///     <JobID>JOB20260303141832001</JobID>
     ///     <MaterialType>MAGAZINE</MaterialType>
     ///     <UserID>MES01</UserID>
+    ///     <ErrorCode>0</ErrorCode>
+    ///     <ErrorMsg>ACK</ErrorMsg>
     ///   </DataLayer>
     /// </Msg>
     /// ]]>
@@ -50,7 +52,9 @@ namespace ACS.App.Host
             string acsId = "",
             string userId = "",
             string destSubject = "",
-            string replySubject = "")
+            string replySubject = "",
+            string errCode = "",
+            string errMsg = "")
         {
             // appsettings.json에서 기본값 가져오기
             if (string.IsNullOrEmpty(acsId))
@@ -87,12 +91,15 @@ namespace ACS.App.Host
             AppendElement(doc, dataLayer, "JobID", jobId);
             AppendElement(doc, dataLayer, "MaterialType", materialType ?? "");
             AppendElement(doc, dataLayer, "UserID", userId ?? "");
+            AppendElement(doc, dataLayer, "ErrorCode", errCode ?? "");
+            AppendElement(doc, dataLayer, "ErrorMsg", errMsg ?? "");
 
             _logger.Info($"[HostMessageService] Built JOBREPORT: Type={reportType}, JobID={jobId}");
             return doc;
         }
 
-        public XmlDocument BuildJobReportFromMoveCmd(XmlDocument moveCmdXml, string reportType = "RECEIVE")
+        public XmlDocument BuildJobReportFromMoveCmd(XmlDocument moveCmdXml, string reportType = "RECEIVE",
+            string errCode = "", string errMsg = "")
         {
             // MOVECMD XML에서 필드 추출
             string jobId = ExtractValue(moveCmdXml, "//JobID")
@@ -123,7 +130,7 @@ namespace ACS.App.Host
             string replySubject = ExtractValue(moveCmdXml, "//Header/DestSubject") ?? "";
 
             return BuildJobReport(reportType, jobId, amrId, actionType, materialType, acsId, userId,
-                destSubject, replySubject);
+                destSubject, replySubject, errCode, errMsg);
         }
 
         public void SendToHost(string messageName, XmlDocument document)

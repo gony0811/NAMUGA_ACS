@@ -1705,7 +1705,142 @@ namespace ACS.Manager.Message
                 logger.Error("SendCarrierTransferJson: esAgent is not wired");
                 return;
             }
-            this.esAgent.Send((object)jsonMessage);
+
+            string destinationName = null;
+
+            try
+            {
+                // 1. JSON에서 vehicleId 추출
+                string vehicleId = null;
+                using (JsonDocument doc = JsonDocument.Parse(jsonMessage))
+                {
+                    if (doc.RootElement.TryGetProperty("data", out JsonElement dataEl) &&
+                        dataEl.TryGetProperty("vehicleId", out JsonElement vidEl))
+                    {
+                        vehicleId = vidEl.GetString();
+                    }
+                }
+
+                if (string.IsNullOrEmpty(vehicleId))
+                {
+                    logger.Error("SendCarrierTransferJson: vehicleId를 JSON에서 추출할 수 없음");
+                    return;
+                }
+
+                // 2. Vehicle 조회 → CommId 획득
+                VehicleEx vehicle = this.resourceManager.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error("SendCarrierTransferJson: vehicle not found - " + vehicleId);
+                    return;
+                }
+
+                // 3. NA_C_MQTT 조회 (Vehicle.CommId = MqttConfig.Name)
+                MqttConfig mqttConfig = (MqttConfig)this.PersistentDao.FindByName(typeof(MqttConfig), vehicle.CommId, false);
+                if (mqttConfig == null)
+                {
+                    logger.Error("SendCarrierTransferJson: MqttConfig not found for CommId=" + vehicle.CommId);
+                    return;
+                }
+
+                // 4. Application 조회
+                ACS.Core.Application.Model.Application application =
+                    this.applicationManager.GetApplication(mqttConfig.ApplicationName);
+                if (application == null)
+                {
+                    logger.Error("SendCarrierTransferJson: Application not found - " + mqttConfig.ApplicationName);
+                    return;
+                }
+
+                // 5. Destination 조합: DestinationName + "/" + Application.Name
+                destinationName = application.DestinationName + "/" + application.Name;
+            }
+            catch (Exception ex)
+            {
+                logger.Error("SendCarrierTransferJson: destination 조회 실패 - " + ex.Message, ex);
+            }
+
+            if (string.IsNullOrEmpty(destinationName))
+            {
+                logger.Error("SendCarrierTransferJson: destination을 찾을 수 없음");
+                return;
+            }
+
+            if (!destinationName.StartsWith("/"))
+            {
+                destinationName = "/" + destinationName;
+            }
+
+            this.esAgent.Send((object)jsonMessage, destinationName, false, "");
+            logger.Info($"SendCarrierTransferJson: sent to {destinationName}");
+        }
+
+        public void SendCarrierTransferJson(string jsonMessage, string vehicleId)
+        {
+            string destinationName = null;
+
+            try
+            {
+                VehicleEx vehicle = this.resourceManager.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error("SendCarrierTransferJson: vehicle not found - " + vehicleId);
+                    return;
+                }
+
+                if ("MQTT".Equals(vehicle.CommType, StringComparison.OrdinalIgnoreCase))
+                {
+                    // MQTT Vehicle: MqttConfig → ApplicationName → Application.DestinationName
+                    IList mqttConfigs = this.PersistentDao.FindAll(typeof(MqttConfig));
+                    if (mqttConfigs != null && mqttConfigs.Count > 0)
+                    {
+                        MqttConfig mqttConfig = (MqttConfig)mqttConfigs[0];
+                        ACS.Core.Application.Model.Application application =
+                            this.applicationManager.GetApplication(mqttConfig.ApplicationName);
+                        if (application != null)
+                        {
+                            destinationName = application.DestinationName;
+                        }
+                    }
+                }
+                else
+                {
+                    // NIO Vehicle: ES09_P → NIO → Application.DestinationName
+                    string rfServerName = "ES09_P";
+                    IList nioList = this.nioInterfaceManager.GetNioesByApplicationName(rfServerName);
+                    if (nioList != null && nioList.Count > 0)
+                    {
+                        Nio nio = (Nio)nioList[0];
+                        if (nio != null)
+                        {
+                            ACS.Core.Application.Model.Application application =
+                                this.applicationManager.GetApplication(nio.ApplicationName);
+                            if (application != null)
+                            {
+                                destinationName = application.DestinationName;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error("SendCarrierTransferJson: destination 조회 실패 - " + ex.Message, ex);
+            }
+
+            if (string.IsNullOrEmpty(destinationName))
+            {
+                logger.Error("SendCarrierTransferJson: destination을 찾을 수 없음, vehicleId=" + vehicleId);
+                return;
+            }
+
+            if (!destinationName.StartsWith("/"))
+            {
+                destinationName = "/" + destinationName;
+            }
+
+            this.esAgent.Send((object)jsonMessage, destinationName, false, "");
+            logger.Info($"SendCarrierTransferJson: sent to {destinationName}, vehicleId={vehicleId}");
         }
 
         public void SendVehicleMessageTCodePermission(String messageName, VehicleMessageEx vehicleMessage)

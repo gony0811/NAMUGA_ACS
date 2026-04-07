@@ -55,7 +55,7 @@ namespace ACS.Elsa.Workflows.Trans
                         QueuedCommands = new(queuedList),
                         Count = new(queuedCount)
                     },
-
+                    
                     // Step 2: 각 TC에 대해 Vehicle 할당 시도
                     new ForEach<TransportCommandEx>
                     {

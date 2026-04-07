@@ -4613,7 +4613,7 @@ namespace ACS.Service
             };
 
             string json = JsonSerializer.Serialize(message);
-            this.MessageManager.SendCarrierTransferJson(json);
+            this.MessageManager.SendCarrierTransferJson(json, transferMessage.VehicleId);
 
             logger.Info($"SendCarrierTransferToEi: RAIL-CARRIERTRANSFER 전송 완료. " +
                 $"commandId={transferMessage.TransportCommandId}, vehicleId={transferMessage.VehicleId}");

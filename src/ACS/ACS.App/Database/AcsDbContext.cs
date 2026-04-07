@@ -824,8 +824,9 @@ namespace ACS.Database
             modelBuilder.Entity<MqttConfig>(e =>
             {
                 e.ToTable("NA_C_MQTT");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                e.HasKey(x => x.Seq);
+                e.Property(x => x.Seq).HasColumnName("id").HasMaxLength(64);
+                e.Ignore(x => x.Id);
                 e.Property(x => x.Name).HasColumnName("NAME").HasMaxLength(64);
                 e.Property(x => x.ApplicationName).HasColumnName("applicationName").HasMaxLength(64);
                 e.Property(x => x.WorkflowManagerName).HasColumnName("workflowManagerName").HasMaxLength(255);

@@ -783,11 +783,11 @@ namespace ACS.Manager.Path
                     { "Installed", "T" }
                 };
                 IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
-                // OR condition: ProcessingState == "IDLE" || ProcessingState == "PARK" (20200318 LYS PARK Condition Add)
-                // Gt: BatteryVoltage > 23.0F
+                // OR condition: ProcessingState == "IDLE" || ProcessingState == "PARK"
+                // Gt: BatteryRate > 10%
                 // Order: NodeCheckTime ASC
                 vehicleList = allMatches.Cast<VehicleEx>()
-                    .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryVoltage > 23.0F)
+                    .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryRate > 10.0F)
                     .OrderBy(v => v.NodeCheckTime)
                     .ToList<VehicleEx>();
             }

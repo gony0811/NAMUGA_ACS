@@ -16,7 +16,10 @@ using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
+using ACS.Core.Message;
 using ACS.Core.Message.Model;
+using ACS.Communication.Socket;
+using ACS.Communication.Socket.Model;
 using ACS.Elsa.Bridge;
 
 namespace ACS.Elsa.Activities
@@ -300,28 +303,16 @@ namespace ACS.Elsa.Activities
             try
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
-                var interfaceServiceType = System.Type.GetType("ACS.Service.InterfaceServiceEx, ACS.Service");
-                if (interfaceServiceType == null)
+                var messageManager = accessor?.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
                 {
-                    logger.Error("SendJobReportStartActivity: InterfaceServiceEx type not found");
+                    logger.Error("SendJobReportStartActivity: IMessageManagerEx not resolved");
                     context.Set(Success, false);
                     return;
                 }
 
-                var scope = accessor?.Resolve<ILifetimeScope>();
-                var interfaceService = scope?.Resolve(interfaceServiceType);
-                if (interfaceService == null)
-                {
-                    logger.Error("SendJobReportStartActivity: InterfaceServiceEx not resolved");
-                    context.Set(Success, false);
-                    return;
-                }
-
-                var method = interfaceServiceType.GetMethod("SendJobReportToHost");
-                method?.Invoke(interfaceService, new object[]
-                {
-                    "START", tc.JobId, vehicleId, tc.JobType ?? "", tc.Description ?? ""
-                });
+                messageManager.SendJobReportToHost(
+                    "START", tc.JobId, vehicleId, tc.JobType ?? "", tc.Description ?? "");
 
                 logger.Info($"SendJobReportStartActivity: JOBREPORT(START) sent for TC {tc.JobId}");
                 context.Set(Success, true);
@@ -366,54 +357,220 @@ namespace ACS.Elsa.Activities
             try
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
-                var interfaceServiceType = System.Type.GetType("ACS.Service.InterfaceServiceEx, ACS.Service");
-                if (interfaceServiceType == null)
+                var messageManager = accessor?.Resolve<IMessageManagerEx>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                if (messageManager == null)
                 {
-                    logger.Error("SendCarrierTransferActivity: InterfaceServiceEx type not found");
+                    logger.Error("SendCarrierTransferActivity: IMessageManagerEx not resolved");
                     context.Set(Success, false);
                     return;
                 }
 
-                var scope = accessor?.Resolve<ILifetimeScope>();
-                var interfaceService = scope?.Resolve(interfaceServiceType);
-                if (interfaceService == null)
+                // source portId 파싱
+                string destPortId = "";
+                if (!string.IsNullOrEmpty(tc.Source))
                 {
-                    logger.Error("SendCarrierTransferActivity: InterfaceServiceEx not resolved");
-                    context.Set(Success, false);
-                    return;
+                    int colonIdx = tc.Source.IndexOf(':');
+                    destPortId = colonIdx >= 0
+                        ? tc.Source.Substring(0, colonIdx) + ":" + tc.Source.Substring(colonIdx + 1)
+                        : tc.Source + ":";
                 }
 
-                // TransferMessageEx 빌드
-                var transferMessage = new TransferMessageEx();
-                transferMessage.TransportCommandId = tc.JobId;
-                transferMessage.VehicleId = vehicleId;
-                transferMessage.Priority = tc.Priority;
-                transferMessage.CarrierType = tc.CarrierId ?? "";
-
-                if (!string.IsNullOrEmpty(tc.Dest))
+                // dest nodeId 조회
+                var destNodeId = "";
+                try
                 {
-                    int colonIdx = tc.Dest.IndexOf(':');
-                    if (colonIdx >= 0)
-                    {
-                        transferMessage.DestMachine = tc.Dest.Substring(0, colonIdx);
-                        transferMessage.DestUnit = tc.Dest.Substring(colonIdx + 1);
-                    }
-                    else
-                    {
-                        transferMessage.DestMachine = tc.Dest;
-                        transferMessage.DestUnit = "";
-                    }
+                    var location = resourceManager?.GetLocationByLocationId(destPortId);
+                    if (location != null)
+                        destNodeId = location.StationId ?? "";
+                }
+                catch (Exception ex)
+                {
+                    logger.Error($"SendCarrierTransferActivity: dest location 조회 실패 - {ex.Message}");
                 }
 
-                var method = interfaceServiceType.GetMethod("SendCarrierTransferToEi");
-                method?.Invoke(interfaceService, new object[] { transferMessage });
+                // RAIL-CARRIERTRANSFER JSON 빌드
+                var message = new RailCarrierTransferMessage
+                {
+                    Header = new RailCarrierTransferHeader
+                    {
+                        MessageName = "RAIL-CARRIERTRANSFER",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "Trans"
+                    },
+                    Data = new RailCarrierTransferData
+                    {
+                        CommandId = tc.JobId,
+                        VehicleId = vehicleId,
+                        DestPortId = destPortId,
+                        DestNodeId = destNodeId,
+                        Priority = tc.Priority.ToString(),
+                        CarrierType = tc.CarrierId ?? "",
+                        ResultCode = ""
+                    }
+                };
 
-                logger.Info($"SendCarrierTransferActivity: RAIL-CARRIERTRANSFER sent for TC {tc.JobId}");
+                string json = JsonSerializer.Serialize(message);
+                messageManager.SendCarrierTransferJson(json);
+
+                logger.Info($"SendCarrierTransferActivity: RAIL-CARRIERTRANSFER sent for TC {tc.JobId}, vehicleId={vehicleId}");
                 context.Set(Success, true);
             }
             catch (Exception ex)
             {
                 logger.Error($"SendCarrierTransferActivity: {ex.Message}", ex);
+                context.Set(Success, false);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  CheckVehicles Activities
+    //  Category: ACS.Schedule
+    //
+    //  Vehicle EventTime 검사 + DISCONNECT 처리 워크플로우용 Activity들.
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 모든 Vehicle의 EventTime을 검사하여 1분 이상 갱신되지 않은 Vehicle을 필터링.
+    /// PARK/CHARGE 상태의 Vehicle은 제외.
+    /// </summary>
+    [Activity("ACS.Schedule", "Check Vehicles EventTime",
+        "Vehicle EventTime 검사: 1분 이상 미갱신 Vehicle 필터링 (PARK/CHARGE 제외)")]
+    public class CheckVehiclesEventTimeActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Output(Description = "EventTime이 만료된 Vehicle 목록")]
+        public Output<ICollection<VehicleEx>> StaleVehicles { get; set; }
+
+        [Output(Description = "만료 Vehicle 수")]
+        public Output<int> StaleCount { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                if (resourceManager == null)
+                {
+                    logger.Error("CheckVehiclesEventTimeActivity: IResourceManagerEx not available");
+                    context.Set(StaleVehicles, (ICollection<VehicleEx>)new List<VehicleEx>());
+                    context.Set(StaleCount, 0);
+                    return;
+                }
+
+                IList allVehicles = resourceManager.GetVehicles();
+                if (allVehicles == null || allVehicles.Count == 0)
+                {
+                    context.Set(StaleVehicles, (ICollection<VehicleEx>)new List<VehicleEx>());
+                    context.Set(StaleCount, 0);
+                    return;
+                }
+
+                var staleList = new List<VehicleEx>();
+                DateTime currentTime = DateTime.Now;
+
+                foreach (VehicleEx vehicle in allVehicles)
+                {
+                    // PARK/CHARGE 상태는 검사 대상에서 제외
+                    if ("PARK".Equals(vehicle.ProcessingState) || "CHARGE".Equals(vehicle.ProcessingState))
+                        continue;
+
+                    // EventTime이 null이면 disconnect 대상
+                    if (vehicle.EventTime == default(DateTime))
+                    {
+                        logger.Info($"CheckVehiclesEventTimeActivity: EventTime is default, need disconnect - Vehicle [{vehicle.VehicleId}]");
+                        staleList.Add(vehicle);
+                        continue;
+                    }
+
+                    // 60초 이상 갱신되지 않으면 disconnect 대상
+                    TimeSpan elapsed = currentTime - vehicle.EventTime;
+                    if (elapsed.TotalSeconds > 60)
+                    {
+                        logger.Info($"CheckVehiclesEventTimeActivity: EventTime expired ({elapsed.TotalSeconds:F0}s), need disconnect - Vehicle [{vehicle.VehicleId}]");
+                        staleList.Add(vehicle);
+                    }
+                }
+
+                context.Set(StaleVehicles, (ICollection<VehicleEx>)staleList);
+                context.Set(StaleCount, staleList.Count);
+
+                if (staleList.Count > 0)
+                    logger.Info($"CheckVehiclesEventTimeActivity: {staleList.Count} stale vehicle(s) found");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"CheckVehiclesEventTimeActivity: {ex.Message}", ex);
+                context.Set(StaleVehicles, (ICollection<VehicleEx>)new List<VehicleEx>());
+                context.Set(StaleCount, 0);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 대상 Vehicle 목록의 ConnectionState를 DISCONNECT로 변경.
+    /// NIO가 존재하는 Vehicle만 처리.
+    /// </summary>
+    [Activity("ACS.Schedule", "Disconnect Vehicles",
+        "Vehicle ConnectionState를 DISCONNECT로 변경 (NIO 확인)")]
+    public class DisconnectVehiclesActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "DISCONNECT 대상 Vehicle 목록")]
+        public Input<ICollection<VehicleEx>> Vehicles { get; set; }
+
+        [Output(Description = "처리 성공 여부")]
+        public Output<bool> Success { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            var vehicleList = Vehicles?.Get(context);
+            if (vehicleList == null || vehicleList.Count == 0)
+            {
+                context.Set(Success, false);
+                return;
+            }
+
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                var nioInterfaceManager = accessor?.Resolve<NioInterfaceManager>();
+
+                if (resourceManager == null || nioInterfaceManager == null)
+                {
+                    logger.Error("DisconnectVehiclesActivity: Required services not available");
+                    context.Set(Success, false);
+                    return;
+                }
+
+                foreach (var vehicle in vehicleList)
+                {
+                    if (!"DISCONNECT".Equals(vehicle.ConnectionState, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // NIO가 존재하는 Vehicle만 처리
+                        IList nios = nioInterfaceManager.GetNioes(vehicle.CommId);
+                        if (nios == null || nios.Count < 1)
+                            continue;
+
+                        resourceManager.UpdateVehicleConnectionState(vehicle.VehicleId,
+                            VehicleEx.CONNECTIONSTATE_DISCONNECT,
+                            "SCHEDULE-CHECKVEHICLES");
+
+                        logger.Debug($"DisconnectVehiclesActivity: Vehicle [{vehicle.VehicleId}] disconnected");
+                    }
+                }
+
+                context.Set(Success, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"DisconnectVehiclesActivity: {ex.Message}", ex);
                 context.Set(Success, false);
             }
         }

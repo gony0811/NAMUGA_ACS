@@ -46,8 +46,8 @@ namespace ACS.Elsa.Activities
         [Input(Description = "수신한 MOVECMD XmlDocument (자동 변환 시 사용)")]
         public Input<XmlDocument> MoveCmdXml { get; set; }
 
-        /// <summary>리포트 타입: RECEIVE, ARRIVED, COMPLETE, CANCEL 등</summary>
-        [Input(Description = "리포트 타입 (RECEIVE, ARRIVED, COMPLETE, CANCEL 등)")]
+        /// <summary>리포트 타입: RECEIVE, START, CANCEL, ARRIVED, ACTION, COMPLETE</summary>
+        [Input(Description = "리포트 타입 (RECEIVE, START, CANCEL, ARRIVED, ACTION, COMPLETE)")]
         public Input<string> ReportType { get; set; } = new("RECEIVE");
 
         /// <summary>작업 ID</summary>
@@ -106,7 +106,7 @@ namespace ACS.Elsa.Activities
                 if (moveCmdXml != null)
                 {
                     // MOVECMD XML에서 자동 변환
-                    jobReport = hostMessageService.BuildJobReportFromMoveCmd(moveCmdXml, reportType);
+                    jobReport = hostMessageService.BuildJobReportFromMoveCmd(moveCmdXml, reportType, errCode, errMsg);
 
                     // 개별 필드가 명시적으로 설정된 경우 오버라이드
                     OverrideField(context, jobReport, JobId, "//DataLayer/JobID");
@@ -132,20 +132,9 @@ namespace ACS.Elsa.Activities
                         amrId: AmrId?.Get(context) ?? "",
                         materialType: MaterialType?.Get(context) ?? "",
                         acsId: AcsId?.Get(context) ?? "",
-                        userId: UserId?.Get(context) ?? "");
-                }
-
-                // ErrCode/ErrMsg를 DataLayer에 추가
-                var dataLayer = jobReport.SelectSingleNode("//DataLayer");
-                if (dataLayer != null)
-                {
-                    var errCodeNode = jobReport.CreateElement("ErrCode");
-                    errCodeNode.InnerText = errCode;
-                    dataLayer.AppendChild(errCodeNode);
-
-                    var errMsgNode = jobReport.CreateElement("ErrMsg");
-                    errMsgNode.InnerText = errMsg;
-                    dataLayer.AppendChild(errMsgNode);
+                        userId: UserId?.Get(context) ?? "",
+                        errCode: errCode,
+                        errMsg: errMsg);
                 }
 
                 // Host로 전송
@@ -773,9 +762,19 @@ namespace ACS.Elsa.Activities
                 // Type에 따라 TC 상태 업데이트
                 switch (type?.ToUpperInvariant())
                 {
+                    case "RECEIVE":
+                        // RECEIVE는 상태 변경 없음
+                        break;
+                    case "START":
+                        tc.State = TransportCommandEx.STATE_ASSIGNED;
+                        tc.StartedTime = DateTime.Now;
+                        break;
                     case "ARRIVED":
                         tc.State = TransportCommandEx.STATE_ARRIVED_SOURCE;
                         tc.LoadArrivedTime = DateTime.Now;
+                        break;
+                    case "ACTION":
+                        tc.State = TransportCommandEx.STATE_TRANSFERRING_SOURCE;
                         break;
                     case "COMPLETE":
                         tc.State = TransportCommandEx.STATE_COMPLETED;
@@ -783,9 +782,6 @@ namespace ACS.Elsa.Activities
                         break;
                     case "CANCEL":
                         tc.State = TransportCommandEx.STATE_CANCELED;
-                        break;
-                    case "RECEIVE":
-                        // RECEIVE는 상태 변경 없음
                         break;
                     default:
                         logger.Warn($"UpdateTransportCommandStateActivity: Unknown Type={type}, no state change");
@@ -804,6 +800,141 @@ namespace ACS.Elsa.Activities
             catch (Exception ex)
             {
                 logger.Error($"UpdateTransportCommandStateActivity: {ex.Message}", ex);
+                context.Set(Result, false);
+            }
+        }
+
+        private static string ExtractValue(XmlDocument doc, string xpath)
+        {
+            try
+            {
+                var node = doc.SelectSingleNode(xpath);
+                return string.IsNullOrWhiteSpace(node?.InnerText) ? null : node.InnerText.Trim();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  MOVECANCEL → TransportCommand 취소 Activity
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// MOVECANCEL XML에서 JobId를 추출하여 해당 TransportCommand를 취소하는 Activity.
+    ///
+    /// 처리 흐름:
+    ///   1. MOVECANCEL XML에서 JobID 추출
+    ///   2. DB에서 TransportCommand 조회
+    ///   3. 취소 가능 상태이면 STATE_CANCELED로 변경
+    ///   4. 결과를 ErrorCode/ErrorMsg로 출력
+    /// </summary>
+    [Activity("ACS.Host", "Cancel Transport Command",
+        "MOVECANCEL에서 TransportCommand를 취소합니다.")]
+    public class CancelTransportCommandActivity : CodeActivity<bool>
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        /// <summary>수신한 MOVECANCEL XML</summary>
+        [Input(Description = "수신한 MOVECANCEL XmlDocument")]
+        public Input<XmlDocument> MoveCancelXml { get; set; }
+
+        /// <summary>취소된 TransportCommand의 JobId</summary>
+        [Output(Description = "취소된 TransportCommand JobId")]
+        public Output<string> JobId { get; set; }
+
+        /// <summary>에러 코드 (성공 시 "0")</summary>
+        [Output(Description = "에러 코드 (성공 시 '0')")]
+        public Output<string> ErrCode { get; set; }
+
+        /// <summary>에러 메시지 (성공 시 빈 문자열)</summary>
+        [Output(Description = "에러 메시지 (성공 시 빈 문자열)")]
+        public Output<string> ErrMsg { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var transferManager = accessor?.Resolve<ITransferManagerEx>();
+
+                if (transferManager == null)
+                {
+                    logger.Error("CancelTransportCommandActivity: ITransferManagerEx not available");
+                    context.Set(ErrCode, "03");
+                    context.Set(ErrMsg, "ITransferManagerEx not available");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var xml = MoveCancelXml?.Get(context);
+                if (xml == null)
+                {
+                    logger.Error("CancelTransportCommandActivity: MoveCancelXml is required");
+                    context.Set(ErrCode, "03");
+                    context.Set(ErrMsg, "MoveCancelXml is required");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                // MOVECANCEL XML에서 JobID 추출
+                string jobId = ExtractValue(xml, "//DataLayer/JobID")
+                            ?? ExtractValue(xml, "//DataLayer/JobId")
+                            ?? ExtractValue(xml, "//JobID");
+
+                if (string.IsNullOrEmpty(jobId))
+                {
+                    logger.Error("CancelTransportCommandActivity: JobID is missing from MOVECANCEL XML");
+                    context.Set(ErrCode, "03");
+                    context.Set(ErrMsg, "JobID is missing");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                context.Set(JobId, jobId);
+
+                // DB에서 TransportCommand 조회
+                var tc = transferManager.GetTransportCommand(jobId);
+                if (tc == null)
+                {
+                    logger.Warn($"CancelTransportCommandActivity: TransportCommand not found - JobID={jobId}");
+                    context.Set(ErrCode, "01");
+                    context.Set(ErrMsg, $"TransportCommand not found: JobID={jobId}");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                // 이미 종료 상태인지 확인
+                string stateUpper = tc.State?.ToUpperInvariant() ?? "";
+                if (stateUpper == TransportCommandEx.STATE_COMPLETED.ToUpperInvariant() ||
+                    stateUpper == TransportCommandEx.STATE_CANCELED.ToUpperInvariant() ||
+                    stateUpper == TransportCommandEx.STATE_ABORTED.ToUpperInvariant())
+                {
+                    logger.Warn($"CancelTransportCommandActivity: TC already in terminal state - JobID={jobId}, State={tc.State}");
+                    context.Set(ErrCode, "02");
+                    context.Set(ErrMsg, $"TC already in terminal state: {tc.State}");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                // 취소 처리
+                string previousState = tc.State;
+                tc.State = TransportCommandEx.STATE_CANCELED;
+                transferManager.UpdateTransportCommand(tc);
+
+                context.Set(ErrCode, "0");
+                context.Set(ErrMsg, "");
+                context.Set(Result, true);
+
+                logger.Info($"CancelTransportCommandActivity: TC canceled - JobID={jobId}, State={previousState}→{tc.State}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"CancelTransportCommandActivity: {ex.Message}", ex);
+                context.Set(ErrCode, "03");
+                context.Set(ErrMsg, ex.Message);
                 context.Set(Result, false);
             }
         }

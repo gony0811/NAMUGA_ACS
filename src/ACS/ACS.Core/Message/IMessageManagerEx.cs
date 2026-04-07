@@ -267,6 +267,11 @@ namespace ACS.Core.Message
         /// RAIL-CARRIERTRANSFER JSON을 EI 프로세스로 RabbitMQ 전송.
         /// </summary>
         void SendCarrierTransferJson(string jsonMessage);
+
+        /// <summary>
+        /// RAIL-CARRIERTRANSFER JSON을 Vehicle CommType에 따라 올바른 EI destination으로 전송.
+        /// </summary>
+        void SendCarrierTransferJson(string jsonMessage, string vehicleId);
     }
 
 }
