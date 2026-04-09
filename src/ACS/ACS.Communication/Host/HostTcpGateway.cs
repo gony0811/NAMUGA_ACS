@@ -25,7 +25,7 @@ namespace ACS.Communication.Host
         public int ListenPort { get; set; } = 3334;
 
         /// <summary>송신 대상 Host IP</summary>
-        public string SendHost { get; set; } = "127.0.0.1";
+        public string SendHost { get; set; } = "172.31.112.1";
 
         /// <summary>송신 대상 포트 (ACS가 Host에 접속해서 메시지를 보내는 포트)</summary>
         public int SendPort { get; set; } = 3333;

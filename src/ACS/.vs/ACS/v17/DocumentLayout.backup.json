@@ -1,0 +1,230 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\github\\NAMUGA_ACS\\src\\ACS\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.app\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|solutionrelative:acs.app\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.app\\modules\\hostmodule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|solutionrelative:acs.app\\modules\\hostmodule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F4E46CD2-C359-497B-9434-7C3B34F8D4C2}|ACS.Communication\\ACS.Communication.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.communication\\host\\hosttcpgateway.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{F4E46CD2-C359-497B-9434-7C3B34F8D4C2}|ACS.Communication\\ACS.Communication.csproj|solutionrelative:acs.communication\\host\\hosttcpgateway.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.host.test\\viewmodels\\messimulatorviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|solutionrelative:acs.host.test\\viewmodels\\messimulatorviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.host.test\\app.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|solutionrelative:acs.host.test\\app.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.host.test\\acs.host.test.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|solutionrelative:acs.host.test\\acs.host.test.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.host.test\\viewmodels\\hosttestviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{9169F3B2-4D4C-4771-A042-4B156BA23485}|ACS.Host.Test\\ACS.Host.Test.csproj|solutionrelative:acs.host.test\\viewmodels\\hosttestviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F4E46CD2-C359-497B-9434-7C3B34F8D4C2}|ACS.Communication\\ACS.Communication.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.communication\\host\\hostmessageprotocol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{F4E46CD2-C359-497B-9434-7C3B34F8D4C2}|ACS.Communication\\ACS.Communication.csproj|solutionrelative:acs.communication\\host\\hostmessageprotocol.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.app\\host\\hostmessageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|solutionrelative:acs.app\\host\\hostmessageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|d:\\github\\namuga_acs\\src\\acs\\acs.app\\host\\hostbridgeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{ACD4E756-2457-41F1-A98B-75FFC60C6B80}|ACS.App\\ACS.App.csproj|solutionrelative:acs.app\\host\\hostbridgeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 21,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{5a4e9529-b6a0-46b5-be4f-0f0b239bc0eb}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:3:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{004be353-6879-467c-9d1e-9ac23cdf6d49}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{a80febb4-e7e0-4147-b476-21aaf2453969}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e1b7d1f8-9b3c-49b1-8f4f-bfc63a88835d}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{68487888-204a-11d3-87eb-00c04f7971a5}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "HostTcpGateway.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Communication\\Host\\HostTcpGateway.cs",
+              "RelativeDocumentMoniker": "ACS.Communication\\Host\\HostTcpGateway.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Communication\\Host\\HostTcpGateway.cs",
+              "RelativeToolTip": "ACS.Communication\\Host\\HostTcpGateway.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAA8AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:57:59.264Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "HostModule.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Modules\\HostModule.cs",
+              "RelativeDocumentMoniker": "ACS.App\\Modules\\HostModule.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Modules\\HostModule.cs",
+              "RelativeToolTip": "ACS.App\\Modules\\HostModule.cs",
+              "ViewState": "AgIAAAEAAAAAAAAAAAAswBgAAABJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:57:12.75Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "MesSimulatorViewModel.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ViewModels\\MesSimulatorViewModel.cs",
+              "RelativeDocumentMoniker": "ACS.Host.Test\\ViewModels\\MesSimulatorViewModel.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ViewModels\\MesSimulatorViewModel.cs",
+              "RelativeToolTip": "ACS.Host.Test\\ViewModels\\MesSimulatorViewModel.cs",
+              "ViewState": "AgIAAD8AAAAAAAAAAAAQwEwAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:53:06.042Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "App.axaml.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\App.axaml.cs",
+              "RelativeDocumentMoniker": "ACS.Host.Test\\App.axaml.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\App.axaml.cs",
+              "RelativeToolTip": "ACS.Host.Test\\App.axaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:52:58.896Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "ACS.Host.Test.csproj",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ACS.Host.Test.csproj",
+              "RelativeDocumentMoniker": "ACS.Host.Test\\ACS.Host.Test.csproj",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ACS.Host.Test.csproj",
+              "RelativeToolTip": "ACS.Host.Test\\ACS.Host.Test.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-04-08T04:52:54.007Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "HostTestViewModel.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ViewModels\\HostTestViewModel.cs",
+              "RelativeDocumentMoniker": "ACS.Host.Test\\ViewModels\\HostTestViewModel.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Host.Test\\ViewModels\\HostTestViewModel.cs",
+              "RelativeToolTip": "ACS.Host.Test\\ViewModels\\HostTestViewModel.cs",
+              "ViewState": "AgIAAMkAAAAAAAAAAAAvwOQAAAA3AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:38:46.096Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "HostMessageProtocol.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Communication\\Host\\HostMessageProtocol.cs",
+              "RelativeDocumentMoniker": "ACS.Communication\\Host\\HostMessageProtocol.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.Communication\\Host\\HostMessageProtocol.cs",
+              "RelativeToolTip": "ACS.Communication\\Host\\HostMessageProtocol.cs",
+              "ViewState": "AgIAAGMAAAAAAAAAAAAcwHIAAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:38:20.237Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "HostMessageService.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Host\\HostMessageService.cs",
+              "RelativeDocumentMoniker": "ACS.App\\Host\\HostMessageService.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Host\\HostMessageService.cs",
+              "RelativeToolTip": "ACS.App\\Host\\HostMessageService.cs",
+              "ViewState": "AgIAAHoAAAAAAAAAAAAQwBkAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:35:00.803Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "HostBridgeService.cs",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Host\\HostBridgeService.cs",
+              "RelativeDocumentMoniker": "ACS.App\\Host\\HostBridgeService.cs",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\Host\\HostBridgeService.cs",
+              "RelativeToolTip": "ACS.App\\Host\\HostBridgeService.cs",
+              "ViewState": "AgIAAIYAAAAAAAAAAAAnwKIAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-08T04:34:58.3Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\appsettings.json",
+              "RelativeDocumentMoniker": "ACS.App\\appsettings.json",
+              "ToolTip": "D:\\github\\NAMUGA_ACS\\src\\ACS\\ACS.App\\appsettings.json*",
+              "RelativeToolTip": "ACS.App\\appsettings.json*",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-04-08T01:31:08.133Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
