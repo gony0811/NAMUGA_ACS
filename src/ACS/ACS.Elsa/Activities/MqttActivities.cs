@@ -431,4 +431,116 @@ namespace ACS.Elsa.Activities
         }
     }
 
+    /// <summary>
+    /// RAIL-CARRIERTRANSFER JSON을 수신하여 Vehicle의 MQTT 브로커를 통해 이동 명령 전송.
+    /// vehicleId → NA_R_VEHICLE(CommType, CommId) → NA_C_MQTT → SendDestination(destNodeId)
+    /// Arguments: [jsonMessage(string)]
+    /// </summary>
+    [Activity("ACS.Mqtt", "Handle Carrier Transfer",
+        "RAIL-CARRIERTRANSFER 수신 시 MQTT로 Vehicle에 이동 명령 전송")]
+    public class HandleCarrierTransferActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(HandleCarrierTransferActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                // 워크플로우 Input에서 JSON 메시지 추출
+                var input = context.WorkflowExecutionContext.Input;
+                if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 1)
+                {
+                    logger.Error("HandleCarrierTransferActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                var jsonMessage = args[0] as string;
+                if (string.IsNullOrEmpty(jsonMessage))
+                {
+                    logger.Error("HandleCarrierTransferActivity: JSON 메시지가 null입니다.");
+                    return;
+                }
+
+                // JSON 파싱: vehicleId, destNodeId, port, jobType 추출
+                string vehicleId = null;
+                string destNodeId = null;
+                string commandId = null;
+                string port = null;
+                string jobType = null;
+
+                using (var doc = JsonDocument.Parse(jsonMessage))
+                {
+                    if (doc.RootElement.TryGetProperty("data", out var dataEl))
+                    {
+                        if (dataEl.TryGetProperty("vehicleId", out var vid))
+                            vehicleId = vid.GetString();
+                        if (dataEl.TryGetProperty("destNodeId", out var nid))
+                            destNodeId = nid.GetString();
+                        if (dataEl.TryGetProperty("commandId", out var cid))
+                            commandId = cid.GetString();
+                        if (dataEl.TryGetProperty("port", out var portEl))
+                            port = portEl.GetString();
+                        if (dataEl.TryGetProperty("jobType", out var jtEl))
+                            jobType = jtEl.GetString();
+                    }
+                }
+
+                if (string.IsNullOrEmpty(vehicleId) || string.IsNullOrEmpty(destNodeId))
+                {
+                    logger.Error($"HandleCarrierTransferActivity: vehicleId 또는 destNodeId가 없습니다. vehicleId={vehicleId}, destNodeId={destNodeId}");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("HandleCarrierTransferActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // Vehicle 조회 → CommType, CommId 확인
+                var resourceManager = accessor.Resolve<ACS.Core.Resource.IResourceManagerEx>();
+                var vehicle = resourceManager?.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error($"HandleCarrierTransferActivity: Vehicle을 찾을 수 없습니다. vehicleId={vehicleId}");
+                    return;
+                }
+
+                if (!"MQTT".Equals(vehicle.CommType, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"HandleCarrierTransferActivity: Vehicle CommType이 MQTT가 아닙니다. vehicleId={vehicleId}, commType={vehicle.CommType}");
+                    return;
+                }
+
+                // MqttInterfaceManager를 통해 MQTT 이동 명령 전송
+                var mqttManager = accessor.Resolve<MqttInterfaceManager>();
+                if (mqttManager == null)
+                {
+                    logger.Error("HandleCarrierTransferActivity: MqttInterfaceManager를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // CommId로 Vehicle을 식별하여 MQTT command 토픽으로 이동 명령 전송
+                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType)
+                    .GetAwaiter().GetResult();
+
+                if (result)
+                {
+                    logger.Info($"HandleCarrierTransferActivity: MQTT 이동 명령 전송 완료. " +
+                        $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
+                        $"destNodeId={destNodeId}, port={port}, jobType={jobType}");
+                }
+                else
+                {
+                    logger.Error($"HandleCarrierTransferActivity: MQTT 이동 명령 전송 실패. " +
+                        $"vehicleId={vehicleId}, commId={vehicle.CommId}, destNodeId={destNodeId}");
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Error("HandleCarrierTransferActivity 오류", e);
+            }
+        }
+    }
 }

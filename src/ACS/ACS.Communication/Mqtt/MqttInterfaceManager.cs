@@ -411,10 +411,9 @@ namespace ACS.Communication.Mqtt
             try
             {
                 string topic = $"{_mqttConfig.TopicPrefix}{vehicleId}/command";
-                command.Timestamp = DateTime.Now;
-                if (string.IsNullOrEmpty(command.TransactionId))
+                if (string.IsNullOrEmpty(command.CmdId))
                 {
-                    command.TransactionId = Guid.NewGuid().ToString("N");
+                    command.CmdId = DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N").Substring(0, 3);
                 }
 
                 string payload = JsonSerializer.Serialize(command);
@@ -428,7 +427,7 @@ namespace ACS.Communication.Mqtt
 
                 await _mqttClient.PublishAsync(message);
 
-                logger.Info($"MQTT 명령 전송: topic={topic}, command={command.CommandType}, param={command.Parameter}");
+                logger.Info($"MQTT 명령 전송: topic={topic}, command={command.Command}, nodeId={command.NodeId}, port={command.Port}, jobType={command.JobType}");
                 return true;
             }
             catch (Exception e)
@@ -439,53 +438,32 @@ namespace ACS.Communication.Mqtt
         }
 
         /// <summary>
-        /// AMR에 목적지를 전송한다.
+        /// AMR에 이동 명령을 전송한다 (moveCmd).
         /// </summary>
-        public async Task<bool> SendDestination(string vehicleId, string nodeId)
+        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null)
         {
             var command = new AmrCommandMessage
             {
-                CommandType = "MOVE",
-                Parameter = nodeId,
-                TransactionId = Guid.NewGuid().ToString("N"),
-                Timestamp = DateTime.Now
+                Command = "moveCmd",
+                NodeId = nodeId,
+                Port = port ?? "",
+                JobType = jobType ?? ""
             };
 
-            string topic = $"{_mqttConfig.TopicPrefix}{vehicleId}/destination";
-            string payload = JsonSerializer.Serialize(command);
-
-            try
-            {
-                var message = new MqttApplicationMessageBuilder()
-                    .WithTopic(topic)
-                    .WithPayload(payload)
-                    .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
-                    .WithRetainFlag(false)
-                    .Build();
-
-                await _mqttClient.PublishAsync(message);
-
-                logger.Info($"MQTT 목적지 전송: vehicleId={vehicleId}, destination={nodeId}");
-                return true;
-            }
-            catch (Exception e)
-            {
-                logger.Error("MQTT 목적지 전송 오류: vehicleId=" + vehicleId, e);
-                return false;
-            }
+            return await SendCommand(vehicleId, command);
         }
 
         /// <summary>
-        /// AMR에 액션 명령을 전송한다.
+        /// AMR에 액션 명령을 전송한다 (actionCmd).
         /// </summary>
-        public async Task<bool> SendAction(string vehicleId, string actionType, string parameter = null)
+        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null)
         {
             var command = new AmrCommandMessage
             {
-                CommandType = actionType,
-                Parameter = parameter,
-                TransactionId = Guid.NewGuid().ToString("N"),
-                Timestamp = DateTime.Now
+                Command = "actionCmd",
+                NodeId = nodeId,
+                Port = port ?? "",
+                JobType = jobType ?? ""
             };
 
             return await SendCommand(vehicleId, command);

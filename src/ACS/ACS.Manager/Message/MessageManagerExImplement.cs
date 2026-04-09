@@ -1753,7 +1753,7 @@ namespace ACS.Manager.Message
                 }
 
                 // 5. Destination 조합: DestinationName + "/" + Application.Name
-                destinationName = application.DestinationName + "/" + application.Name;
+                destinationName = application.DestinationName.TrimEnd('/') + "/" + application.Name;
             }
             catch (Exception ex)
             {

@@ -11,6 +11,7 @@ using ACS.Core.Message;
 using ACS.Core.Alarm;
 using ACS.Communication.Socket;
 using ACS.Communication.Mqtt;
+using ACS.Communication.Msb;
 
 namespace ACS.App.Modules
 {
@@ -93,7 +94,17 @@ namespace ACS.App.Modules
                     .As<IMessageManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired()
-                    .OnActivated(e => ((AbstractManager)e.Instance).Init());
+                    .OnActivated(e =>
+                    {
+                        ((AbstractManager)e.Instance).Init();
+                        // EsAgent: Named registration — RAIL-CARRIERTRANSFER 전송에 필요
+                        var esAgentProp = e.Instance.GetType().GetProperty("EsAgent");
+                        if (esAgentProp != null)
+                        {
+                            var esAgent = e.Context.ResolveNamed<IMessageAgent>("EsAgentSender");
+                            esAgentProp.SetValue(e.Instance, esAgent);
+                        }
+                    });
 
             // AlarmManager
             var alarmMgrType = Type.GetType("ACS.Manager.Alarm.AlarmManagerExImplement, ACS.Manager");

@@ -57,6 +57,14 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("carrierType")]
         public string CarrierType { get; set; }
 
+        /// <summary>포트 위치 (LEFT / RIGHT)</summary>
+        [JsonPropertyName("port")]
+        public string Port { get; set; }
+
+        /// <summary>작업 유형 (LOAD / UNLOAD / EXCHANGE)</summary>
+        [JsonPropertyName("jobType")]
+        public string JobType { get; set; }
+
         /// <summary>결과 코드 (초기 전송 시 빈 문자열)</summary>
         [JsonPropertyName("resultCode")]
         public string ResultCode { get; set; }

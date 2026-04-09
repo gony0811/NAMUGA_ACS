@@ -175,6 +175,10 @@ namespace ACS.App.Modules
             // Sender
             RegisterSender(builder, "TransAgentSender", "tsAgentSender", acsSenderDest, "UNICAST",
                 serverUrl, serverUser, serverPass, serverStation);
+
+            // EsAgentSender: RAIL-CARRIERTRANSFER 전송용 (SCHEDULE-QUEUEJOB 워크플로우에서 사용)
+            RegisterSender(builder, "EsAgentSender", "ESSENDER", appNameDest, "UNICAST",
+                serverUrl, serverUser, serverPass, serverStation);
         }
 
         private void RegisterDaemonMsb(ContainerBuilder builder, NameValueCollection dest,

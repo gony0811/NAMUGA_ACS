@@ -88,15 +88,16 @@ namespace ACS.Elsa.Workflows.Trans
                                                 Vehicle = new(ctx => vehicle.Get(ctx))
                                             },
 
-                                            // JOBREPORT(START) 전송
-                                            new SendJobReportStartActivity
+                                            
+                                            // RAIL-CARRIERTRANSFER 전송
+                                            new SendCarrierTransferActivity
                                             {
                                                 TransportCommand = new(ctx => currentTc.Get(ctx)),
                                                 VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? "")
                                             },
-
-                                            // RAIL-CARRIERTRANSFER 전송
-                                            new SendCarrierTransferActivity
+                                            
+                                            // JOBREPORT(START) 전송
+                                            new SendJobReportStartActivity
                                             {
                                                 TransportCommand = new(ctx => currentTc.Get(ctx)),
                                                 VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? "")

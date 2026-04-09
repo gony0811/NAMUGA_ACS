@@ -407,6 +407,8 @@ namespace ACS.Elsa.Activities
                         DestNodeId = destNodeId,
                         Priority = tc.Priority.ToString(),
                         CarrierType = tc.CarrierId ?? "",
+                        Port = tc.PortId ?? "",
+                        JobType = tc.JobType ?? "",
                         ResultCode = ""
                     }
                 };
