@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
@@ -35,6 +36,9 @@ namespace ACS.Communication.Mqtt
         private bool _isStarted;
         private Timer _heartbeatCheckTimer;
 
+        // 담당 Vehicle CommId 목록 (MqttConfig.Name 기반)
+        private List<string> _vehicleCommIds = new();
+
         // AMR별 연결 상태 추적 (vehicleId → state)
         private ConcurrentDictionary<string, AmrConnectionState> _amrStates = new();
 
@@ -59,7 +63,18 @@ namespace ACS.Communication.Mqtt
             }
 
             _mqttConfig = (MqttConfig)configs[0];
-            logger.Info("MQTT 설정 로드 완료: " + _mqttConfig);
+
+            // ApplicationName에 해당하는 모든 MqttConfig의 Name을 담당 Vehicle CommId로 수집
+            _vehicleCommIds.Clear();
+            foreach (MqttConfig cfg in configs)
+            {
+                if (!string.IsNullOrEmpty(cfg.Name))
+                {
+                    _vehicleCommIds.Add(cfg.Name);
+                }
+            }
+
+            logger.Info($"MQTT 설정 로드 완료: {_mqttConfig}, 담당 Vehicle: [{string.Join(", ", _vehicleCommIds)}]");
 
             try
             {
@@ -217,16 +232,20 @@ namespace ACS.Communication.Mqtt
         {
             string prefix = _mqttConfig.TopicPrefix ?? "amr/";
 
-            var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(prefix + "+/status", MqttQualityOfServiceLevel.AtLeastOnce)
-                .WithTopicFilter(prefix + "+/heartbeat", MqttQualityOfServiceLevel.AtMostOnce)
-                .WithTopicFilter(prefix + "+/alarm", MqttQualityOfServiceLevel.AtLeastOnce)
-                .WithTopicFilter(prefix + "+/response", MqttQualityOfServiceLevel.AtLeastOnce)
-                .Build();
+            var builder = new MqttClientSubscribeOptionsBuilder();
 
+            foreach (string commId in _vehicleCommIds)
+            {
+                builder.WithTopicFilter($"{prefix}{commId}/status", MqttQualityOfServiceLevel.AtLeastOnce)
+                       .WithTopicFilter($"{prefix}{commId}/heartbeat", MqttQualityOfServiceLevel.AtMostOnce)
+                       .WithTopicFilter($"{prefix}{commId}/alarm", MqttQualityOfServiceLevel.AtLeastOnce)
+                       .WithTopicFilter($"{prefix}{commId}/response", MqttQualityOfServiceLevel.AtLeastOnce);
+            }
+
+            var subscribeOptions = builder.Build();
             await _mqttClient.SubscribeAsync(subscribeOptions);
 
-            logger.Info($"MQTT 토픽 구독 완료: {prefix}+/status, {prefix}+/heartbeat, {prefix}+/alarm, {prefix}+/response");
+            logger.Info($"MQTT 토픽 구독 완료: [{string.Join(", ", _vehicleCommIds.Select(id => $"{prefix}{id}/*"))}]");
         }
 
         private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs e)
@@ -573,7 +592,7 @@ namespace ACS.Communication.Mqtt
             try
             {
                 config.EditTime = DateTime.Now;
-                return this.PersistentDao.Update(typeof(MqttConfig), "State", config.State, config.Id);
+                return this.PersistentDao.UpdateByName(typeof(MqttConfig), "State", config.State, config.Name);
             }
             catch (Exception e)
             {

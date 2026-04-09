@@ -825,9 +825,10 @@ namespace ACS.Database
             {
                 e.ToTable("NA_C_MQTT");
                 e.HasKey(x => x.Seq);
-                e.Property(x => x.Seq).HasColumnName("id").HasMaxLength(64);
+                e.Property(x => x.Seq).HasColumnName("id").ValueGeneratedOnAdd();
                 e.Ignore(x => x.Id);
                 e.Property(x => x.Name).HasColumnName("NAME").HasMaxLength(64);
+                e.HasIndex(x => x.Name).IsUnique();
                 e.Property(x => x.ApplicationName).HasColumnName("applicationName").HasMaxLength(64);
                 e.Property(x => x.WorkflowManagerName).HasColumnName("workflowManagerName").HasMaxLength(255);
                 e.Property(x => x.BrokerIp).HasColumnName("brokerIp").HasMaxLength(64);

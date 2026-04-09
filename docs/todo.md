@@ -17,3 +17,5 @@
 ## 3. AMR 통신 및 보고/명령 워크플로우 완성
 
 ## 3. ACTIONCMD 명령 워크플로우 완성
+
+## 4. SCHEDULE-QUEUEJOB -> EI서버로 RAIL-CARRIERTRANSFER 메시지 전송 검증필요

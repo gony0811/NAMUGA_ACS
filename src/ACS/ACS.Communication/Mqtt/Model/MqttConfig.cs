@@ -12,7 +12,7 @@ namespace ACS.Communication.Mqtt.Model
     /// </summary>
     public class MqttConfig : NamedEntity
     {
-        public virtual string Seq { get; set; }
+        public virtual int Seq { get; set; }
 
         private string applicationName;
         private string workflowManagerName;

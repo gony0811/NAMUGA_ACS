@@ -151,7 +151,7 @@ CREATE TABLE public."NA_A_ALARMSPEC" (
 --
 
 CREATE TABLE public."NA_C_MQTT" (
-    id character varying(64) NOT NULL,
+    id SERIAL NOT NULL,
     "NAME" character varying(64),
     "applicationName" character varying(64),
     "workflowManagerName" character varying(255),
@@ -1001,8 +1001,8 @@ COPY public."NA_A_ALARMSPEC" (id, "alarmId", "alarmText", severity, "Description
 -- Data for Name: NA_C_MQTT; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public."NA_C_MQTT" (id, "NAME", "applicationName", "workflowManagerName", "brokerIp", "brokerPort", "topicPrefix", "clientId", "userName", password, "keepAliveSeconds", "reconnectDelayMs", state, description, "createTime", creator, editor, "editTime") FROM stdin;
-MQTT_CFG01	MQTT_CFG01	ES01_P	elsaWorkflowManager	localhost	1883	amr/	ACS_EI_01	guest	guest	30	5000	CONNECTED	\N	2026-03-25 05:10:22.970062	admin	admin	2026-03-26 00:25:01.313745
+COPY public."NA_C_MQTT" ("NAME", "applicationName", "workflowManagerName", "brokerIp", "brokerPort", "topicPrefix", "clientId", "userName", password, "keepAliveSeconds", "reconnectDelayMs", state, description, "createTime", creator, editor, "editTime") FROM stdin;
+MQTT_CFG01	ES01_P	elsaWorkflowManager	localhost	1883	amr/	ACS_EI_01	guest	guest	30	5000	CONNECTED	\N	2026-03-25 05:10:22.970062	admin	admin	2026-03-26 00:25:01.313745
 \.
 
 
@@ -1443,6 +1443,9 @@ SELECT pg_catalog.setval('public."NA_T_TRANSPORTCMD_id_seq"', 4, true);
 
 ALTER TABLE ONLY public."NA_C_MQTT"
     ADD CONSTRAINT "NA_C_MQTT_pkey" PRIMARY KEY (id);
+
+ALTER TABLE ONLY public."NA_C_MQTT"
+    ADD CONSTRAINT "NA_C_MQTT_NAME_unique" UNIQUE ("NAME");
 
 
 --
