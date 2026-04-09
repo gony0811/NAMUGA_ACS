@@ -94,6 +94,12 @@ namespace ACS.Database
 
         private readonly IConfiguration _configuration;
 
+        /// <summary>
+        /// 앱 시작 시 설정된 연결 문자열을 캐싱하여
+        /// 파라미터 없는 생성자(새 스레드)에서도 올바른 DB에 연결되도록 한다.
+        /// </summary>
+        private static string _cachedConnectionString;
+
         public AcsDbContext() { }
 
         public AcsDbContext(DbContextOptions<AcsDbContext> options) : base(options) { }
@@ -101,6 +107,16 @@ namespace ACS.Database
         public AcsDbContext(DbContextOptions<AcsDbContext> options, IConfiguration configuration) : base(options)
         {
             _configuration = configuration;
+
+            // 최초 생성 시 connection string을 캐싱
+            if (_cachedConnectionString == null)
+            {
+                var connStr = configuration?.GetConnectionString("DefaultConnection");
+                if (!string.IsNullOrEmpty(connStr))
+                {
+                    _cachedConnectionString = connStr;
+                }
+            }
         }
 
         private static readonly string DefaultConnectionString =
@@ -117,7 +133,7 @@ namespace ACS.Database
                 }
                 catch { }
 
-                optionsBuilder.UseNpgsql(connectionString ?? DefaultConnectionString);
+                optionsBuilder.UseNpgsql(connectionString ?? _cachedConnectionString ?? DefaultConnectionString);
             }
         }
 
