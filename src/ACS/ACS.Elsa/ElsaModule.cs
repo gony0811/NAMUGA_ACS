@@ -80,6 +80,7 @@ namespace ACS.Elsa
             // 6. ElsaWorkflowManagerBridge as IWorkflowManager
             //    Routes to Elsa or legacy based on elsa-migration.json
             builder.RegisterType<ElsaWorkflowManagerBridge>()
+                .Named<IWorkflowManager>("elsaWorkflowManager")
                 .As<IWorkflowManager>()
                 .SingleInstance();
 
