@@ -138,6 +138,7 @@ namespace ACS.App
                     MigrateLocationTable(dbContext);
                     MigrateBayTable(dbContext);
                     MigrateZoneTable(dbContext);
+                    MigrateMqttTable(dbContext);
                 }
                 catch (Exception ex)
                 {
@@ -455,6 +456,71 @@ END $$;
             catch (Exception ex)
             {
                 logger.Warning(ex, "Zone table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// NA_C_MQTT 테이블의 varchar 컬럼을 integer로 변환.
+        /// 원격 DB에서 수동 생성 시 brokerPort, keepAliveSeconds, reconnectDelayMs, id가
+        /// character varying으로 정의된 경우 EF Core 읽기 오류 방지.
+        /// </summary>
+        private void MigrateMqttTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    -- brokerPort varchar → integer 변환
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_C_MQTT' AND column_name = 'brokerPort'
+        AND data_type = 'character varying'
+    ) THEN
+        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""brokerPort"" TYPE integer USING ""brokerPort""::integer;
+        RAISE NOTICE 'NA_C_MQTT: brokerPort converted to integer';
+    END IF;
+
+    -- keepAliveSeconds varchar → integer 변환
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_C_MQTT' AND column_name = 'keepAliveSeconds'
+        AND data_type = 'character varying'
+    ) THEN
+        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""keepAliveSeconds"" TYPE integer USING ""keepAliveSeconds""::integer;
+        RAISE NOTICE 'NA_C_MQTT: keepAliveSeconds converted to integer';
+    END IF;
+
+    -- reconnectDelayMs varchar → integer 변환
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_C_MQTT' AND column_name = 'reconnectDelayMs'
+        AND data_type = 'character varying'
+    ) THEN
+        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""reconnectDelayMs"" TYPE integer USING ""reconnectDelayMs""::integer;
+        RAISE NOTICE 'NA_C_MQTT: reconnectDelayMs converted to integer';
+    END IF;
+
+    -- id varchar → integer (serial) 변환
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_C_MQTT' AND column_name = 'id'
+        AND data_type = 'character varying'
+    ) THEN
+        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""id"" TYPE integer USING ""id""::integer;
+        CREATE SEQUENCE IF NOT EXISTS ""NA_C_MQTT_id_seq"" OWNED BY ""NA_C_MQTT"".""id"";
+        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""id"" SET DEFAULT nextval('""NA_C_MQTT_id_seq""');
+        PERFORM setval('""NA_C_MQTT_id_seq""', COALESCE(MAX(""id""), 0) + 1) FROM ""NA_C_MQTT"";
+        RAISE NOTICE 'NA_C_MQTT: id converted to serial integer';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("MQTT table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "MQTT table migration skipped or failed (table may not exist yet).");
             }
         }
 
