@@ -239,7 +239,8 @@ namespace ACS.Communication.Mqtt
                 builder.WithTopicFilter($"{prefix}{commId}/status", MqttQualityOfServiceLevel.AtLeastOnce)
                        .WithTopicFilter($"{prefix}{commId}/heartbeat", MqttQualityOfServiceLevel.AtMostOnce)
                        .WithTopicFilter($"{prefix}{commId}/alarm", MqttQualityOfServiceLevel.AtLeastOnce)
-                       .WithTopicFilter($"{prefix}{commId}/response", MqttQualityOfServiceLevel.AtLeastOnce);
+                       .WithTopicFilter($"{prefix}{commId}/response", MqttQualityOfServiceLevel.AtLeastOnce)
+                       .WithTopicFilter($"{prefix}{commId}/reply", MqttQualityOfServiceLevel.AtLeastOnce);
             }
 
             var subscribeOptions = builder.Build();
@@ -318,6 +319,9 @@ namespace ACS.Communication.Mqtt
                     case "response":
                         HandleResponseMessage(vehicleId, payload);
                         break;
+                    case "reply":
+                        HandleReplyMessage(vehicleId, payload);
+                        break;
                     default:
                         logger.Warn("알 수 없는 메시지 타입: " + messageType);
                         break;
@@ -393,6 +397,31 @@ namespace ACS.Communication.Mqtt
             }
         }
 
+        private void HandleReplyMessage(string vehicleId, string payload)
+        {
+            try
+            {
+                var reply = JsonSerializer.Deserialize<AmrReplyMessage>(payload,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (reply == null)
+                {
+                    logger.Warn($"AMR reply 파싱 결과 null: vehicleId={vehicleId}");
+                    return;
+                }
+
+                reply.VehicleId = vehicleId;
+                logger.Info($"AMR reply 수신: vehicleId={vehicleId}, cmdId={reply.CmdId}, status={reply.Status}, jobType={reply.JobType}, resultCode={reply.ResultCode}");
+
+                _workflowManager?.Execute("AMR-REPLY-RECEIVED",
+                    new object[] { reply, vehicleId });
+            }
+            catch (Exception e)
+            {
+                logger.Error("AMR reply 파싱 오류: vehicleId=" + vehicleId, e);
+            }
+        }
+
         #endregion
 
         #region 명령 발행
@@ -427,7 +456,7 @@ namespace ACS.Communication.Mqtt
 
                 await _mqttClient.PublishAsync(message);
 
-                logger.Info($"MQTT 명령 전송: topic={topic}, command={command.Command}, nodeId={command.NodeId}, port={command.Port}, jobType={command.JobType}");
+                logger.Info($"MQTT 명령 전송: topic={topic}, cmdId={command.CmdId}, command={command.Command}, nodeId={command.NodeId}, port={command.Port}, jobType={command.JobType}");
                 return true;
             }
             catch (Exception e)
@@ -439,11 +468,13 @@ namespace ACS.Communication.Mqtt
 
         /// <summary>
         /// AMR에 이동 명령을 전송한다 (moveCmd).
+        /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// </summary>
-        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null)
+        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null)
         {
             var command = new AmrCommandMessage
             {
+                CmdId = cmdId,
                 Command = "moveCmd",
                 NodeId = nodeId,
                 Port = port ?? "",
@@ -455,11 +486,13 @@ namespace ACS.Communication.Mqtt
 
         /// <summary>
         /// AMR에 액션 명령을 전송한다 (actionCmd).
+        /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// </summary>
-        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null)
+        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null)
         {
             var command = new AmrCommandMessage
             {
+                CmdId = cmdId,
                 Command = "actionCmd",
                 NodeId = nodeId,
                 Port = port ?? "",
@@ -567,16 +600,38 @@ namespace ACS.Communication.Mqtt
 
         public int UpdateMqttConfigState(MqttConfig config)
         {
-            try
+            return UpdateAllMqttConfigStates(config.State);
+        }
+
+        /// <summary>
+        /// 동일 ApplicationName의 모든 NA_C_MQTT 레코드의 State를 일괄 업데이트.
+        /// </summary>
+        public int UpdateAllMqttConfigStates(string state)
+        {
+            int updated = 0;
+            var now = DateTime.Now;
+
+            foreach (var commId in _vehicleCommIds)
             {
-                config.EditTime = DateTime.Now;
-                return this.PersistentDao.UpdateByName(typeof(MqttConfig), "State", config.State, config.Name);
+                try
+                {
+                    var setAttributes = new Dictionary<string, object>
+                    {
+                        { "State", state },
+                        { "EditTime", now }
+                    };
+                    updated += this.PersistentDao.UpdateByName(typeof(MqttConfig), setAttributes, commId);
+                }
+                catch (Exception e)
+                {
+                    logger.Warn($"MQTT 설정 상태 업데이트 실패: name={commId}, state={state}", e);
+                }
             }
-            catch (Exception e)
-            {
-                logger.Warn("MQTT 설정 상태 업데이트 실패", e);
-                return 0;
-            }
+
+            if (updated > 0)
+                logger.Info($"MQTT 설정 상태 업데이트: {updated}건 → {state}");
+
+            return updated;
         }
 
         public MqttConfig GetMqttConfig(string name)

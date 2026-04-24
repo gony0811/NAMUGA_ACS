@@ -45,6 +45,8 @@ namespace ACS.Core.Transfer.Model
         public static String JOBTYPE_ACSMOVE = "ACSMOVE";
         public static String JOBTYPE_CHARGEMOVE = "CHARGEMOVE";
         public static String JOBTYPE_STOCK_STATION = "STOCKSTATION";
+        public static String JOBTYPE_LOAD = "LOAD";
+        public static String JOBTYPE_UNLOAD = "UNLOAD";
         public static String CAUSE_REQ_TIMEOUT = "TRANSPORTCOMMANDREQUESTTIMEOUT";
         public static String CAUSE_MOVECANCEL = "MOVECANCEL";
         public static String CAUSE_COMPLETE = "COMPLETE";

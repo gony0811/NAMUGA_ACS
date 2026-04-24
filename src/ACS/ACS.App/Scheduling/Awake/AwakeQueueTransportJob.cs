@@ -15,7 +15,7 @@ namespace ACS.Scheduling
         private readonly IMessageAgent _messageAgent;
         private readonly IResourceManagerEx _resourceManager;
 
-        protected override TimeSpan Interval => TimeSpan.FromSeconds(20);
+        protected override TimeSpan Interval => TimeSpan.FromSeconds(10);
 
         public AwakeQueueTransportJob(
             ITransferManagerEx transferManager,

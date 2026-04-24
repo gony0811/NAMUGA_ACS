@@ -65,6 +65,10 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("jobType")]
         public string JobType { get; set; }
 
+        /// <summary>포트 종류 (EQP / MAT)</summary>
+        [JsonPropertyName("portType")]
+        public string PortType { get; set; }
+
         /// <summary>결과 코드 (초기 전송 시 빈 문자열)</summary>
         [JsonPropertyName("resultCode")]
         public string ResultCode { get; set; }

@@ -1,7 +1,9 @@
 #!/bin/bash
 # ============================================================
 # ACS 멀티 프로세스 빌드 & 실행 스크립트
-# UI01_P (ui), HS01_P (host), CS01_P (control) 동시 실행
+# 인자 없이 실행하면 전체, 인자로 프로세스 지정 가능
+#   ./run-all.sh                    → 전체 6개 프로세스 실행
+#   ./run-all.sh TS01_P HS01_P      → 지정 프로세스만 실행
 # ============================================================
 
 set -e
@@ -9,14 +11,49 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PUBLISH_DIR="$SCRIPT_DIR/publish"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
-PROCESSES=("UI01_P" "HS01_P")
+
+# 전체 프로세스 목록 (기본값)
+ALL_PROCESSES=("TS01_P" "ES01_P" "DS01_P" "CS01_P" "HS01_P" "UI01_P")
+
+# 인자가 있으면 해당 프로세스만, 없으면 전체
+if [ $# -gt 0 ]; then
+    PROCESSES=("$@")
+    # 유효성 검증
+    for proc in "${PROCESSES[@]}"; do
+        if [ ! -d "$DEPLOY_DIR/$proc" ]; then
+            echo "오류: deploy/$proc 디렉토리가 없습니다."
+            echo "사용 가능: ${ALL_PROCESSES[*]}"
+            exit 1
+        fi
+    done
+else
+    PROCESSES=("${ALL_PROCESSES[@]}")
+fi
+
 PIDS=()
 
 # 색상 코드 (프로세스별 구분)
-COLOR_0="\033[1;34m"  # 파랑
-COLOR_1="\033[1;32m"  # 초록
-COLOR_2="\033[1;33m"  # 노랑
+COLORS=(
+    "\033[1;36m"  # 시안 (TS01_P)
+    "\033[1;35m"  # 마젠타 (ES01_P)
+    "\033[1;33m"  # 노랑 (DS01_P)
+    "\033[1;32m"  # 초록 (CS01_P)
+    "\033[1;34m"  # 파랑 (HS01_P)
+    "\033[1;31m"  # 빨강 (UI01_P)
+)
 RESET="\033[0m"
+
+# 프로세스 이름 → 색상 인덱스 매핑
+get_color_index() {
+    local proc="$1"
+    for i in "${!ALL_PROCESSES[@]}"; do
+        if [ "${ALL_PROCESSES[$i]}" = "$proc" ]; then
+            echo "$i"
+            return
+        fi
+    done
+    echo "0"
+}
 
 # 종료 시 모든 프로세스 정리 (프로세스 그룹 단위로 종료)
 cleanup() {
@@ -82,19 +119,22 @@ echo "=========================================="
 echo " [3/3] ACS 프로세스 실행 중..."
 echo "=========================================="
 echo ""
-echo "  UI01_P (ui)      - API: 5100"
-echo "  HS01_P (host)    - API: 5101, TCP Listen: 3334, TCP Send: 3333"
+echo "  프로세스 목록:"
+echo "  TS01_P (trans)   - API: 5103"
+echo "  ES01_P (ei)      - API: 5104"
+echo "  DS01_P (daemon)  - API: 5105"
 echo "  CS01_P (control) - API: 5102"
+echo "  HS01_P (host)    - API: 5101, TCP Listen: 3334, TCP Send: 3333"
+echo "  UI01_P (ui)      - API: 5100"
 echo ""
+echo "  실행 대상: ${PROCESSES[*]}"
 echo "  종료: Ctrl+C"
 echo "=========================================="
 echo ""
 
-COLORS=("$COLOR_0" "$COLOR_1" "$COLOR_2")
-
-for i in 0 1 2; do
-    proc="${PROCESSES[$i]}"
-    color="${COLORS[$i]}"
+for proc in "${PROCESSES[@]}"; do
+    ci=$(get_color_index "$proc")
+    color="${COLORS[$ci]}"
     PROC_DIR="$PUBLISH_DIR/$proc"
 
     # 로그 디렉토리 생성

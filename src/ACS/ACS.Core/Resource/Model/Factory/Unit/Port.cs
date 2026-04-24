@@ -14,6 +14,8 @@ namespace ACS.Core.Resource.Model.Factory.Unit
         public static string PORT_TYPE_LP = "LP";
         public static string PORT_TYPE_OP = "OP";
         public static string PORT_TYPE_BP = "BP";
+        public static string PORT_TYPE_EQP = "EQP";
+        public static string PORT_TYPE_MAT = "MAT";
         public static string SUBSTATE_READYTOLOAD = "READYTOLOAD";
         public static string SUBSTATE_READYTOUNLOAD = "READYTOUNLOAD";
         public static string SUBSTATE_TRANSFERBLOCKED = "TRANSFERBLOCKED";

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using Elsa.Workflows;
 using Elsa.Workflows.Activities;
 using Elsa.Workflows.Attributes;
@@ -39,14 +38,14 @@ namespace ACS.Elsa.Workflows
             // 워크플로우 변수
             var hardwareType = new Variable<string> { Name = "HardwareType" };
             var heartBeatTimeout = new Variable<long> { Name = "HeartBeatTimeout" };
-            var heartBeatDocument = new Variable<XmlDocument> { Name = "HeartBeatDocument" };
+            var heartBeatMessage = new Variable<string> { Name = "HeartBeatMessage" };
             var applicationNames = new Variable<List<string>> { Name = "ApplicationNames" };
             var currentAppName = new Variable<string> { Name = "CurrentAppName" };
             var heartBeatResult = new Variable<bool> { Name = "HeartBeatResult" };
 
             builder.WithVariable(hardwareType);
             builder.WithVariable(heartBeatTimeout);
-            builder.WithVariable(heartBeatDocument);
+            builder.WithVariable(heartBeatMessage);
             builder.WithVariable(applicationNames);
             builder.WithVariable(currentAppName);
             builder.WithVariable(heartBeatResult);
@@ -58,7 +57,7 @@ namespace ACS.Elsa.Workflows
                     // Step 1: Input에서 파라미터 추출
                     new ExtractHeartBeatInput
                     {
-                        OutputDocument = new(heartBeatDocument),
+                        OutputMessage = new(heartBeatMessage),
                         OutputHardwareType = new(hardwareType),
                         OutputTimeout = new(heartBeatTimeout)
                     },
@@ -79,11 +78,11 @@ namespace ACS.Elsa.Workflows
                         {
                             Activities =
                             {
-                                // 3a. HeartBeat 메시지 전송
+                                // 3a. HeartBeat JSON 메시지 전송
                                 new SendHeartBeatActivity
                                 {
                                     ApplicationName = new(currentAppName),
-                                    HeartBeatDocument = new(heartBeatDocument),
+                                    HeartBeatMessage = new(heartBeatMessage),
                                     Timeout = new(heartBeatTimeout),
                                     Result = new(heartBeatResult)
                                 },
@@ -132,18 +131,14 @@ namespace ACS.Elsa.Workflows
 
     /// <summary>
     /// 워크플로우 Input에서 HeartBeat 관련 파라미터를 추출하는 Activity.
-    ///
-    /// ElsaWorkflowManagerBridge가 전달하는 Input 형식:
-    ///   { "CommandName": "CONTROL_STARTHEARTBEAT", "Arguments": object[] { XmlDocument } }
-    ///
     /// HeartBeat 설정(하드웨어 타입, 타임아웃)은 IControlServerManager에서 조회.
     /// </summary>
     [Activity("ACS.Control", "Extract HeartBeat Input",
         "워크플로우 입력에서 HeartBeat 파라미터를 추출합니다.")]
     public class ExtractHeartBeatInput : CodeActivity
     {
-        [Output(Description = "HeartBeat XmlDocument")]
-        public Output<XmlDocument> OutputDocument { get; set; }
+        [Output(Description = "HeartBeat JSON 메시지")]
+        public Output<string> OutputMessage { get; set; }
 
         [Output(Description = "하드웨어 타입 (PRIMARY/SECONDARY)")]
         public Output<string> OutputHardwareType { get; set; }
@@ -153,31 +148,9 @@ namespace ACS.Elsa.Workflows
 
         protected override void Execute(ActivityExecutionContext context)
         {
-            XmlDocument document = null;
             string hardwareType = "PRIMARY";
             long timeout = 5000L;
 
-            // Input에서 Arguments 추출
-            var input = context.WorkflowExecutionContext.Input;
-            if (input != null && input.TryGetValue("Arguments", out var args))
-            {
-                if (args is object[] argsArray && argsArray.Length > 0)
-                {
-                    if (argsArray[0] is XmlDocument xmlDoc)
-                        document = xmlDoc;
-                    else if (argsArray[0] is string xmlString)
-                    {
-                        document = new XmlDocument();
-                        document.LoadXml(xmlString);
-                    }
-                }
-                else if (args is XmlDocument singleDoc)
-                {
-                    document = singleDoc;
-                }
-            }
-
-            // IControlServerManager에서 설정 조회
             try
             {
                 var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
@@ -190,7 +163,6 @@ namespace ACS.Elsa.Workflows
                         : controlManager.HeartBeatTimeout;
                 }
 
-                // 하드웨어 타입은 IConfiguration에서 조회
                 var config = accessor?.Resolve<Microsoft.Extensions.Configuration.IConfiguration>();
                 var hw = config?["Acs:Process:HardwareType"];
                 if (!string.IsNullOrEmpty(hw))
@@ -201,14 +173,9 @@ namespace ACS.Elsa.Workflows
                 // 기본값 사용
             }
 
-            // HeartBeat 문서가 없으면 기본 생성
-            if (document == null)
-            {
-                document = new XmlDocument();
-                document.LoadXml("<Msg><Command>CONTROL-HEARTBEAT</Command><Header/><DataLayer/></Msg>");
-            }
+            string jsonMessage = $"{{\"messageName\":\"CONTROL-HEARTBEAT\",\"timestamp\":\"{DateTime.UtcNow:o}\"}}";
 
-            context.Set(OutputDocument, document);
+            context.Set(OutputMessage, jsonMessage);
             context.Set(OutputHardwareType, hardwareType);
             context.Set(OutputTimeout, timeout);
         }

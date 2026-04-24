@@ -48,6 +48,7 @@ namespace ACS.Core.Resource.Model
         public static string TRANSFERSTATE_ACQUIRE_COMPLETE = "ACQUIRE_COMPLETE";
         public static string TRANSFERSTATE_DEPOSIT_COMPLETE = "DEPOSIT_COMPLETE";
         public static string TRANSFERSTATE_NOTASSIGNED = "NOTASSIGNED";
+        public static string TRANSFERSTATE_TRANSFERING_DEST = "TRANSFERING_DEST";
 
         public static string VENDOR_FIXMODE = "FIXMODE";
 	    public static string  VENDOR_SPECIAL = "SPECIAL";

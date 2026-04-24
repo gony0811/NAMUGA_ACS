@@ -787,7 +787,7 @@ namespace ACS.Manager.Path
                 // Gt: BatteryRate > 10%
                 // Order: NodeCheckTime ASC
                 vehicleList = allMatches.Cast<VehicleEx>()
-                    .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryRate > 10.0F)
+                    .Where(v => (v.ProcessingState == "IDLE" || v.ProcessingState == "PARK") && v.BatteryRate > 5.0F)
                     .OrderBy(v => v.NodeCheckTime)
                     .ToList<VehicleEx>();
             }

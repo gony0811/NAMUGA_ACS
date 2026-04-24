@@ -207,65 +207,71 @@ namespace ACS.Communication.Msb.RabbitMQ
                     logger.Debug("destination{" + Destination.Name + "}, received message{" + message + "}");
                 }
 
-                object obj = null;
-
-                if (this.MsbConverter != null)
-                {
-                    obj = MessageConverterUtils.GetMessageBasedOnXmlString(body, MsbConverter);
-                }
-                else
-                {
-                    obj = MessageConverterUtils.GetMessageBasedOnXmlString(body);
-                }
-
                 string dest = Destination.Name;
 
-                if (obj is ExtendDocument)
+                // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
+                if (IsJsonMessage(message))
                 {
-                    ExtendDocument document = (ExtendDocument)obj;
-
-                    document.putExtendDataElement("PRIMARYMESSAGE", message);
-                    MessageConverterUtils.SetOriginatedName(document, dest);
-
-                    //logger.well(XmlUtils.toStringPrettyFormatWithoutDeclaration(document), transactionId, messageName, carrierName, transportCommandId, currentMachineName, currentUnitName, messageName);
-
-                    OnMessage(document, dest);
-                }
-                else if (obj is AbstractMessage)
-                {
-                    AbstractMessage abstractMessage = (AbstractMessage)obj;
-                    string transactionId = IdGeneratorUtils.RandomTransactionId();
-                    abstractMessage.TransactionId = transactionId;
-
-                    if (String.IsNullOrEmpty(abstractMessage.ConversationId))
-                    {
-                        abstractMessage.ConversationId = transactionId;
-                    }
-
-                    if (String.IsNullOrEmpty(abstractMessage.OriginatedName))
-                    {
-                        abstractMessage.OriginatedName = dest;
-                    }
-                    //logger.receive(abstractMessage);
-                    OnMessage(abstractMessage);
-                }
-                else if (obj is XmlDocument)
-                {
-                    XmlDocument document = (XmlDocument)obj;
-                    MessageConverterUtils.SetOriginatedName(document, this.QueueName);
-
-                    logger.Info("received message : " + document.InnerXml);
-
-                    OnMessage(document, dest);
+                    logger.Info($"RPC received JSON message from {dest}");
+                    OnJsonMessage(message, dest);
                 }
                 else
                 {
-                    logger.Error("can not execute workflow, message should be Document or subclass of AbstractMessage, " + message);
+                    object obj = null;
+
+                    if (this.MsbConverter != null)
+                    {
+                        obj = MessageConverterUtils.GetMessageBasedOnXmlString(body, MsbConverter);
+                    }
+                    else
+                    {
+                        obj = MessageConverterUtils.GetMessageBasedOnXmlString(body);
+                    }
+
+                    if (obj is ExtendDocument)
+                    {
+                        ExtendDocument document = (ExtendDocument)obj;
+
+                        document.putExtendDataElement("PRIMARYMESSAGE", message);
+                        MessageConverterUtils.SetOriginatedName(document, dest);
+
+                        OnMessage(document, dest);
+                    }
+                    else if (obj is AbstractMessage)
+                    {
+                        AbstractMessage abstractMessage = (AbstractMessage)obj;
+                        string transactionId = IdGeneratorUtils.RandomTransactionId();
+                        abstractMessage.TransactionId = transactionId;
+
+                        if (String.IsNullOrEmpty(abstractMessage.ConversationId))
+                        {
+                            abstractMessage.ConversationId = transactionId;
+                        }
+
+                        if (String.IsNullOrEmpty(abstractMessage.OriginatedName))
+                        {
+                            abstractMessage.OriginatedName = dest;
+                        }
+                        OnMessage(abstractMessage);
+                    }
+                    else if (obj is XmlDocument)
+                    {
+                        XmlDocument document = (XmlDocument)obj;
+                        MessageConverterUtils.SetOriginatedName(document, this.QueueName);
+
+                        logger.Info("received message : " + document.InnerXml);
+
+                        OnMessage(document, dest);
+                    }
+                    else
+                    {
+                        logger.Error("can not execute workflow, message should be Document or subclass of AbstractMessage, " + message);
+                    }
                 }
             }
             catch (Exception e)
             {
-                logger.Error("error");
+                logger.Error($"OnRequest error: {e.Message}", e);
             }
             finally
             {

@@ -259,6 +259,7 @@ namespace ACS.Elsa.Activities
                 // Vehicle에 TC 할당
                 resourceManager.UpdateVehicleTransportCommandId(vehicle, tc.JobId);
                 resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_ASSIGNED);
+                resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_RUN);
 
                 logger.Info($"AssignVehicleToTransportCommandActivity: TC {tc.JobId} → Vehicle {vehicle.VehicleId}");
                 context.Set(Success, true);
@@ -340,6 +341,12 @@ namespace ACS.Elsa.Activities
         [Input(Description = "할당된 Vehicle ID")]
         public Input<string> VehicleId { get; set; }
 
+        [Input(Description = "작업 유형 (UNLOAD / LOAD)")]
+        public Input<string> JobType { get; set; }
+
+        [Input(Description = "true=Source 기준, false=Dest 기준")]
+        public Input<bool> UseSource { get; set; }
+
         [Output(Description = "전송 성공 여부")]
         public Output<bool> Success { get; set; }
 
@@ -347,6 +354,8 @@ namespace ACS.Elsa.Activities
         {
             var tc = TransportCommand?.Get(context);
             var vehicleId = VehicleId?.Get(context);
+            var jobType = JobType?.Get(context);
+            var useSource = UseSource?.Get(context) ?? true;
 
             if (tc == null || string.IsNullOrEmpty(vehicleId))
             {
@@ -366,30 +375,92 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // source portId 파싱
-                string destPortId = "";
-                if (!string.IsNullOrEmpty(tc.Source))
+                string json = CarrierTransferJsonBuilder.Build(tc, vehicleId, jobType, useSource, resourceManager, logger);
+                if (string.IsNullOrEmpty(json))
                 {
-                    int colonIdx = tc.Source.IndexOf(':');
-                    destPortId = colonIdx >= 0
-                        ? tc.Source.Substring(0, colonIdx) + ":" + tc.Source.Substring(colonIdx + 1)
-                        : tc.Source + ":";
+                    context.Set(Success, false);
+                    return;
                 }
 
-                // dest nodeId 조회
-                var destNodeId = "";
+                messageManager.SendCarrierTransferJson(json);
+
+                logger.Info($"SendCarrierTransferActivity: RAIL-CARRIERTRANSFER sent for TC {tc.JobId}, vehicleId={vehicleId}, jobType={jobType}, useSource={useSource}");
+                context.Set(Success, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"SendCarrierTransferActivity: {ex.Message}", ex);
+                context.Set(Success, false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// RAIL-CARRIERTRANSFER JSON 빌드 공유 헬퍼.
+    /// Source 단계(UNLOAD)와 Dest 단계(LOAD) 모두에서 사용.
+    /// useSource=true면 tc.Source, false면 tc.Dest를 기준으로
+    /// destPortId / destNodeId / portType(EQP/MAT)을 채운다.
+    /// </summary>
+    internal static class CarrierTransferJsonBuilder
+    {
+        public static string Build(TransportCommandEx tc, string vehicleId, string jobType,
+            bool useSource, IResourceManagerEx resourceManager, Logger logger)
+        {
+            try
+            {
+                string src = useSource ? tc.Source : tc.Dest;
+
+                // portId (machine:unit) 파싱
+                string portId = "";
+                string machineName = "";
+                string unitName = "";
+                if (!string.IsNullOrEmpty(src))
+                {
+                    int colonIdx = src.IndexOf(':');
+                    if (colonIdx >= 0)
+                    {
+                        machineName = src.Substring(0, colonIdx);
+                        unitName = src.Substring(colonIdx + 1);
+                        portId = machineName + ":" + unitName;
+                    }
+                    else
+                    {
+                        machineName = src;
+                        portId = src + ":";
+                    }
+                }
+
+                // nodeId 조회
+                string nodeId = "";
                 try
                 {
-                    var location = resourceManager?.GetLocationByLocationId(destPortId);
+                    var location = resourceManager?.GetLocationByLocationId(portId);
                     if (location != null)
-                        destNodeId = location.StationId ?? "";
+                        nodeId = location.StationId ?? "";
                 }
                 catch (Exception ex)
                 {
-                    logger.Error($"SendCarrierTransferActivity: dest location 조회 실패 - {ex.Message}");
+                    logger?.Error($"CarrierTransferJsonBuilder: location 조회 실패 portId={portId} - {ex.Message}");
                 }
 
-                // RAIL-CARRIERTRANSFER JSON 빌드
+                // portType (EQP / MAT) 조회
+                string portType = "";
+                try
+                {
+                    if (!string.IsNullOrEmpty(unitName) && !string.IsNullOrEmpty(machineName))
+                    {
+                        var unit = resourceManager?.GetUnitByName(unitName, machineName);
+                        if (unit is ACS.Core.Resource.Model.Factory.Unit.Port port)
+                        {
+                            portType = port.PortType ?? "";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.Error($"CarrierTransferJsonBuilder: Port 조회 실패 machine={machineName}, unit={unitName} - {ex.Message}");
+                }
+
                 var message = new RailCarrierTransferMessage
                 {
                     Header = new RailCarrierTransferHeader
@@ -403,26 +474,192 @@ namespace ACS.Elsa.Activities
                     {
                         CommandId = tc.JobId,
                         VehicleId = vehicleId,
-                        DestPortId = destPortId,
-                        DestNodeId = destNodeId,
+                        DestPortId = portId,
+                        DestNodeId = nodeId,
                         Priority = tc.Priority.ToString(),
                         CarrierType = tc.CarrierId ?? "",
                         Port = tc.PortId ?? "",
-                        JobType = tc.JobType ?? "",
+                        JobType = string.IsNullOrEmpty(jobType) ? (tc.JobType ?? "") : jobType,
+                        PortType = portType,
                         ResultCode = ""
                     }
                 };
 
-                string json = JsonSerializer.Serialize(message);
-                messageManager.SendCarrierTransferJson(json);
-
-                logger.Info($"SendCarrierTransferActivity: RAIL-CARRIERTRANSFER sent for TC {tc.JobId}, vehicleId={vehicleId}");
-                context.Set(Success, true);
+                return JsonSerializer.Serialize(message);
             }
             catch (Exception ex)
             {
-                logger.Error($"SendCarrierTransferActivity: {ex.Message}", ex);
+                logger?.Error($"CarrierTransferJsonBuilder: JSON 빌드 실패 - {ex.Message}", ex);
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// RAIL-CARRIERTRANSFER JSON을 EI 프로세스로 전송하고 Reply 응답을 대기.
+    /// 5초 타임아웃, 최대 3회 재시도.
+    /// </summary>
+    [Activity("ACS.Schedule", "Send Carrier Transfer With Retry",
+        "RAIL-CARRIERTRANSFER 전송 + 응답 대기 (5초 타임아웃, 최대 3회 재시도)")]
+    public class SendCarrierTransferWithRetryActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        private const int MaxAttempts = 3;
+        private const int TimeoutMs = 5000;
+
+        [Input(Description = "TransportCommand")]
+        public Input<TransportCommandEx> TransportCommand { get; set; }
+
+        [Input(Description = "할당된 Vehicle ID")]
+        public Input<string> VehicleId { get; set; }
+
+        [Input(Description = "작업 유형 (UNLOAD / LOAD). 비어있으면 tc.JobType 사용")]
+        public Input<string> JobType { get; set; }
+
+        [Input(Description = "true=Source 기준(UNLOAD), false=Dest 기준(LOAD)")]
+        public Input<bool> UseSource { get; set; }
+
+        [Output(Description = "전송 및 응답 수신 성공 여부")]
+        public Output<bool> Success { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            var tc = TransportCommand?.Get(context);
+            var vehicleId = VehicleId?.Get(context);
+            var jobType = JobType?.Get(context);
+            var useSource = UseSource?.Get(context) ?? true;
+
+            if (tc == null || string.IsNullOrEmpty(vehicleId))
+            {
+                logger.Error("SendCarrierTransferWithRetryActivity: TC or VehicleId is null");
                 context.Set(Success, false);
+                return;
+            }
+
+            try
+            {
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                var messageManager = accessor?.Resolve<IMessageManagerEx>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("SendCarrierTransferWithRetryActivity: IMessageManagerEx not resolved");
+                    context.Set(Success, false);
+                    return;
+                }
+
+                // RAIL-CARRIERTRANSFER JSON 빌드 (공유 헬퍼 사용)
+                string json = CarrierTransferJsonBuilder.Build(tc, vehicleId, jobType, useSource, resourceManager, logger);
+                if (string.IsNullOrEmpty(json))
+                {
+                    logger.Error("SendCarrierTransferWithRetryActivity: JSON 빌드 실패");
+                    context.Set(Success, false);
+                    return;
+                }
+
+                string commandId = tc.JobId;
+
+                // 최대 3회 재시도
+                for (int attempt = 1; attempt <= MaxAttempts; attempt++)
+                {
+                    logger.Info($"SendCarrierTransferWithRetryActivity: 시도 {attempt}/{MaxAttempts} - TC {commandId}");
+
+                    // 응답 대기 등록
+                    Bridge.CarrierTransferReplyWaiter.RegisterWait(commandId);
+
+                    // RAIL-CARRIERTRANSFER 전송
+                    messageManager.SendCarrierTransferJson(json);
+
+                    // 5초간 응답 대기
+                    var (replied, resultCode) = Bridge.CarrierTransferReplyWaiter.WaitForReply(commandId, TimeoutMs);
+
+                    if (replied && "OK".Equals(resultCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.Info($"SendCarrierTransferWithRetryActivity: 응답 수신 성공 - TC {commandId}, attempt={attempt}");
+                        context.Set(Success, true);
+                        return;
+                    }
+
+                    if (replied)
+                    {
+                        logger.Warn($"SendCarrierTransferWithRetryActivity: 응답 수신했으나 실패 - TC {commandId}, resultCode={resultCode}, attempt={attempt}");
+                    }
+                    else
+                    {
+                        logger.Warn($"SendCarrierTransferWithRetryActivity: 응답 타임아웃 ({TimeoutMs}ms) - TC {commandId}, attempt={attempt}");
+                    }
+                }
+
+                // 3회 모두 실패
+                logger.Error($"SendCarrierTransferWithRetryActivity: {MaxAttempts}회 시도 모두 실패 - TC {commandId}");
+                context.Set(Success, false);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"SendCarrierTransferWithRetryActivity: {ex.Message}", ex);
+                context.Set(Success, false);
+            }
+        }
+
+    }
+
+    /// <summary>
+    /// CARRIER-TRANSFER 실패 시 TC와 Vehicle 할당을 롤백.
+    /// TC: QUEUED 상태로 복원, VehicleId 제거
+    /// Vehicle: NOTASSIGNED, IDLE 상태로 복원, TransportCommandId 제거
+    /// </summary>
+    [Activity("ACS.Schedule", "Rollback Vehicle Assignment",
+        "CARRIER-TRANSFER 실패 시 TC/Vehicle 할당 롤백")]
+    public class RollbackVehicleAssignmentActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "롤백 대상 TransportCommand")]
+        public Input<TransportCommandEx> TransportCommand { get; set; }
+
+        [Input(Description = "롤백 대상 Vehicle")]
+        public Input<VehicleEx> Vehicle { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            var tc = TransportCommand?.Get(context);
+            var vehicle = Vehicle?.Get(context);
+
+            if (tc == null || vehicle == null)
+            {
+                logger.Error("RollbackVehicleAssignmentActivity: TC or Vehicle is null");
+                return;
+            }
+
+            try
+            {
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                var transferManager = accessor?.Resolve<ITransferManagerEx>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+
+                if (transferManager == null || resourceManager == null)
+                {
+                    logger.Error("RollbackVehicleAssignmentActivity: Required services not available");
+                    return;
+                }
+
+                // TC 롤백: QUEUED 상태로 복원
+                tc.State = TransportCommandEx.STATE_QUEUED;
+                tc.VehicleId = null;
+                tc.AssignedTime = null;
+                transferManager.UpdateTransportCommand(tc);
+
+                // Vehicle 롤백: NOTASSIGNED + IDLE 상태로 복원
+                resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
+                resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE);
+                resourceManager.UpdateVehicleTransportCommandId(vehicle, "");
+
+                logger.Info($"RollbackVehicleAssignmentActivity: 롤백 완료 - TC {tc.JobId} → QUEUED, Vehicle {vehicle.VehicleId} → NOTASSIGNED/IDLE");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"RollbackVehicleAssignmentActivity: {ex.Message}", ex);
             }
         }
     }
@@ -515,10 +752,10 @@ namespace ACS.Elsa.Activities
 
     /// <summary>
     /// 대상 Vehicle 목록의 ConnectionState를 DISCONNECT로 변경.
-    /// NIO가 존재하는 Vehicle만 처리.
+    /// CommType(NIO/MQTT)에 관계없이 EventTime이 만료된 Vehicle을 disconnect 처리.
     /// </summary>
     [Activity("ACS.Schedule", "Disconnect Vehicles",
-        "Vehicle ConnectionState를 DISCONNECT로 변경 (NIO 확인)")]
+        "Vehicle ConnectionState를 DISCONNECT로 변경")]
     public class DisconnectVehiclesActivity : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
@@ -542,11 +779,10 @@ namespace ACS.Elsa.Activities
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
                 var resourceManager = accessor?.Resolve<IResourceManagerEx>();
-                var nioInterfaceManager = accessor?.Resolve<NioInterfaceManager>();
 
-                if (resourceManager == null || nioInterfaceManager == null)
+                if (resourceManager == null)
                 {
-                    logger.Error("DisconnectVehiclesActivity: Required services not available");
+                    logger.Error("DisconnectVehiclesActivity: IResourceManagerEx not available");
                     context.Set(Success, false);
                     return;
                 }
@@ -555,16 +791,11 @@ namespace ACS.Elsa.Activities
                 {
                     if (!"DISCONNECT".Equals(vehicle.ConnectionState, StringComparison.OrdinalIgnoreCase))
                     {
-                        // NIO가 존재하는 Vehicle만 처리
-                        IList nios = nioInterfaceManager.GetNioes(vehicle.CommId);
-                        if (nios == null || nios.Count < 1)
-                            continue;
-
                         resourceManager.UpdateVehicleConnectionState(vehicle.VehicleId,
                             VehicleEx.CONNECTIONSTATE_DISCONNECT,
                             "SCHEDULE-CHECKVEHICLES");
 
-                        logger.Debug($"DisconnectVehiclesActivity: Vehicle [{vehicle.VehicleId}] disconnected");
+                        logger.Info($"DisconnectVehiclesActivity: Vehicle [{vehicle.VehicleId}] (CommType={vehicle.CommType}) disconnected");
                     }
                 }
 

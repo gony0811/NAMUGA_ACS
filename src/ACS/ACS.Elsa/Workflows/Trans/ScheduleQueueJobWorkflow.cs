@@ -21,8 +21,11 @@ namespace ACS.Elsa.Workflows.Trans
     ///      a. FindSuitableVehicle(tc) → vehicle, found
     ///      b. If(found):
     ///         - AssignVehicleToTransportCommand(tc, vehicle)
-    ///         - SendJobReportStart(tc, vehicleId)
-    ///         - SendCarrierTransfer(tc, vehicleId)
+    ///         - SendCarrierTransferWithRetry(tc, vehicleId) → transferSuccess
+    ///           (5초 타임아웃, 최대 3회 재시도)
+    ///         - If(transferSuccess):
+    ///             Then: SendJobReportStart(tc, vehicleId)
+    ///             Else: RollbackVehicleAssignment(tc, vehicle)
     /// </summary>
     public class ScheduleQueueJobWorkflow : WorkflowBase
     {
@@ -38,12 +41,14 @@ namespace ACS.Elsa.Workflows.Trans
             var currentTc = new Variable<TransportCommandEx> { Name = "CurrentTC" };
             var vehicle = new Variable<VehicleEx> { Name = "Vehicle" };
             var found = new Variable<bool> { Name = "Found" };
+            var transferSuccess = new Variable<bool> { Name = "TransferSuccess" };
 
             builder.WithVariable(queuedList);
             builder.WithVariable(queuedCount);
             builder.WithVariable(currentTc);
             builder.WithVariable(vehicle);
             builder.WithVariable(found);
+            builder.WithVariable(transferSuccess);
 
             builder.Root = new Sequence
             {
@@ -88,19 +93,35 @@ namespace ACS.Elsa.Workflows.Trans
                                                 Vehicle = new(ctx => vehicle.Get(ctx))
                                             },
 
-                                            
-                                            // RAIL-CARRIERTRANSFER 전송
-                                            new SendCarrierTransferActivity
+                                            // RAIL-CARRIERTRANSFER(UNLOAD) 전송 + Reply 대기 (5초 타임아웃, 최대 3회 재시도)
+                                            // Source 포트에서 매거진을 내리라는 명령
+                                            new SendCarrierTransferWithRetryActivity
                                             {
                                                 TransportCommand = new(ctx => currentTc.Get(ctx)),
-                                                VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? "")
+                                                VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? ""),
+                                                JobType = new(TransportCommandEx.JOBTYPE_UNLOAD),
+                                                UseSource = new(true),
+                                                Success = new(transferSuccess)
                                             },
-                                            
-                                            // JOBREPORT(START) 전송
-                                            new SendJobReportStartActivity
+
+                                            // Reply 성공/실패에 따라 분기
+                                            new If
                                             {
-                                                TransportCommand = new(ctx => currentTc.Get(ctx)),
-                                                VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? "")
+                                                Condition = new(ctx => transferSuccess.Get(ctx)),
+
+                                                // 성공: JOBREPORT(START) 전송
+                                                Then = new SendJobReportStartActivity
+                                                {
+                                                    TransportCommand = new(ctx => currentTc.Get(ctx)),
+                                                    VehicleId = new(ctx => vehicle.Get(ctx)?.VehicleId ?? "")
+                                                },
+
+                                                // 실패: TC/Vehicle 할당 롤백
+                                                Else = new RollbackVehicleAssignmentActivity
+                                                {
+                                                    TransportCommand = new(ctx => currentTc.Get(ctx)),
+                                                    Vehicle = new(ctx => vehicle.Get(ctx))
+                                                }
                                             }
                                         }
                                     }

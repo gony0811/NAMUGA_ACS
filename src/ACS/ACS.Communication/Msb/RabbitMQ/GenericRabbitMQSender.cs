@@ -79,6 +79,8 @@ namespace ACS.Communication.Msb.RabbitMQ
                                     respQueue.Add(response);
                                 }
                             };
+
+                            Session.BasicConsume(consumer: consumer, queue: QueueName, autoAck: true);
                         }
                         break;              
                 }
@@ -419,44 +421,25 @@ namespace ACS.Communication.Msb.RabbitMQ
 
         public string Request(string message, string dest, long timeout, bool useCommunicationMessageNameForLogging, string communicationMessageName)
         {
-            string replyMessage = string.Empty;
-
             try
             {
+                var body = Encoding.UTF8.GetBytes(message);
+                Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
 
-                if (useCommunicationMessageNameForLogging)
+                if (respQueue.TryTake(out string replyMessage, (int)timeout))
                 {
-                    //logger.well(message + " will be requested to " + dest, communicationMessageName);
+                    return replyMessage;
                 }
                 else
                 {
-                    //logger.well(message + " will be requested to " + dest);
-                }
-
-
-                var body = Encoding.UTF8.GetBytes(message);
-
-                Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
-                Session.BasicConsume(consumer: consumer, queue: QueueName, autoAck: true);
-
-
-                replyMessage = respQueue.Take();
-
-                if (replyMessage == null)
-                {
-                    logger.Error("failed to get reply message, timeout{" + this.DefaultTTL + "} occurred");
+                    logger.Error($"RPC timeout ({timeout}ms), dest={dest}");
                     return null;
                 }
-
-                return replyMessage;
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                return replyMessage;
-            }
-            finally
-            {
-
+                logger.Error($"RPC request failed, dest={dest}: {e.Message}", e);
+                return null;
             }
         }
 
@@ -477,41 +460,9 @@ namespace ACS.Communication.Msb.RabbitMQ
 
         public object Request(object obj, string dest, long timeout, bool useCommunicationMessageNameForLogging, string communicationMessageName)
         {
-            string replyMessage = string.Empty;
-
-            if (obj is string)
+            if (obj is string message)
             {
-                try
-                {
-                    if (useCommunicationMessageNameForLogging)
-                    {
-                        //logger.well(object + " will be requested to " + dest, communicationMessageName);              
-                    }
-                    else
-                    {
-                        //logger.well(object + " will be requested to " + dest);
-                    }
-
-                    var body = Encoding.UTF8.GetBytes(obj as string);
-
-                    Session.BasicPublish(exchange: "", routingKey: QueueName, basicProperties: props, body: body);
-                    Session.BasicConsume(consumer: consumer, queue: QueueName, autoAck: true);
-
-                    replyMessage = respQueue.Take();
-
-                    if (replyMessage == null)
-                    {
-                        logger.Error("failed to get reply message, timeout{" + this.DefaultTTL + "} occurred");
-                        return null;
-                    }
-
-                    return replyMessage;
-                }
-                catch (Exception e)
-                {
-                    logger.Error("failed to request " + obj, e);
-                    return null;
-                }
+                return Request(message, dest, timeout, useCommunicationMessageNameForLogging, communicationMessageName);
             }
             return null;
         }

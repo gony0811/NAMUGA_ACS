@@ -544,13 +544,12 @@ namespace ACS.Control
         {
             Type jobType = HeartBeatJobType ?? this.JobType;
 
-            ControlMessageEx controlMessage = this.MessageManager.CreateControlMessage("CONTROL-HEARTBEAT", applicationName);
-            XmlDocument document = this.MessageManager.CreateDocument(controlMessage);
+            string jsonMessage = $"{{\"messageName\":\"CONTROL-HEARTBEAT\",\"applicationName\":\"{applicationName}\",\"timestamp\":\"{DateTime.UtcNow:o}\"}}";
 
             JobDataMap jobData = new JobDataMap();
             jobData.Put("ControlServerManager", this);
             jobData.Put("ApplicationName", applicationName);
-            jobData.Put("Document", document);
+            jobData.Put("JsonMessage", jsonMessage);
             jobData.Put("UseSecondAsTimeUnit", this.UseSecondAsTimeUnit);
             jobData.Put("Configuration", this.Configuration);
 

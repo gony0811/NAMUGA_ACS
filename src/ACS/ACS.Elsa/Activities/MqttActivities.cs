@@ -14,6 +14,7 @@ using ACS.Core.Message.Model;
 using ACS.Core.Path;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource.Model;
+using ACS.Core.Transfer;
 using ACS.Communication.Mqtt;
 using ACS.Communication.Mqtt.Model;
 using Microsoft.Extensions.Configuration;
@@ -522,7 +523,8 @@ namespace ACS.Elsa.Activities
                 }
 
                 // CommId로 Vehicle을 식별하여 MQTT command 토픽으로 이동 명령 전송
-                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType)
+                // cmdId=commandId(=TC.JobId) 로 발행해야 AMR reply 수신 시 TC 조회(JobType fallback)가 가능
+                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType, commandId)
                     .GetAwaiter().GetResult();
 
                 if (result)
@@ -536,11 +538,229 @@ namespace ACS.Elsa.Activities
                     logger.Error($"HandleCarrierTransferActivity: MQTT 이동 명령 전송 실패. " +
                         $"vehicleId={vehicleId}, commId={vehicle.CommId}, destNodeId={destNodeId}");
                 }
+
+                // RAIL-CARRIERTRANSFERREPLY를 Trans 프로세스로 회신
+                SendCarrierTransferReply(accessor, commandId, vehicleId, result ? "OK" : "FAIL");
             }
             catch (Exception e)
             {
                 logger.Error("HandleCarrierTransferActivity 오류", e);
             }
+        }
+
+        /// <summary>
+        /// RAIL-CARRIERTRANSFERREPLY JSON을 Trans 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        private void SendCarrierTransferReply(Bridge.AutofacContainerAccessor accessor, string commandId, string vehicleId, string resultCode)
+        {
+            try
+            {
+                var transAgent = accessor.ResolveNamed<ACS.Communication.Msb.IMessageAgent>("TransAgentSender");
+                if (transAgent == null)
+                {
+                    logger.Error("HandleCarrierTransferActivity: TransAgentSender를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var replyMessage = new RailCarrierTransferReplyMessage
+                {
+                    Header = new RailCarrierTransferHeader
+                    {
+                        MessageName = "RAIL-CARRIERTRANSFERREPLY",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "EI"
+                    },
+                    Data = new RailCarrierTransferReplyData
+                    {
+                        CommandId = commandId,
+                        ResultCode = resultCode
+                    }
+                };
+
+                string replyJson = System.Text.Json.JsonSerializer.Serialize(replyMessage);
+                transAgent.Send((object)replyJson);
+
+                logger.Info($"HandleCarrierTransferActivity: RAIL-CARRIERTRANSFERREPLY 전송 완료. " +
+                    $"commandId={commandId}, resultCode={resultCode}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"HandleCarrierTransferActivity: Reply 전송 실패 - {ex.Message}", ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// AMR reply(amr/{id}/reply) 메시지 수신 시 status=COMPLETED와 jobType에 따라
+    /// Trans 프로세스로 RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는
+    /// RAIL-VEHICLEDEPOSITCOMPLETED(LOAD) JSON을 전송한다.
+    ///
+    /// Arguments: [AmrReplyMessage reply, string vehicleId]
+    /// </summary>
+    [Activity("ACS.Mqtt", "Handle AMR Reply",
+        "AMR reply 수신 → COMPLETED일 때 jobType 분기로 Trans에 ACQUIRE/DEPOSIT 전송")]
+    public class HandleAmrReplyActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(HandleAmrReplyActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var input = context.WorkflowExecutionContext.Input;
+                if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 2)
+                {
+                    logger.Error("HandleAmrReplyActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                var reply = args[0] as AmrReplyMessage;
+                var vehicleId = args[1] as string;
+
+                if (reply == null || string.IsNullOrEmpty(vehicleId))
+                {
+                    logger.Error("HandleAmrReplyActivity: reply 또는 vehicleId가 null입니다.");
+                    return;
+                }
+
+                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED/FAILED는 현재 라우팅 대상 아님.
+                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("HandleAmrReplyActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // AMR reply 스펙(docs/mqtt_interface.md)에는 jobType이 없으므로 reply.JobType이 비어있으면
+                // cmdId(=TC JobId)로 TC를 조회해 JobType을 보완한다. reply가 JobType을 포함하는 경우(향후 호환)는 그대로 사용.
+                string jobType = reply.JobType;
+                if (string.IsNullOrEmpty(jobType))
+                {
+                    var transferManager = accessor.Resolve<ITransferManagerEx>();
+                    var tc = transferManager?.GetTransportCommand(reply.CmdId);
+                    if (tc == null || string.IsNullOrEmpty(tc.JobType))
+                    {
+                        logger.Warn($"HandleAmrReplyActivity: reply에 jobType이 없고 TC 조회 실패. 라우팅 불가. cmdId={reply.CmdId}, vehicleId={vehicleId}");
+                        return;
+                    }
+                    jobType = tc.JobType;
+                    logger.Info($"HandleAmrReplyActivity: TC 조회로 jobType 보완. cmdId={reply.CmdId}, jobType={jobType}");
+                }
+
+                string dbVehicleId = ResolveDbVehicleId(accessor, vehicleId);
+
+                string resultCode = reply.ResultCode == 0 ? "OK" : "FAIL";
+                string errorCode = reply.ResultCode == 0 ? "" : reply.ResultCode.ToString();
+                string errorMessage = reply.Message ?? "";
+
+                string messageName;
+                string json;
+
+                if ("UNLOAD".Equals(jobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    messageName = "RAIL-VEHICLEACQUIRECOMPLETED";
+                    var msg = new RailVehicleAcquireCompletedMessage
+                    {
+                        Header = new RailVehicleAcquireCompletedHeader
+                        {
+                            MessageName = messageName,
+                            TransactionId = Guid.NewGuid().ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            Sender = "EI"
+                        },
+                        Data = new RailVehicleAcquireCompletedData
+                        {
+                            CommandId = reply.CmdId ?? "",
+                            VehicleId = dbVehicleId,
+                            ResultCode = resultCode,
+                            ErrorCode = errorCode,
+                            ErrorMessage = errorMessage
+                        }
+                    };
+                    json = JsonSerializer.Serialize(msg);
+                }
+                else if ("LOAD".Equals(jobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    messageName = "RAIL-VEHICLEDEPOSITCOMPLETED";
+                    var msg = new RailVehicleDepositCompletedMessage
+                    {
+                        Header = new RailVehicleDepositCompletedHeader
+                        {
+                            MessageName = messageName,
+                            TransactionId = Guid.NewGuid().ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            Sender = "EI"
+                        },
+                        Data = new RailVehicleDepositCompletedData
+                        {
+                            CommandId = reply.CmdId ?? "",
+                            VehicleId = dbVehicleId,
+                            ResultCode = resultCode,
+                            ErrorCode = errorCode,
+                            ErrorMessage = errorMessage
+                        }
+                    };
+                    json = JsonSerializer.Serialize(msg);
+                }
+                else
+                {
+                    logger.Info($"HandleAmrReplyActivity: jobType={jobType}은 라우팅 대상 아님. 전송 생략.");
+                    return;
+                }
+
+                // Trans로 JSON 전송 (tsAgent = TransAgentSender → VM/DEMO/ES/LISTENER)
+                var messageManager = accessor.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("HandleAmrReplyActivity: IMessageManagerEx를 찾을 수 없습니다.");
+                    return;
+                }
+
+                messageManager.SendVehicleUpdateJson(json);
+
+                logger.Info($"HandleAmrReplyActivity: {messageName} 전송 완료. commandId={reply.CmdId}, vehicleId={dbVehicleId}, resultCode={resultCode}");
+            }
+            catch (Exception e)
+            {
+                logger.Error("HandleAmrReplyActivity 오류", e);
+            }
+        }
+
+        /// <summary>
+        /// MQTT 토픽의 vehicleId(=CommId) → DB VehicleEx.VehicleId로 매핑.
+        /// 조회 실패 시 원본 vehicleId 그대로 반환.
+        /// </summary>
+        private static string ResolveDbVehicleId(Bridge.AutofacContainerAccessor accessor, string commId)
+        {
+            try
+            {
+                var persistentDao = accessor.Resolve<IPersistentDao>();
+                if (persistentDao == null) return commId;
+
+                var vehicleExsType = System.Type.GetType("ACS.Core.Resource.Model.VehicleExs, ACS.Core");
+                var attrs = new Dictionary<string, object>
+                {
+                    { "CommId", commId },
+                    { "CommType", "MQTT" }
+                };
+                IList results = persistentDao.FindByAttributes(vehicleExsType ?? typeof(VehicleEx), attrs);
+                if (results != null && results.Count > 0 && results[0] is VehicleEx vehicle)
+                {
+                    return vehicle.VehicleId;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"ResolveDbVehicleId: 조회 실패, commId={commId} - {ex.Message}");
+            }
+            return commId;
         }
     }
 }

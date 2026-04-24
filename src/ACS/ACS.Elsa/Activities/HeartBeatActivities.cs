@@ -12,6 +12,7 @@ using ACS.Core.Application.Model;
 using ACS.Core.History;
 using ACS.Communication.Msb;
 using ACS.Core.Logging;
+using ACS.Control;
 
 namespace ACS.Elsa.Activities
 {
@@ -67,11 +68,11 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
-    /// 지정된 Application에 CONTROL-HEARTBEAT 메시지를 동기 전송하고 응답 여부를 반환.
+    /// 지정된 Application에 CONTROL-HEARTBEAT JSON 메시지를 동기 전송하고 응답 여부를 반환.
     /// ISynchronousMessageAgent.Request()를 timeout과 함께 호출.
     /// </summary>
     [Activity("ACS.Control", "Send HeartBeat",
-        "대상 Application에 CONTROL-HEARTBEAT 메시지를 전송하고 응답 여부를 반환합니다.")]
+        "대상 Application에 CONTROL-HEARTBEAT JSON 메시지를 전송하고 응답 여부를 반환합니다.")]
     public class SendHeartBeatActivity : CodeActivity<bool>
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_HEARTBEAT");
@@ -79,8 +80,8 @@ namespace ACS.Elsa.Activities
         [Input(Description = "대상 Application 이름")]
         public Input<string> ApplicationName { get; set; }
 
-        [Input(Description = "HeartBeat 메시지 XmlDocument")]
-        public Input<XmlDocument> HeartBeatDocument { get; set; }
+        [Input(Description = "HeartBeat JSON 메시지")]
+        public Input<string> HeartBeatMessage { get; set; }
 
         [Input(Description = "응답 대기 타임아웃 (밀리초)")]
         public Input<long> Timeout { get; set; }
@@ -88,12 +89,12 @@ namespace ACS.Elsa.Activities
         protected override void Execute(ActivityExecutionContext context)
         {
             var appName = ApplicationName?.Get(context);
-            var document = HeartBeatDocument?.Get(context);
+            var jsonMessage = HeartBeatMessage?.Get(context);
             var timeout = Timeout?.Get(context) ?? 5000L;
 
-            if (string.IsNullOrEmpty(appName) || document == null)
+            if (string.IsNullOrEmpty(appName) || string.IsNullOrEmpty(jsonMessage))
             {
-                logger.Error("SendHeartBeatActivity: ApplicationName 또는 Document가 null입니다.");
+                logger.Error("SendHeartBeatActivity: ApplicationName 또는 Message가 null입니다.");
                 context.Set(Result, false);
                 return;
             }
@@ -102,29 +103,27 @@ namespace ACS.Elsa.Activities
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
                 var syncAgent = accessor.Resolve<ISynchronousMessageAgent>();
-                var appManager = accessor.Resolve<IApplicationManager>();
 
-                if (syncAgent == null || appManager == null)
+                if (syncAgent == null)
                 {
-                    logger.Error("SendHeartBeatActivity: 서비스를 resolve할 수 없습니다.");
+                    logger.Error("SendHeartBeatActivity: ISynchronousMessageAgent를 resolve할 수 없습니다.");
                     context.Set(Result, false);
                     return;
                 }
 
-                // 대상 Application의 destination name 획득을 위해 ControlServerManager 사용
-                var controlManager = accessor.Resolve<ACS.Control.IControlServerManager>();
+                var controlManager = accessor.Resolve<IControlServerManager>();
                 string destinationName = controlManager?.GetDestinationName(appName);
 
-                XmlDocument reply = syncAgent.Request(document, destinationName, timeout);
+                string reply = syncAgent.Request(jsonMessage, destinationName, timeout);
 
-                if (reply != null)
+                if (!string.IsNullOrEmpty(reply))
                 {
                     logger.Info($"SendHeartBeatActivity: {appName} 응답 수신 성공.");
                     context.Set(Result, true);
                 }
                 else
                 {
-                    logger.Warn($"SendHeartBeatActivity: {appName} 응답 없음 (타임아웃).");
+                    logger.Warn($"SendHeartBeatActivity: {appName} 응답 없음 (타임아웃 {timeout}ms).");
                     context.Set(Result, false);
                 }
             }

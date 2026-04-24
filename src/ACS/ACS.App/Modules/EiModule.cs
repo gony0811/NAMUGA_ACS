@@ -97,6 +97,14 @@ namespace ACS.App.Modules
                     .OnActivated(e =>
                     {
                         ((AbstractManager)e.Instance).Init();
+                        // TsAgent: Named registration — 다중 IMessageAgent 등록 중 Autofac 기본 resolve가
+                        // 마지막 등록(EsAgentSender)을 반환해 EI 자기 큐로 루프백되는 문제 방지.
+                        var tsAgentProp = e.Instance.GetType().GetProperty("TsAgent");
+                        if (tsAgentProp != null)
+                        {
+                            var tsAgent = e.Context.ResolveNamed<IMessageAgent>("TransAgentSender");
+                            tsAgentProp.SetValue(e.Instance, tsAgent);
+                        }
                         // EsAgent: Named registration — RAIL-CARRIERTRANSFER 전송에 필요
                         var esAgentProp = e.Instance.GetType().GetProperty("EsAgent");
                         if (esAgentProp != null)

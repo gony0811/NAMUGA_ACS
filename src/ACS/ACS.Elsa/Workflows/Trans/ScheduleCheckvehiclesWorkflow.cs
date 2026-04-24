@@ -34,8 +34,6 @@ namespace ACS.Elsa.Workflows.Trans
 
             builder.WithVariable(staleVehicles);
             builder.WithVariable(staleCount);
-
-            return;
             
             builder.Root = new Sequence
             {

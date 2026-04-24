@@ -23,7 +23,7 @@ namespace ACS.Control.Scheduling
             IControlServerManager controlServerManager = (IControlServerManager)context.MergedJobDataMap.Get("ControlServerManager");
             string applicationName = (string)context.MergedJobDataMap.Get("ApplicationName");
 
-            XmlDocument document = (XmlDocument)context.MergedJobDataMap.Get("Document");
+            string jsonMessage = (string)context.MergedJobDataMap.Get("JsonMessage");
 
             bool useSecondAsTimeUnit = (bool)context.MergedJobDataMap.Get("UseSecondAsTimeUnit");
 
@@ -45,7 +45,7 @@ namespace ACS.Control.Scheduling
             else
             {
                 long timeout = useSecondAsTimeUnit ? controlServerManager.HeartBeatTimeout / 1000L : controlServerManager.HeartBeatTimeout;
-                bool result = CheckHeartBeat(controlServerManager, application, document, timeout);
+                bool result = CheckHeartBeat(controlServerManager, application, jsonMessage, timeout);
 
                 //Response X
                 if (!result)
@@ -65,7 +65,7 @@ namespace ACS.Control.Scheduling
                             for(int i = 0; i < controlServerManager.HeartBeatRetryCount; i++)
                             {
                                 long retryTimeout = useSecondAsTimeUnit ? controlServerManager.HeartBeatRetryTimeout : controlServerManager.HeartBeatRetryTimeout / 1000L;
-                                retryResult = CheckHeartBeat(controlServerManager, application, document, retryTimeout);
+                                retryResult = CheckHeartBeat(controlServerManager, application, jsonMessage, retryTimeout);
 
                                 //Response X
                                 if(!retryResult)
@@ -149,29 +149,27 @@ namespace ACS.Control.Scheduling
                     }
                     catch (Exception e)
                     {
-                        // logger.Error("exitValue{" + e.ExitValue() + "}, " + e.Message + ", just use external script");
+                        logger.Error($"HeartBeat exception for {applicationName}: {e.Message}", e);
                     }
                 }
             }
         }
 
-        private bool CheckHeartBeat(IControlServerManager controlServerManager, ACS.Core.Application.Model.Application application, XmlDocument document, long timeout)
+        private bool CheckHeartBeat(IControlServerManager controlServerManager, ACS.Core.Application.Model.Application application, string jsonMessage, long timeout)
         {
             bool result = false;
 
             DateTime date = DateTime.UtcNow;
 
-            //logger.info("result timeout{" + timeout + sec}");
-            XmlDocument replyDocument = controlServerManager.SynchronousMessageAgent.Request(document, controlServerManager.GetDestinationName(application.Name), timeout);
+            string destinationName = controlServerManager.GetDestinationName(application.Name);
+            string replyMessage = controlServerManager.SynchronousMessageAgent.Request(jsonMessage, destinationName, timeout);
 
-            if(replyDocument != null)
+            if (!string.IsNullOrEmpty(replyMessage))
             {
-                // logger.info("succeeded in checking heartBeat to application{" + application.Name + "}");
-
-                if(!application.State.Equals("active"))
+                if (!application.State.Equals("active"))
                 {
-                    // logger.info("application.state{" + application.State + "} is not active, state will be updated to active, {" + application.Name + "}");
                     controlServerManager.ApplicationManager.UpdateApplicationState(application.Name, "active", date);
+                    logger.Info($"HeartBeat: {application.Name} state → active");
                 }
                 else
                 {
@@ -181,7 +179,7 @@ namespace ACS.Control.Scheduling
             }
             else
             {
-                // logger.info("failed to check heartBeat, application{" + application.Name + "} does not reply");
+                logger.Warn($"HeartBeat: {application.Name} 응답 없음 (타임아웃 {timeout}ms)");
                 controlServerManager.ApplicationManager.UpdateApplicationCheckTime(application.Name, date);
                 controlServerManager.HistoryManager.CreateHeartBeatFailHistory(application);
             }
