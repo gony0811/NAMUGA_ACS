@@ -4,6 +4,7 @@ using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Activities;
 using Elsa.Workflows.Attributes;
+using ACS.Communication.Msb;
 using ACS.Core.Cache;
 using ACS.Core.Logging;
 using ACS.Core.Message.Model;
@@ -205,10 +206,31 @@ namespace ACS.Elsa.Workflows.Trans
                 resourceManager.UpdateVehicleEventTime(vehicle);
 
                 logger.Info($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}");
+
+                // 10. UI 프로세스로 원본 JSON 그대로 forward (POSE 포함, 1Hz 텔레메트리)
+                //     UI BackgroundService가 SignalR로 클라이언트에 브로드캐스트한다.
+                ForwardToUi(accessor, json);
             }
             catch (Exception e)
             {
                 logger.Error("RailVehicleUpdateActivity 오류", e);
+            }
+        }
+
+        private static void ForwardToUi(Bridge.AutofacContainerAccessor accessor, string json)
+        {
+            try
+            {
+                var uiAgent = accessor.ResolveNamed<IMessageAgent>("UiAgentSender");
+                if (uiAgent == null)
+                {
+                    return;
+                }
+                uiAgent.Send((object)json);
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"RailVehicleUpdateActivity: UI forwarding 실패 - {ex.Message}");
             }
         }
     }

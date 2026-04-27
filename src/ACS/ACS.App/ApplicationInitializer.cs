@@ -163,7 +163,7 @@ namespace ACS.App
                 application = CreateOrUpdateApplication(executor);
                 SynchronizeCache();
                 DisplayDataSource();
-                StartHttpApiServer();
+                // HTTP/SignalR 서버는 ASP.NET Core(Kestrel)가 호스팅하므로 여기서는 시작하지 않는다.
             }
             else if (executor.Type.Equals(TYPE_EMULATOR))
             {

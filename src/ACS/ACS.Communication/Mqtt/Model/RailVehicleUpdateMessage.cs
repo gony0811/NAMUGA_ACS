@@ -76,5 +76,17 @@ namespace ACS.Communication.Mqtt.Model
 
         [JsonPropertyName("eventTime")]
         public DateTime EventTime { get; set; }
+
+        /// <summary>AMR 원본 X 좌표 (meters). UI 실시간 위치 표시용. POSE 미수신 시 null.</summary>
+        [JsonPropertyName("poseX")]
+        public float? PoseX { get; set; }
+
+        /// <summary>AMR 원본 Y 좌표 (meters). UI 실시간 위치 표시용. POSE 미수신 시 null.</summary>
+        [JsonPropertyName("poseY")]
+        public float? PoseY { get; set; }
+
+        /// <summary>AMR 원본 각도 (radian). UI 실시간 회전 표시용. POSE 미수신 시 null.</summary>
+        [JsonPropertyName("poseAngle")]
+        public float? PoseAngle { get; set; }
     }
 }
