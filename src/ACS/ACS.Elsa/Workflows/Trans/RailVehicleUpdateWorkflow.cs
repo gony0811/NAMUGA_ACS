@@ -12,7 +12,6 @@ using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Communication.Mqtt.Model;
 using ACS.Core.Database.Model.Resource;
-using ACS.Service;
 
 namespace ACS.Elsa.Workflows.Trans
 {

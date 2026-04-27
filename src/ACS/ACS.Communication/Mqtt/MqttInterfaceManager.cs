@@ -36,6 +36,11 @@ namespace ACS.Communication.Mqtt
         private bool _isStarted;
         private Timer _heartbeatCheckTimer;
 
+        // 재연결 루프 단일 실행 보장 플래그 (0: 유휴, 1: 실행 중)
+        // ConnectAsync 실패 시 MQTTnet이 DisconnectedAsync를 재발화해
+        // 루프가 지수적으로 증식하는 것을 방지한다.
+        private int _reconnectLoopRunning;
+
         // 담당 Vehicle CommId 목록 (MqttConfig.Name 기반)
         private List<string> _vehicleCommIds = new();
 
@@ -127,8 +132,8 @@ namespace ACS.Communication.Mqtt
             _reconnectCts = new CancellationTokenSource();
             _isStarted = true;
 
-            // 비동기 연결을 백그라운드에서 실행
-            Task.Factory.StartNew(() => ConnectAndSubscribeAsync(_reconnectCts.Token),
+            // 비동기 연결을 백그라운드에서 실행 (단일 루프 보장)
+            Task.Factory.StartNew(() => StartReconnectLoopAsync(_reconnectCts.Token),
                 TaskCreationOptions.LongRunning);
 
             // AMR heartbeat 상태 체크 타이머 시작 (10초 주기)
@@ -171,6 +176,28 @@ namespace ACS.Communication.Mqtt
         #endregion
 
         #region 연결 및 구독
+
+        /// <summary>
+        /// 재연결 루프를 단일 실행으로 보장한다.
+        /// 이미 다른 호출이 루프를 돌리고 있으면 즉시 반환한다.
+        /// </summary>
+        private async Task StartReconnectLoopAsync(CancellationToken ct)
+        {
+            if (Interlocked.CompareExchange(ref _reconnectLoopRunning, 1, 0) != 0)
+            {
+                logger.Debug("재연결 루프가 이미 실행 중입니다. 중복 시작 생략.");
+                return;
+            }
+
+            try
+            {
+                await ConnectAndSubscribeAsync(ct);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _reconnectLoopRunning, 0);
+            }
+        }
 
         private async Task ConnectAndSubscribeAsync(CancellationToken ct)
         {
@@ -262,11 +289,11 @@ namespace ACS.Communication.Mqtt
                 _workflowManager.Execute("MQTT-DISCONNECTED", _mqttConfig);
             }
 
-            // 자동 재연결
+            // 자동 재연결 - 단일 루프 가드를 통해 중복 실행을 방지
             if (_reconnectCts != null && !_reconnectCts.IsCancellationRequested)
             {
                 logger.Info("MQTT 자동 재연결 시도...");
-                await ConnectAndSubscribeAsync(_reconnectCts.Token);
+                await StartReconnectLoopAsync(_reconnectCts.Token);
             }
         }
 

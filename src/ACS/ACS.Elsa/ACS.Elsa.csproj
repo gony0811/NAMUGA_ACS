@@ -14,7 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
     <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
-    <ProjectReference Include="..\ACS.Service\ACS.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>
