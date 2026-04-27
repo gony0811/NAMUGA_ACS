@@ -4,7 +4,14 @@ using System.Reflection;
 using System.Threading;
 using System.Xml;
 using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ACS.App.Web.Hubs;
+using ACS.App.Web.Realtime;
 using ACS.Core.Host;
 using Serilog;
 
@@ -12,16 +19,14 @@ namespace ACS.App;
 
 static class Program
 {
-    static void Main(string[] args)
+    static int Main(string[] args)
     {
-        // Npgsql 6+ DateTime UTC 제약 해제 — 기존 DateTime.Now(Local) 사용 코드와 호환
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
         Console.WriteLine("[ACS] Starting ACS Server...");
 
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
 
-        // Dynamic assembly resolution
         AppDomain.CurrentDomain.AssemblyResolve += (sender, resolveArgs) =>
         {
             var asmName = new AssemblyName(resolveArgs.Name);
@@ -31,40 +36,63 @@ static class Program
             return null;
         };
 
-        // Load configuration from appsettings.json
         var configuration = new ConfigurationBuilder()
             .SetBasePath(appDir)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
-        // Named Mutex 기반 중복 프로세스 검출
         var processId = configuration["Acs:Process:Name"];
         if (string.IsNullOrEmpty(processId))
         {
             Console.WriteLine("[ACS] Acs:Process:Name is not configured. Exiting.");
-            return;
+            return 1;
         }
 
         using var mutex = new Mutex(true, $"Global\\ACS_{processId}", out bool createdNew);
         if (!createdNew)
         {
             Console.WriteLine($"[ACS] Process '{processId}' is already running. Exiting.");
-            return;
+            return 1;
         }
 
         Console.Title = processId;
         Console.WriteLine($"[ACS] Process: {processId} (PID: {Process.GetCurrentProcess().Id})");
 
-        // Initialize Serilog
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .WriteTo.File(
                 System.IO.Path.Combine(appDir, "logs", "acs-.log"),
-                rollingInterval: RollingInterval.Day,
+                rollingInterval: Serilog.RollingInterval.Day,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
+        var processType = configuration["Acs:Process:Type"];
+        try
+        {
+            if (string.Equals(processType, "ui", StringComparison.OrdinalIgnoreCase))
+            {
+                return RunUiHost(args);
+            }
+            return RunConsoleHost();
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "[ACS] Server terminated unexpectedly");
+            return 2;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+
+    /// <summary>
+    /// 비-UI 프로세스(host/trans/ei/daemon/control/query/report) 실행 경로.
+    /// 기존 Executor 콘솔 흐름 그대로 유지한다.
+    /// </summary>
+    private static int RunConsoleHost()
+    {
         Executor executor = null;
         var cts = new CancellationTokenSource();
 
@@ -97,15 +125,97 @@ static class Program
                 cts.Token.WaitHandle.WaitOne();
             }
         }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "[ACS] Server terminated unexpectedly");
-        }
         finally
         {
             try { executor?.Stop(); } catch { }
-            Log.CloseAndFlush();
         }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// UI 프로세스 실행 경로. ASP.NET Core(Kestrel) + SignalR + Autofac 통합.
+    /// REST 엔드포인트는 ACS.App.Web.Controllers의 컨트롤러로 노출되며,
+    /// 차량 POSE 텔레메트리는 VehicleHub를 통해 SignalR로 브로드캐스트된다.
+    /// </summary>
+    private static int RunUiHost(string[] args)
+    {
+        var executor = new Executor();
+        var configuration = Executor.LoadConfiguration();
+        executor.ApplyProcessSettings(configuration);
+
+        string listenIp = configuration["Acs:Api:ListenIP"] ?? "any";
+        string listenPort = configuration["Acs:Api:ListenPort"] ?? "5100";
+
+        var builder = WebApplication.CreateBuilder(args);
+
+        // appsettings.json은 Executor가 이미 로드한 동일 IConfiguration을 사용하도록 추가
+        builder.Configuration.AddConfiguration(configuration);
+
+        // Kestrel 바인딩
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            int port = int.TryParse(listenPort, out var p) ? p : 5100;
+            if (string.Equals(listenIp, "any", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ListenAnyIP(port);
+            }
+            else if (System.Net.IPAddress.TryParse(listenIp, out var ip))
+            {
+                options.Listen(ip, port);
+            }
+            else
+            {
+                options.ListenAnyIP(port);
+            }
+        });
+
+        // CORS — UI 클라이언트가 다른 호스트에서 접근하더라도 허용
+        builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+            p.AllowAnyHeader().AllowAnyMethod().SetIsOriginAllowed(_ => true).AllowCredentials()));
+
+        // MVC + Newtonsoft.Json — 기존 ApiRequestHandler 직렬화 동작과 호환 유지
+        builder.Services.AddControllers().AddNewtonsoftJson(options =>
+        {
+            options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+            options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
+        });
+
+        builder.Services.AddSignalR();
+
+        // Trans → UI(RabbitMQ fanout) → SignalR 브로드캐스트
+        builder.Services.AddHostedService<PoseTelemetrySubscriber>();
+
+        // Autofac을 ASP.NET Core DI에 통합
+        builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+        builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
+        {
+            executor.RegisterModules(containerBuilder, configuration);
+        });
+
+        var app = builder.Build();
+
+        // Autofac 컨테이너 핸들 획득 (AutofacServiceProvider → IContainer)
+        var container = app.Services.GetAutofacRoot() as IContainer
+            ?? throw new InvalidOperationException("Autofac container resolution failed.");
+
+        // DB 마이그레이션, ApplicationInitializer, 스케줄러 시작 (IHostedService는 Generic Host가 관리)
+        executor.OnContainerBuilt(container, startHostedServices: false);
+
+        app.UseCors();
+        app.MapControllers();
+        app.MapHub<VehicleHub>("/hubs/vehicle");
+
+        // 종료 시 Executor.Stop() 호출
+        var lifetime = app.Lifetime;
+        lifetime.ApplicationStopping.Register(() =>
+        {
+            try { executor.Stop(); } catch { }
+        });
+
+        Log.Information("[ACS] UI server started on {Ip}:{Port}. Press Ctrl+C to stop.", listenIp, listenPort);
+        app.Run();
+        return 0;
     }
 
     /// <summary>
@@ -169,7 +279,6 @@ static class Program
                 continue;
             }
 
-            // JobID 입력
             string defaultJobId = string.IsNullOrEmpty(lastJobId)
                 ? $"JOB{DateTime.Now:yyyyMMddHHmmss}{new Random().Next(100, 999):D3}"
                 : lastJobId;
@@ -184,7 +293,6 @@ static class Program
                 var doc = hostMessageService.BuildJobReport(reportType, jobId);
                 hostMessageService.SendToHost("JOBREPORT", doc);
 
-                // 송신 XML 원문 표시
                 var sw = new System.IO.StringWriter();
                 var xw = new XmlTextWriter(sw) { Formatting = Formatting.Indented };
                 doc.WriteTo(xw);

@@ -27,145 +27,183 @@ namespace ACS.App
 
         private IContainer _container = null;
 
+        /// <summary>
+        /// 콘솔 호스트(non-UI) 진입점. 컨테이너를 자체 빌드하고 후속 초기화까지 수행.
+        /// UI 프로세스는 ASP.NET Core 호스팅으로 분리되어 RegisterModules + OnContainerBuilt를 직접 호출한다.
+        /// </summary>
         public IContainer Start()
         {
             try
             {
-                long startTime = System.DateTime.UtcNow.Millisecond;
+                var configuration = LoadConfiguration();
+                ApplyProcessSettings(configuration);
 
-                // IConfiguration 빌드를 먼저 수행
-                string initialStartUpPath = Environment.CurrentDirectory;
-                string exe = Process.GetCurrentProcess().MainModule.FileName;
-                string exeDir = Path.GetDirectoryName(exe);
-
-                // dotnet 명령으로 실행 시 exeDir이 SDK 경로를 가리킬 수 있으므로
-                // appsettings.json이 exeDir에 없으면 CWD를 basePath로 사용
-                string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
-                    ? exeDir
-                    : initialStartUpPath;
-
-                var configuration = new ConfigurationBuilder()
-                    .SetBasePath(basePath)
-                    .AddJsonFile("appsettings.json", optional: true)
-                    .Build();
-
-                this.StartUpPath = configuration["Acs:Startup:Path"];
-
-                this.Id = configuration["Acs:Process:Name"];
-                if (this.Id == null)
-                {
-                    throw new ApplicationException("process id is null");
-                }
-
-                if (string.IsNullOrEmpty(StartUpPath))
-                {
-                    StartUpPath = basePath;
-                }
-
-                this.HardwareType = configuration["Acs:Process:HardwareType"];
-
-                // appsettings.json에서 프로세스 설정 로드 (startup.xml 대체)
-                this.Type = configuration["Acs:Process:Type"];
-                this.Msb = configuration["Acs:Process:Msb"];
-                this.BaseClass = configuration["Acs:Process:Base"];
-                this.ServicePath = configuration["Acs:Process:ServicePath"];
-
-                if (string.IsNullOrEmpty(this.Type))
-                {
-                    throw new ApplicationException("acs.process.type is not configured in appsettings.json");
-                }
-
-                if (!string.IsNullOrEmpty(ServicePath))
-                {
-                    string fullPath = StartUpPath + @"/" + ServicePath;
-                    if (!Directory.Exists(fullPath))
-                    {
-                        Directory.CreateDirectory(fullPath);
-                    }
-                    this.UseService = true;
-                }
-
-                // Autofac 컨테이너 빌드
                 var builder = new ContainerBuilder();
-
-                // IConfiguration 등록
-                builder.RegisterInstance(configuration).As<IConfiguration>().SingleInstance();
-
-                // Executor 자신을 등록
-                builder.RegisterInstance(this).AsSelf().SingleInstance();
-
-                // 공통 모듈
-                builder.RegisterModule<CoreModule>();
-
-                // 프로세스 타입별 모듈 등록
-                RegisterProcessModule(builder, this.Type);
-
-                // 사이트별 모듈 등록
-                string site = configuration["Acs:Site:Name"];
-                RegisterSiteModule(builder, site);
-
-                // DB 모듈 등록
-                builder.RegisterModule<DatabaseModule>();
-
-                // MSB(RabbitMQ) 모듈 등록
-                if (!string.IsNullOrEmpty(this.Msb) && this.Msb.Equals("rabbitmq"))
-                {
-                    builder.RegisterModule(new MsbRabbitMQModule(this.Type, configuration));
-                }
-
-                // 스케줄링 모듈 등록 (프로세스 타입에 따라 Awake 잡 포함 여부 결정)
-                builder.RegisterModule(new SchedulingModule(this.Type));
-
+                RegisterModules(builder, configuration);
                 _container = builder.Build();
 
-                // Autofac ↔ Elsa 브릿지: Elsa Activity에서 Autofac 서비스 접근 가능하도록 설정
-                var autofacAccessor = _container.ResolveOptional<ACS.Elsa.Bridge.AutofacContainerAccessor>();
-                if (autofacAccessor != null)
-                {
-                    autofacAccessor.Container = _container;
-                    logger.Information("AutofacContainerAccessor: Autofac container linked to Elsa ServiceProvider.");
-                }
+                OnContainerBuilt(_container, startHostedServices: true);
+                return _container;
+            }
+            catch (Exception e)
+            {
+                throw new ApplicationException("Executor Start() Error", e);
+            }
+        }
 
-                // DB 스키마 생성 및 초기화
-                try
-                {
-                    var dbContext = _container.Resolve<ACS.Database.AcsDbContext>();
-                    dbContext.Database.EnsureCreated();
+        /// <summary>
+        /// appsettings.json을 로드해 IConfiguration을 만든다.
+        /// dotnet 실행 시 exeDir이 SDK 경로를 가리키는 경우 CWD를 fallback으로 사용.
+        /// </summary>
+        public static IConfiguration LoadConfiguration()
+        {
+            string initialStartUpPath = Environment.CurrentDirectory;
+            string exe = Process.GetCurrentProcess().MainModule.FileName;
+            string exeDir = Path.GetDirectoryName(exe);
 
-                    // 기존 DB 마이그레이션
-                    MigrateTransportCommandTable(dbContext);
-                    MigrateVehicleTable(dbContext);
-                    MigrateLocationTable(dbContext);
-                    MigrateBayTable(dbContext);
-                    MigrateZoneTable(dbContext);
-                    MigrateMqttTable(dbContext);
-                }
-                catch (Exception ex)
-                {
-                    logger.Error(ex, "Failed to initialize database schema.");
-                    throw; // DB 초기화 실패 시 실행 중단
-                }
+            string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
+                ? exeDir
+                : initialStartUpPath;
 
-                // 초기화 실행
-                var initializer = _container.Resolve<ApplicationInitializer>();
-                initializer.Initialize(this);
+            return new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddJsonFile("appsettings.json", optional: true)
+                .Build();
+        }
 
-                // 스케줄러 시작 (DB 초기화 이후에 실행) — Control/EI 동적 잡용
-                try
-                {
-                    var scheduler = _container.Resolve<Quartz.IScheduler>();
-                    if (!scheduler.IsStarted)
-                    {
-                        scheduler.Start().GetAwaiter().GetResult();
-                        logger.Information("Scheduler started successfully.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.Error(ex, "Failed to start scheduler.");
-                }
+        /// <summary>
+        /// appsettings.json에서 프로세스 메타데이터를 읽어 Executor 인스턴스 필드에 적용.
+        /// ServicePath가 지정되면 디렉토리도 생성한다.
+        /// </summary>
+        public void ApplyProcessSettings(IConfiguration configuration)
+        {
+            this.StartUpPath = configuration["Acs:Startup:Path"];
 
-                // BackgroundService 시작 (Awake 잡 10개)
+            this.Id = configuration["Acs:Process:Name"];
+            if (this.Id == null)
+            {
+                throw new ApplicationException("process id is null");
+            }
+
+            string initialStartUpPath = Environment.CurrentDirectory;
+            string exe = Process.GetCurrentProcess().MainModule.FileName;
+            string exeDir = Path.GetDirectoryName(exe);
+            string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
+                ? exeDir
+                : initialStartUpPath;
+
+            if (string.IsNullOrEmpty(StartUpPath))
+            {
+                StartUpPath = basePath;
+            }
+
+            this.HardwareType = configuration["Acs:Process:HardwareType"];
+
+            this.Type = configuration["Acs:Process:Type"];
+            this.Msb = configuration["Acs:Process:Msb"];
+            this.BaseClass = configuration["Acs:Process:Base"];
+            this.ServicePath = configuration["Acs:Process:ServicePath"];
+
+            if (string.IsNullOrEmpty(this.Type))
+            {
+                throw new ApplicationException("acs.process.type is not configured in appsettings.json");
+            }
+
+            if (!string.IsNullOrEmpty(ServicePath))
+            {
+                string fullPath = StartUpPath + @"/" + ServicePath;
+                if (!Directory.Exists(fullPath))
+                {
+                    Directory.CreateDirectory(fullPath);
+                }
+                this.UseService = true;
+            }
+        }
+
+        /// <summary>
+        /// ContainerBuilder에 ACS 공통/프로세스/사이트/DB/MSB/스케줄링 모듈을 등록한다.
+        /// ASP.NET Core 호스트(UI 프로세스)는 Host.ConfigureContainer에서 이 메서드를 호출한다.
+        /// </summary>
+        public void RegisterModules(ContainerBuilder builder, IConfiguration configuration)
+        {
+            builder.RegisterInstance(configuration).As<IConfiguration>().SingleInstance();
+            builder.RegisterInstance(this).AsSelf().SingleInstance();
+
+            builder.RegisterModule<CoreModule>();
+            RegisterProcessModule(builder, this.Type);
+
+            string site = configuration["Acs:Site:Name"];
+            RegisterSiteModule(builder, site);
+
+            builder.RegisterModule<DatabaseModule>();
+
+            if (!string.IsNullOrEmpty(this.Msb) && this.Msb.Equals("rabbitmq"))
+            {
+                builder.RegisterModule(new MsbRabbitMQModule(this.Type, configuration));
+            }
+
+            builder.RegisterModule(new SchedulingModule(this.Type));
+        }
+
+        /// <summary>
+        /// 컨테이너가 빌드된 직후 수행할 후속 초기화: Elsa 브릿지, DB 마이그레이션,
+        /// ApplicationInitializer 실행, Quartz 스케줄러 시작, (옵션) IHostedService 시작.
+        /// ASP.NET Core 호스트(UI)는 startHostedServices=false로 호출하여 Generic Host가 IHostedService를 관리하도록 한다.
+        /// </summary>
+        public void OnContainerBuilt(IContainer container, bool startHostedServices)
+        {
+            _container = container;
+
+            // Autofac ↔ Elsa 브릿지: Elsa Activity에서 Autofac 서비스 접근 가능하도록 설정
+            var autofacAccessor = _container.ResolveOptional<ACS.Elsa.Bridge.AutofacContainerAccessor>();
+            if (autofacAccessor != null)
+            {
+                autofacAccessor.Container = _container;
+                logger.Information("AutofacContainerAccessor: Autofac container linked to Elsa ServiceProvider.");
+            }
+
+            // DB 스키마 생성 및 초기화
+            try
+            {
+                var dbContext = _container.Resolve<ACS.Database.AcsDbContext>();
+                dbContext.Database.EnsureCreated();
+
+                MigrateTransportCommandTable(dbContext);
+                MigrateVehicleTable(dbContext);
+                MigrateLocationTable(dbContext);
+                MigrateBayTable(dbContext);
+                MigrateZoneTable(dbContext);
+                MigrateMqttTable(dbContext);
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to initialize database schema.");
+                throw;
+            }
+
+            var initializer = _container.Resolve<ApplicationInitializer>();
+            initializer.Initialize(this);
+
+            // 스케줄러 시작 (DB 초기화 이후) — Control/EI 동적 잡용
+            try
+            {
+                var scheduler = _container.Resolve<Quartz.IScheduler>();
+                if (!scheduler.IsStarted)
+                {
+                    scheduler.Start().GetAwaiter().GetResult();
+                    logger.Information("Scheduler started successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to start scheduler.");
+            }
+
+            // BackgroundService 시작 (Awake 잡)
+            // 콘솔 호스트는 직접 시작; ASP.NET Core 호스트(UI)는 Generic Host가 IServiceCollection으로 흡수된
+            // IHostedService를 자동 시작하므로 중복 호출 방지를 위해 false로 호출.
+            if (startHostedServices)
+            {
                 try
                 {
                     var hostedServices = _container.Resolve<IEnumerable<Microsoft.Extensions.Hosting.IHostedService>>();
@@ -179,14 +217,9 @@ namespace ACS.App
                 {
                     logger.Error(ex, "Failed to start background services.");
                 }
+            }
 
-                logger.Information("{Type}({Id}) server is started.", this.Type, this.Id);
-                return _container;
-            }
-            catch (Exception e)
-            {
-                throw new ApplicationException("Executor Start() Error", e);
-            }
+            logger.Information("{Type}({Id}) server is started.", this.Type, this.Id);
         }
 
         public void Stop()

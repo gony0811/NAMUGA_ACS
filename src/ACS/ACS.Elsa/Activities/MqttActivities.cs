@@ -295,7 +295,10 @@ namespace ACS.Elsa.Activities
                         CurrentNodeId = currentNodeId,
                         NodeChanged = nodeChanged,
                         ConnectionState = "CONNECT",
-                        EventTime = DateTime.UtcNow
+                        EventTime = DateTime.UtcNow,
+                        PoseX = status.Pose?.X,
+                        PoseY = status.Pose?.Y,
+                        PoseAngle = status.Pose?.Angle
                     }
                 };
 

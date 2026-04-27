@@ -171,4 +171,19 @@ public partial class MapViewModel : ObservableObject
         _locations = locations ?? new List<LocationDto>();
         DataChanged?.Invoke();
     }
+
+    /// <summary>
+    /// SignalR로 수신한 차량 실시간 POSE를 적용한다.
+    /// 호출 측에서 UI 스레드 마샬링을 보장해야 한다(Dispatcher.UIThread.Post).
+    /// 차량이 아직 목록에 없으면 무시(다음 RefreshAsync에서 채워짐).
+    /// </summary>
+    public void ApplyPoseUpdate(string vehicleId, float x, float y, float angle)
+    {
+        var vehicle = _vehicles.FirstOrDefault(v => v.VehicleId == vehicleId);
+        if (vehicle == null) return;
+        vehicle.PoseX = x;
+        vehicle.PoseY = y;
+        vehicle.PoseAngle = angle;
+        DataChanged?.Invoke();
+    }
 }

@@ -17,4 +17,13 @@ public class VehicleDto
     public string TransportCommandId { get; set; }
     public string BayId { get; set; }
     public string CarrierType { get; set; }
+
+    /// <summary>SignalR로 수신한 실시간 X 좌표 (meters). 미수신 시 null.</summary>
+    public float? PoseX { get; set; }
+
+    /// <summary>SignalR로 수신한 실시간 Y 좌표 (meters). 미수신 시 null.</summary>
+    public float? PoseY { get; set; }
+
+    /// <summary>SignalR로 수신한 실시간 각도 (radian). 미수신 시 null.</summary>
+    public float? PoseAngle { get; set; }
 }

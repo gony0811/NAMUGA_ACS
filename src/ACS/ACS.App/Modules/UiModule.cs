@@ -6,13 +6,13 @@ using ACS.Core.Resource;
 using ACS.Core.Transfer;
 using ACS.Core.Cache;
 using ACS.Core.Alarm;
-using ACS.Communication.Http;
 
 namespace ACS.App.Modules
 {
     /// <summary>
-    /// UI(REST API) 프로세스 전용 서비스 등록.
-    /// 읽기 전용 데이터 조회에 필요한 매니저만 등록.
+    /// UI(REST API + SignalR) 프로세스 전용 서비스 등록.
+    /// REST/SignalR 호스팅은 ASP.NET Core(Kestrel)가 담당하며, 본 모듈은 매니저 계층만 등록한다.
+    /// 컨트롤러는 ASP.NET Core MVC 활성화 + Autofac DI를 통해 자동으로 매니저를 주입받는다.
     /// </summary>
     public class UiModule : Module
     {
@@ -58,11 +58,6 @@ namespace ACS.App.Modules
                     .As<IAlarmManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired();
-
-            builder.RegisterType<HttpCommServer>()
-                .AsSelf()
-                .SingleInstance()
-                .PropertiesAutowired();
         }
     }
 }
