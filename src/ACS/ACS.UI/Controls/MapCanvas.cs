@@ -891,12 +891,28 @@ public class MapCanvas : Control
 
         foreach (var vehicle in vehicles)
         {
-            if (!nodePositions.TryGetValue(vehicle.CurrentNodeId ?? "", out var pos)) continue;
+            // SignalR로 수신한 실시간 POSE가 있으면 우선 사용, 없으면 CurrentNodeId 위치로 폴백
+            Point pos;
+            if (vehicle.PoseX.HasValue && vehicle.PoseY.HasValue)
+                pos = TransformPoint(vehicle.PoseX.Value, vehicle.PoseY.Value);
+            else if (nodePositions.TryGetValue(vehicle.CurrentNodeId ?? "", out var nodePos))
+                pos = nodePos;
+            else
+                continue;
 
             IBrush brush = GetVehicleBrush(vehicle);
 
             // Vehicle circle
             context.DrawEllipse(brush, outlinePen, pos, radius, radius);
+
+            // 헤딩 표시: 월드 프레임 (cos θ, sin θ) 방향, 길이는 radius와 함께 줌 보정됨
+            if (vehicle.PoseAngle.HasValue)
+            {
+                double a = vehicle.PoseAngle.Value;
+                double headingLen = radius * 1.6;
+                var tip = new Point(pos.X + Math.Cos(a) * headingLen, pos.Y + Math.Sin(a) * headingLen);
+                context.DrawLine(new Pen(Brushes.White, penWidth * 1.5), pos, tip);
+            }
 
             // Vehicle ID label (dark text for light theme)
             double labelSize = fontSize * 1.1;

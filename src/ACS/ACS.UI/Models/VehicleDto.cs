@@ -3,6 +3,10 @@ namespace ACS.UI.Models;
 public class VehicleDto
 {
     public string VehicleId { get; set; }
+
+    /// <summary>MQTT 식별자 (VehicleEx.CommId). SignalR PoseUpdate 매칭 fallback 키.</summary>
+    public string CommId { get; set; }
+
     public string State { get; set; }
     public string ConnectionState { get; set; }
     public string ProcessingState { get; set; }

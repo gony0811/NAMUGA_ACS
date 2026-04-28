@@ -3,6 +3,7 @@ namespace ACS.Communication.Http.Models
     public class VehicleDto
     {
         public string VehicleId { get; set; }
+        public string CommId { get; set; }
         public string State { get; set; }
         public string ConnectionState { get; set; }
         public string ProcessingState { get; set; }

@@ -10,7 +10,7 @@ namespace ACS.UI;
 
 public partial class App : Application
 {
-    private const string BackendBaseUrl = "http://localhost:5100";
+    private const string BackendBaseUrl = "http://127.0.0.1:5100";
 
     private VehicleHubClient _vehicleHub;
 
@@ -34,9 +34,12 @@ public partial class App : Application
             _vehicleHub = new VehicleHubClient(BackendBaseUrl);
             _vehicleHub.PoseUpdated += pose =>
             {
+                // [TEMP DEBUG] SignalR PoseUpdate 수신 로그
+                Console.WriteLine($"[PoseUpdate] vid={pose.VehicleId} commId={pose.CommId} x={pose.X:F3} y={pose.Y:F3} angle={pose.Angle:F3} t={pose.EventTime:HH:mm:ss.fff}");
+
                 Dispatcher.UIThread.Post(() =>
                 {
-                    mainViewModel.MapViewModel.ApplyPoseUpdate(pose.VehicleId, pose.X, pose.Y, pose.Angle);
+                    mainViewModel.MapViewModel.ApplyPoseUpdate(pose.VehicleId, pose.CommId, pose.X, pose.Y, pose.Angle);
                 });
             };
             _ = _vehicleHub.StartAsync();

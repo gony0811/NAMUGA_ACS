@@ -40,6 +40,7 @@ namespace ACS.App.Web.Controllers
                     dtos.Add(new VehicleDto
                     {
                         VehicleId = v.VehicleId,
+                        CommId = v.CommId,
                         State = v.State,
                         ConnectionState = v.ConnectionState,
                         ProcessingState = v.ProcessingState,
