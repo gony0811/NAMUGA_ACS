@@ -164,25 +164,16 @@ namespace ACS.Elsa.Workflows.Trans
                     logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
                 }
 
-                // 7-1. ProcessingState 업데이트
-                if (string.IsNullOrEmpty(data.VehicleDestNodeId))
+                // 7. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
+                //    RUN(Job 진행 중)은 절대 덮어쓰지 않아 Job 중복 할당을 방지하고,
+                //    CHARGE 진입은 충전 스테이션 도착 시 ResourceServiceEx에서 처리한다.
+                const int BATTERY_CHARGE_RELEASE_RATE = 30;
+                if (vehicle.ProcessingState == VehicleEx.PROCESSINGSTATE_CHARGE
+                    && data.BatteryRate >= BATTERY_CHARGE_RELEASE_RATE)
                 {
-                    // 목적지가 없으면 IDLE 상태로 전환
                     resourceManager.UpdateVehicleProcessingState(data.VehicleId,
                         VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
-                    logger.Info($"Vehicle ProcessingState → IDLE (VehicleDestNodeId 없음): vehicleId={data.VehicleId}");
-                }
-                
-                // 7-2. ProcessingState 업데이트 (충전여부)
-                if (string.IsNullOrEmpty(data.BatteryChargingState) && data.BatteryChargingState == "CHARGING")
-                {
-                    resourceManager.UpdateVehicleProcessingState(data.VehicleId, 
-                        Vehicle.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
-                }
-                else
-                {
-                    resourceManager.UpdateVehicleProcessingState(data.VehicleId, 
-                        Vehicle.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");    
+                    logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
                 }
 
                 // 8. 노드 변경 시 CurrentNodeId 업데이트
@@ -224,9 +215,11 @@ namespace ACS.Elsa.Workflows.Trans
                 var uiAgent = accessor.ResolveNamed<IMessageAgent>("UiAgentSender");
                 if (uiAgent == null)
                 {
+                    logger.Warn("RailVehicleUpdateActivity: UiAgentSender 미등록 — UI forward skip");
                     return;
                 }
                 uiAgent.Send((object)json);
+                logger.Debug($"RailVehicleUpdateActivity: UI forward 완료, len={json?.Length ?? 0}");
             }
             catch (Exception ex)
             {

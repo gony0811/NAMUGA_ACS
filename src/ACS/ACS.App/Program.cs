@@ -11,7 +11,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ACS.App.Web.Hubs;
-using ACS.App.Web.Realtime;
 using ACS.Core.Host;
 using Serilog;
 
@@ -183,10 +182,8 @@ static class Program
 
         builder.Services.AddSignalR();
 
-        // Trans → UI(RabbitMQ fanout) → SignalR 브로드캐스트
-        builder.Services.AddHostedService<PoseTelemetrySubscriber>();
-
         // Autofac을 ASP.NET Core DI에 통합
+        // (PoseTelemetrySubscriber는 UiModule에서 IHostedService로 등록되어 Generic Host가 자동 기동)
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
         builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
         {

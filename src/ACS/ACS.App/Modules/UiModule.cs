@@ -1,5 +1,7 @@
 using System;
 using Autofac;
+using Microsoft.Extensions.Hosting;
+using ACS.App.Web.Realtime;
 using ACS.Core.Base;
 using ACS.Core.Application;
 using ACS.Core.Resource;
@@ -58,6 +60,12 @@ namespace ACS.App.Modules
                     .As<IAlarmManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired();
+
+            // Trans → UI(RabbitMQ fanout) → SignalR 브로드캐스트.
+            // IHostedService로 등록하면 Generic Host가 IServiceCollection에 흡수된 등록분을 자동 기동한다.
+            builder.RegisterType<PoseTelemetrySubscriber>()
+                .As<IHostedService>()
+                .SingleInstance();
         }
     }
 }

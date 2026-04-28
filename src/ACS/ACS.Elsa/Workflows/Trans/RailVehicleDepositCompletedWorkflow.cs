@@ -23,9 +23,9 @@ namespace ACS.Elsa.Workflows.Trans
     /// RAIL-VEHICLEDEPOSITCOMPLETED 워크플로우.
     ///
     /// EI(AMR 컨트롤러)가 AMR의 Dest 포트 LOAD 작업 완료(deposit)를 Trans에 보고할 때 수신.
-    /// resultCode=OK 이면 TC를 조회해 16단계 상태 전이를 순차 수행하고,
+    /// resultCode=OK 이면 TC를 조회해 17단계 상태 전이를 순차 수행하고,
     /// Host로 JOBREPORT(COMPLETE)을 보고한 뒤 TC 를 히스토리로 이관·삭제하고
-    /// Vehicle 할당 정보(TransportCommandId / Path / AcsDestNodeId)를 초기화한다.
+    /// Vehicle 할당 정보(TransportCommandId / Path / AcsDestNodeId / ProcessingState)를 초기화한다.
     ///
     /// Arguments: [string jsonMessage]
     /// </summary>
@@ -35,7 +35,7 @@ namespace ACS.Elsa.Workflows.Trans
         {
             builder.DefinitionId = "RAIL-VEHICLEDEPOSITCOMPLETED";
             builder.Name = "RAIL-VEHICLEDEPOSITCOMPLETED";
-            builder.Description = "AMR LOAD 완료 보고 수신 → 상태 전이 16단계 → Host JOBREPORT(COMPLETE) 전송 및 TC/Vehicle 정리";
+            builder.Description = "AMR LOAD 완료 보고 수신 → 상태 전이 17단계 → Host JOBREPORT(COMPLETE) 전송 및 TC/Vehicle 정리";
 
             builder.Root = new Sequence
             {
@@ -48,12 +48,12 @@ namespace ACS.Elsa.Workflows.Trans
     }
 
     /// <summary>
-    /// RAIL-VEHICLEDEPOSITCOMPLETED JSON 수신 후 16단계 로직을 순차 수행.
+    /// RAIL-VEHICLEDEPOSITCOMPLETED JSON 수신 후 17단계 로직을 순차 수행.
     /// ACS.Service 계층은 호출하지 않고 Manager/HistoryManager/MessageManager
     /// primitive 만 직접 사용한다.
     /// </summary>
     [Activity("ACS.Trans", "Handle Vehicle Deposit Completed",
-        "AMR LOAD 완료 수신 → 16단계 상태 전이 → Host COMPLETE 보고 → TC 제거")]
+        "AMR LOAD 완료 수신 → 17단계 상태 전이 → Host COMPLETE 보고 → TC 제거")]
     public class HandleVehicleDepositCompletedActivity : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger(typeof(HandleVehicleDepositCompletedActivity));
@@ -166,8 +166,8 @@ namespace ACS.Elsa.Workflows.Trans
                     DeleteUIInform(resourceManager, effectiveVehicleId);
                 }
 
-                // Step 8
-                if (!CheckVehicleStateIsTransferDest(tc)) return;
+                // Step 8 (보정 + 검증)
+                if (!EnsureTransportCommandStateIsTransferDest(transferManager, resourceManager, tc, vehicle)) return;
 
                 // Step 9
                 ChangeVehicleTransferStateToDepositComplete(resourceManager, vehicle);
@@ -192,6 +192,9 @@ namespace ACS.Elsa.Workflows.Trans
 
                 // Step 16
                 UpdateVehicleAcsDestNodeIdEmpty(resourceManager, vehicle);
+
+                // Step 17
+                ChangeVehicleProcessingStateToIdle(resourceManager, vehicle);
             }
             catch (Exception ex)
             {
@@ -325,16 +328,42 @@ namespace ACS.Elsa.Workflows.Trans
         }
 
         // ─────────────────────────────────────────────────────────────
-        // Step 8: TC.State == TRANSFERRING_DEST 인지 확인
+        // Step 8: TC.State 가 TRANSFERRING_DEST 가 아니면 보정 시도.
+        //   - ASSIGNED 그대로 DEPOSIT 이 들어온 경우(ACQUIRE 단계 누락 추정):
+        //     TC.State→TRANSFERRING_DEST, LoadedTime=now,
+        //     Vehicle.TransferState→TRANSFERING_DEST 로 보정 후 정상 흐름에 합류.
+        //   - 이미 TRANSFERRING_DEST 면 그대로 통과.
+        //   - 그 외 비정상 상태(COMPLETED/CANCELED 등)는 에러로 종료.
         // ─────────────────────────────────────────────────────────────
-        private static bool CheckVehicleStateIsTransferDest(TransportCommandEx tc)
+        private static bool EnsureTransportCommandStateIsTransferDest(
+            ITransferManagerEx tm, IResourceManagerEx rm, TransportCommandEx tc, VehicleEx v)
         {
-            bool ok = TransportCommandEx.STATE_TRANSFERRING_DEST.Equals(tc.State, StringComparison.OrdinalIgnoreCase);
-            if (!ok)
-                logger.Error($"[Step8] CheckVehicleStateIsTransferDest: TC 상태 불일치 tc={tc.JobId}, state={tc.State}, expected={TransportCommandEx.STATE_TRANSFERRING_DEST}");
-            else
-                logger.Info($"[Step8] CheckVehicleStateIsTransferDest OK tc={tc.JobId}");
-            return ok;
+            if (TransportCommandEx.STATE_TRANSFERRING_DEST.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.Info($"[Step8] EnsureTransportCommandStateIsTransferDest OK tc={tc.JobId}");
+                return true;
+            }
+
+            if (TransportCommandEx.STATE_ASSIGNED.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.Warn($"[Step8] TC 상태 보정: ASSIGNED → TRANSFERRING_DEST tc={tc.JobId} (ACQUIRE 단계 누락 추정, DEPOSIT 시각으로 LoadedTime 보정)");
+
+                tc.State = TransportCommandEx.STATE_TRANSFERRING_DEST;
+                tc.LoadedTime = DateTime.Now;
+
+                var set = new Dictionary<string, object>
+                {
+                    ["State"] = tc.State,
+                    ["LoadedTime"] = tc.LoadedTime
+                };
+                tm.UpdateTransportCommand(tc, set);
+
+                rm.UpdateVehicleTransferState(v, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, MsgName);
+                return true;
+            }
+
+            logger.Error($"[Step8] EnsureTransportCommandStateIsTransferDest: TC 상태 비정상 tc={tc.JobId}, state={tc.State}, expected={TransportCommandEx.STATE_TRANSFERRING_DEST} or {TransportCommandEx.STATE_ASSIGNED}");
+            return false;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -426,6 +455,15 @@ namespace ACS.Elsa.Workflows.Trans
             rm.UpdateVehicleAcsDestNodeId(v, "", MsgName);
             v.AcsDestNodeId = "";
             logger.Info($"[Step16] UpdateVehicleAcsDestNodeIdEmpty vehicleId={v.VehicleId}");
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Step 17: NA_R_VEHICLE.ProcessingState = IDLE
+        // ─────────────────────────────────────────────────────────────
+        private static void ChangeVehicleProcessingStateToIdle(IResourceManagerEx rm, VehicleEx v)
+        {
+            rm.UpdateVehicleProcessingState(v, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
+            logger.Info($"[Step17] ChangeVehicleProcessingStateToIdle vehicleId={v.VehicleId}");
         }
     }
 }
