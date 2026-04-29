@@ -13,7 +13,8 @@ PUBLISH_DIR="$SCRIPT_DIR/publish"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
 
 # 전체 프로세스 목록 (기본값)
-ALL_PROCESSES=("TS01_P" "ES01_P" "DS01_P" "CS01_P" "HS01_P" "UI01_P")
+# ALL_PROCESSES=("TS01_P" "ES01_P" "DS01_P" "CS01_P" "HS01_P" "UI01_P")
+ALL_PROCESSES=("TS01_P" "ES01_P" "UI01_P")
 
 # 인자가 있으면 해당 프로세스만, 없으면 전체
 if [ $# -gt 0 ]; then

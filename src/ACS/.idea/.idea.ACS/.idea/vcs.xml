@@ -3,9 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/../../../ACS" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../.." vcs="Git" />
-<<<<<<< Updated upstream
-    <mapping directory="$PROJECT_DIR$/../../../NAMUGA_AMR" vcs="Git" />
-=======
     <mapping directory="$PROJECT_DIR$/../../../NAMUGA_ACS 복사본" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../NAMUGA_AMR" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../NAMUGA_AMR_" vcs="Git" />
@@ -13,6 +10,5 @@
     <mapping directory="$PROJECT_DIR$/../../../NEW_ACS" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../SPI" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../../Works/NAMUGA_ACS" vcs="Git" />
->>>>>>> Stashed changes
   </component>
 </project>

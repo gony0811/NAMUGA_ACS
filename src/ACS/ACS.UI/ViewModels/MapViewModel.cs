@@ -156,7 +156,33 @@ public partial class MapViewModel : ObservableObject
 
     public void UpdateVehicles(List<VehicleDto> vehicles)
     {
-        _vehicles = vehicles ?? new List<VehicleDto>();
+        var incoming = vehicles ?? new List<VehicleDto>();
+
+        // Refresh 후에도 SignalR로 받은 실시간 POSE가 사라지지 않도록 기존 차량의 PoseX/Y/Angle을 머지.
+        if (_vehicles.Count > 0)
+        {
+            foreach (var nv in incoming)
+            {
+                string nvVid = nv.VehicleId?.Trim();
+                string nvCid = nv.CommId?.Trim();
+                bool hasVid = !string.IsNullOrEmpty(nvVid);
+                bool hasCid = !string.IsNullOrEmpty(nvCid);
+                if (!hasVid && !hasCid) continue;
+
+                var prev = _vehicles.FirstOrDefault(v =>
+                    (hasVid && string.Equals(v.VehicleId?.Trim(), nvVid, StringComparison.OrdinalIgnoreCase)) ||
+                    (hasCid && string.Equals(v.CommId?.Trim(), nvCid, StringComparison.OrdinalIgnoreCase)));
+
+                if (prev != null)
+                {
+                    nv.PoseX = prev.PoseX;
+                    nv.PoseY = prev.PoseY;
+                    nv.PoseAngle = prev.PoseAngle;
+                }
+            }
+        }
+
+        _vehicles = incoming;
         DataChanged?.Invoke();
     }
 
@@ -178,27 +204,39 @@ public partial class MapViewModel : ObservableObject
     /// VehicleId(DB PK) 또는 CommId(MQTT 식별자) 어느 쪽으로도 매칭되도록 OrdinalIgnoreCase 비교.
     /// 차량이 아직 목록에 없거나 두 키 모두 비어 있으면 무시.
     /// </summary>
-    private static bool _loggedNoMatch;
+    private DateTime _lastNoMatchLogAt = DateTime.MinValue;
+    private bool _loggedFirstMatch;
+    private static readonly TimeSpan NoMatchLogInterval = TimeSpan.FromSeconds(5);
 
     public void ApplyPoseUpdate(string vehicleId, string commId, float x, float y, float angle)
     {
-        bool hasVid = !string.IsNullOrWhiteSpace(vehicleId);
-        bool hasCid = !string.IsNullOrWhiteSpace(commId);
+        string vid = vehicleId?.Trim();
+        string cid = commId?.Trim();
+        bool hasVid = !string.IsNullOrEmpty(vid);
+        bool hasCid = !string.IsNullOrEmpty(cid);
         if (!hasVid && !hasCid) return;
 
         var vehicle = _vehicles.FirstOrDefault(v =>
-            (hasVid && string.Equals(v.VehicleId, vehicleId, StringComparison.OrdinalIgnoreCase)) ||
-            (hasCid && string.Equals(v.CommId, commId, StringComparison.OrdinalIgnoreCase)));
+            (hasVid && string.Equals(v.VehicleId?.Trim(), vid, StringComparison.OrdinalIgnoreCase)) ||
+            (hasCid && string.Equals(v.CommId?.Trim(), cid, StringComparison.OrdinalIgnoreCase)));
 
         if (vehicle == null)
         {
-            if (!_loggedNoMatch)
+            // 1Hz × N대 텔레메트리에서 로그 폭주를 막기 위해 5초 간격으로 throttle.
+            var now = DateTime.UtcNow;
+            if (now - _lastNoMatchLogAt >= NoMatchLogInterval)
             {
-                _loggedNoMatch = true;
+                _lastNoMatchLogAt = now;
                 var known = string.Join(", ", _vehicles.Select(v => $"(vid={v.VehicleId},cid={v.CommId})"));
                 Console.WriteLine($"[ApplyPoseUpdate] no-match vid='{vehicleId}' cid='{commId}'; known=[{known}]");
             }
             return;
+        }
+
+        if (!_loggedFirstMatch)
+        {
+            _loggedFirstMatch = true;
+            Console.WriteLine($"[ApplyPoseUpdate] match-ok vid='{vehicleId}' cid='{commId}' -> vehicle.VehicleId='{vehicle.VehicleId}' CommId='{vehicle.CommId}'");
         }
 
         vehicle.PoseX = x;

@@ -32,6 +32,11 @@ namespace ACS.App.Web.Realtime
         private IModel _channel;
         private string _consumerTag;
 
+        // 발행 측 vid/cid가 어떤 값으로 나가는지 UI 측 로그와 비교 진단용.
+        // 1Hz × N대 텔레메트리이므로 5초 간격으로 throttle.
+        private DateTime _lastBroadcastLogAt = DateTime.MinValue;
+        private static readonly TimeSpan BroadcastLogInterval = TimeSpan.FromSeconds(5);
+
         public PoseTelemetrySubscriber(
             IHubContext<VehicleHub> hub,
             IConfiguration configuration,
@@ -110,6 +115,15 @@ namespace ACS.App.Web.Realtime
 
                 // SignalR 브로드캐스트는 비동기지만 fire-and-forget으로 처리해 RabbitMQ consumer 스레드를 막지 않는다.
                 _ = _hub.Clients.All.SendAsync("PoseUpdate", payload);
+
+                var now = DateTime.UtcNow;
+                if (now - _lastBroadcastLogAt >= BroadcastLogInterval)
+                {
+                    _lastBroadcastLogAt = now;
+                    _logger.LogInformation(
+                        "PoseUpdate broadcast vehicleId={VehicleId} commId={CommId} x={X:F3} y={Y:F3} angle={Angle:F3}",
+                        msg.Data.VehicleId, msg.Data.CommId, payload.x, payload.y, payload.angle);
+                }
             }
             catch (Exception ex)
             {

@@ -10,7 +10,7 @@ namespace ACS.UI;
 
 public partial class App : Application
 {
-    private const string BackendBaseUrl = "http://127.0.0.1:5100";
+    private const string BackendBaseUrl = "http://192.168.0.6:5100";
 
     private VehicleHubClient _vehicleHub;
 
