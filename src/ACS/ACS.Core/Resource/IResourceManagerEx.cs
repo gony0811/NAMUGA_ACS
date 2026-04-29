@@ -63,6 +63,7 @@ namespace ACS.Core.Resource
         IList GetVehiclesByCurrentNode(string paramString);
         int UpdateVehicle(VehicleEx paramVehicle, string paramString, object paramObject);
         void UpdateVehicle(VehicleEx paramVehicle);
+        int UpdateVehicleBatch(VehicleEx paramVehicle, IDictionary<string, object> fieldChanges, string messageName, bool createHistory);
         int UpdateVehicleTransferState(VehicleEx paramVehicle, string paramString1, string paramString2);
         int UpdateVehicleTransferState(VehicleEx paramVehicle, string paramString);
         int UpdateVehicleTransferState(string paramString1, string paramString2, string paramString3);

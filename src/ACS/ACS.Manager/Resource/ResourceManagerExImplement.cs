@@ -346,6 +346,33 @@ namespace ACS.Manager.Resource
             return this.PersistentDao.UpdateByAttribute(vehicle.GetType(), propertyName, propertyValue, "VehicleId", vehicle.VehicleId);
         }
 
+        public int UpdateVehicleBatch(VehicleEx vehicle, IDictionary<string, object> fieldChanges, String messageName, bool createHistory)
+        {
+            if (vehicle == null || fieldChanges == null || fieldChanges.Count == 0)
+                return 0;
+
+            var setDict = new Dictionary<string, object>(fieldChanges);
+
+            int updated = this.PersistentDao.UpdateByAttributes(
+                vehicle.GetType(), setDict, "VehicleId", vehicle.VehicleId);
+
+            if (updated <= 0) return 0;
+
+            // 메모리 객체에도 반영해 다음 메시지의 비교가 정확하도록 함
+            var vt = vehicle.GetType();
+            foreach (var kv in fieldChanges)
+            {
+                var prop = vt.GetProperty(kv.Key);
+                if (prop != null && prop.CanWrite) prop.SetValue(vehicle, kv.Value);
+            }
+
+            if (createHistory)
+            {
+                this.HistoryManager.CreateVehicleHistory(vehicle, messageName);
+            }
+            return updated;
+        }
+
         public int UpdateVehicleTransferState(VehicleEx vehicle, String transferState, String messageName)
         {
             int updateCount = 0;

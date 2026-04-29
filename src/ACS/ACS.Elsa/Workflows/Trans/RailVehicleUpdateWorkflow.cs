@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Text.Json;
 using Elsa.Extensions;
 using Elsa.Workflows;
@@ -53,6 +55,17 @@ namespace ACS.Elsa.Workflows.Trans
     {
         private static readonly Logger logger = Logger.GetLogger(typeof(RailVehicleUpdateActivity));
 
+        // 차량별 throttle 상태 — 1Hz 텔레메트리에서 EventTime/BatteryVoltage 같은 고빈도 필드의 DB 반영 빈도를 줄임
+        private static readonly ConcurrentDictionary<string, VehicleTickState> _tickState
+            = new ConcurrentDictionary<string, VehicleTickState>();
+
+        private class VehicleTickState
+        {
+            public DateTime LastEventTimeFlushUtc;
+            public float    LastFlushedBatteryVoltage;
+            public DateTime LastBatteryVoltageFlushUtc;
+        }
+
         protected override void Execute(ActivityExecutionContext context)
         {
             try
@@ -105,79 +118,93 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
-                // 1. ConnectionState → CONNECT
+                // 변경분을 모두 모아 한 번의 SaveChanges로 묶어 적용한다.
+                var changes = new Dictionary<string, object>();
+                bool meaningfulChange = false;
+                var now = DateTime.UtcNow;
+                var tick = _tickState.GetOrAdd(data.VehicleId, _ => new VehicleTickState());
+
+                // 1. ConnectionState
                 if (!"CONNECT".Equals(vehicle.ConnectionState))
                 {
-                    resourceManager.UpdateVehicleConnectionState(vehicle, data.ConnectionState);
+                    changes["ConnectionState"] = data.ConnectionState;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle ConnectionState → {data.ConnectionState}: vehicleId={data.VehicleId}");
                 }
 
-                if (!"BANNED".Equals(vehicle.State))
+                // 2. State → ALIVE (BANNED 보존, 이미 ALIVE면 스킵)
+                if (!"BANNED".Equals(vehicle.State) && !Vehicle.STATE_ALIVE.Equals(vehicle.State))
                 {
-                    resourceManager.UpdateVehicleState(vehicle, Vehicle.STATE_ALIVE, "RAIL-VEHICLEUPDATE");
+                    changes["State"] = Vehicle.STATE_ALIVE;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle State → ALIVE: vehicleId={data.VehicleId}");
                 }
-                
-                
 
-                // 2. RunState 업데이트
+                // 3. RunState
                 if (!string.IsNullOrEmpty(data.RunState) && data.RunState != vehicle.RunState)
                 {
-                    resourceManager.UpdateVehicleRunState(vehicle, data.RunState);
+                    changes["RunState"] = data.RunState;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle RunState 업데이트: {vehicle.RunState} → {data.RunState}, vehicleId={data.VehicleId}");
                 }
-                
 
-                // 3. FullState 업데이트
+                // 4. FullState
                 if (!string.IsNullOrEmpty(data.FullState) && data.FullState != vehicle.FullState)
                 {
-                    resourceManager.UpdateVehicleFullState(vehicle, data.FullState);
+                    changes["FullState"] = data.FullState;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle FullState 업데이트: {vehicle.FullState} → {data.FullState}, vehicleId={data.VehicleId}");
                 }
 
-                // 4. AlarmState 업데이트
+                // 5. AlarmState
                 if (!string.IsNullOrEmpty(data.AlarmState) && data.AlarmState != vehicle.AlarmState)
                 {
-                    resourceManager.UpdateVehicleAlarmState(vehicle, data.AlarmState);
+                    changes["AlarmState"] = data.AlarmState;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle AlarmState 업데이트: {vehicle.AlarmState} → {data.AlarmState}, vehicleId={data.VehicleId}");
                 }
 
-                // 5. BatteryRate 업데이트
+                // 6. BatteryRate (정수, 1% 단위 자연 throttle)
                 if (data.BatteryRate != vehicle.BatteryRate)
                 {
-                    resourceManager.UpdateVehicleBatteryRate(vehicle, data.BatteryRate);
+                    changes["BatteryRate"] = data.BatteryRate;
                     logger.Info($"Vehicle BatteryRate 업데이트: {vehicle.BatteryRate} → {data.BatteryRate}, vehicleId={data.VehicleId}");
                 }
 
-                // 6. BatteryVoltage 업데이트
-                if (Math.Abs(data.BatteryVoltage - vehicle.BatteryVoltage) > 0.01f)
+                // 7. BatteryVoltage — 0.1V 차이 + 5초 throttle
+                bool voltageDiffOK = Math.Abs(data.BatteryVoltage - tick.LastFlushedBatteryVoltage) > 0.1f;
+                bool voltageTimeOK = (now - tick.LastBatteryVoltageFlushUtc).TotalSeconds >= 5.0;
+                if (voltageDiffOK && voltageTimeOK)
                 {
-                    resourceManager.UpdateVehicleBatteryVoltage(vehicle, data.BatteryVoltage);
+                    changes["BatteryVoltage"] = data.BatteryVoltage;
+                    tick.LastFlushedBatteryVoltage = data.BatteryVoltage;
+                    tick.LastBatteryVoltageFlushUtc = now;
                     logger.Info($"Vehicle BatteryVoltage 업데이트: {vehicle.BatteryVoltage} → {data.BatteryVoltage}, vehicleId={data.VehicleId}");
                 }
-                
 
-                // 7. VehicleDestNodeId 업데이트
+                // 8. VehicleDestNodeId
                 if (data.VehicleDestNodeId != vehicle.VehicleDestNodeId)
                 {
-                    resourceManager.UpdateVehicleVehicleDestNodeId(vehicle, data.VehicleDestNodeId);
+                    changes["VehicleDestNodeId"] = data.VehicleDestNodeId;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
                 }
 
-                // 7. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
+                // 9. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
                 //    RUN(Job 진행 중)은 절대 덮어쓰지 않아 Job 중복 할당을 방지하고,
                 //    CHARGE 진입은 충전 스테이션 도착 시 ResourceServiceEx에서 처리한다.
                 const int BATTERY_CHARGE_RELEASE_RATE = 30;
                 if (vehicle.ProcessingState == VehicleEx.PROCESSINGSTATE_CHARGE
                     && data.BatteryRate >= BATTERY_CHARGE_RELEASE_RATE)
                 {
-                    resourceManager.UpdateVehicleProcessingState(data.VehicleId,
-                        VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
+                    changes["ProcessingState"] = VehicleEx.PROCESSINGSTATE_IDLE;
+                    meaningfulChange = true;
                     logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
                 }
 
-                // 8. 노드 변경 시 CurrentNodeId 업데이트
-                if (data.NodeChanged && !string.IsNullOrEmpty(data.CurrentNodeId))
+                // 10. CurrentNodeId — NodeChanged + 캐시 등록 + 실값 변경 시
+                if (data.NodeChanged && !string.IsNullOrEmpty(data.CurrentNodeId)
+                    && data.CurrentNodeId != vehicle.CurrentNodeId)
                 {
                     var cacheManager = accessor.Resolve<ICacheManagerEx>();
                     NodeEx node = cacheManager?.GetNode(data.CurrentNodeId);
@@ -188,17 +215,31 @@ namespace ACS.Elsa.Workflows.Trans
                     else
                     {
                         string previousNodeId = vehicle.CurrentNodeId;
-                        resourceManager.UpdateVehicleLocation(vehicle, data.CurrentNodeId);
+                        changes["CurrentNodeId"] = data.CurrentNodeId;
+                        changes["NodeCheckTime"] = now;
+                        meaningfulChange = true;
                         logger.Info($"Vehicle 위치 업데이트: {previousNodeId} → {data.CurrentNodeId}, vehicleId={data.VehicleId}");
                     }
                 }
 
-                // 9. EventTime 업데이트
-                resourceManager.UpdateVehicleEventTime(vehicle);
+                // 11. EventTime — 의미 있는 변경 동반 OR 마지막 flush 후 10초 경과
+                bool eventTimeForced = (now - tick.LastEventTimeFlushUtc).TotalSeconds >= 10.0;
+                if (meaningfulChange || changes.Count > 0 || eventTimeForced)
+                {
+                    changes["EventTime"] = now;
+                    tick.LastEventTimeFlushUtc = now;
+                }
 
-                logger.Info($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}");
+                // 12. 단일 SaveChanges 경로
+                if (changes.Count > 0)
+                {
+                    resourceManager.UpdateVehicleBatch(vehicle, changes,
+                        "RAIL-VEHICLEUPDATE", createHistory: meaningfulChange);
+                }
 
-                // 10. UI 프로세스로 원본 JSON 그대로 forward (POSE 포함, 1Hz 텔레메트리)
+                logger.Info($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}, changedFields={changes.Count}, history={meaningfulChange}");
+
+                // 13. UI 프로세스로 원본 JSON 그대로 forward (POSE 포함, 1Hz 텔레메트리)
                 //     UI BackgroundService가 SignalR로 클라이언트에 브로드캐스트한다.
                 ForwardToUi(accessor, json);
             }

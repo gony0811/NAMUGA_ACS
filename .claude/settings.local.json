@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(docker exec acs-postgres-db *)",
+      "Bash(xargs grep *)"
     ]
   }
 }
