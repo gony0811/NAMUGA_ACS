@@ -346,6 +346,20 @@ namespace ACS.Manager.Resource
             return this.PersistentDao.UpdateByAttribute(vehicle.GetType(), propertyName, propertyValue, "VehicleId", vehicle.VehicleId);
         }
 
+        public bool TryAssignVehicleAtomic(string vehicleId, string transportCommandId, string messageName)
+        {
+            bool ok = this.PersistentDao.TryAssignVehicleAtomic(vehicleId, transportCommandId);
+            if (ok)
+            {
+                VehicleEx newVehicle = Refresh(vehicleId);
+                if (newVehicle != null)
+                {
+                    this.HistoryManager.CreateVehicleHistory(newVehicle, messageName);
+                }
+            }
+            return ok;
+        }
+
         public int UpdateVehicleBatch(VehicleEx vehicle, IDictionary<string, object> fieldChanges, String messageName, bool createHistory)
         {
             if (vehicle == null || fieldChanges == null || fieldChanges.Count == 0)

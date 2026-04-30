@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using Autofac;
 using Elsa.Extensions;
 using Elsa.Workflows;
@@ -180,9 +182,14 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // 상태 검증: IDLE + CONNECT
+                // 상태 검증: IDLE + CONNECT + TC 미할당 + TransferState NOTASSIGNED
+                // ProcessingState/TransportCommandId/TransferState 세 가지가 모두 정합해야 함.
+                // 어느 하나라도 비정합이면 race 또는 외부 상태 오염으로 보고 후보 제외.
                 if (vehicle.ProcessingState != VehicleEx.PROCESSINGSTATE_IDLE ||
-                    vehicle.ConnectionState != VehicleEx.CONNECTIONSTATE_CONNECT)
+                    vehicle.ConnectionState != VehicleEx.CONNECTIONSTATE_CONNECT ||
+                    !string.IsNullOrEmpty(vehicle.TransportCommandId) ||
+                    (vehicle.TransferState != null
+                     && vehicle.TransferState != VehicleEx.TRANSFERSTATE_NOTASSIGNED))
                 {
                     context.Set(Found, false);
                     return;
@@ -216,6 +223,12 @@ namespace ACS.Elsa.Activities
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
 
+        // BayId 단위 SemaphoreSlim — 같은 Bay에서 동시에 진입하는 SCHEDULE-QUEUEJOB 워크플로우들의
+        // Vehicle 할당 구간을 직렬화하여 고수준 가시성과 디버깅 용이성 확보.
+        // DB 원자 UPDATE(TryAssignVehicleAtomic)가 정합성을 보장하므로 본 락은 보조 안전망.
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _bayLocks
+            = new ConcurrentDictionary<string, SemaphoreSlim>();
+
         [Input(Description = "할당 대상 TransportCommand")]
         public Input<TransportCommandEx> TransportCommand { get; set; }
 
@@ -237,6 +250,9 @@ namespace ACS.Elsa.Activities
                 return;
             }
 
+            var bayKey = string.IsNullOrEmpty(tc.BayId) ? "_default_" : tc.BayId;
+            var sema = _bayLocks.GetOrAdd(bayKey, _ => new SemaphoreSlim(1, 1));
+            sema.Wait();
             try
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
@@ -250,24 +266,37 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // TC에 vehicle 할당
+                // 1) Vehicle 원자적 conditional UPDATE — 전제(IDLE + TC 비어있음) 성립 시에만 잡힘
+                bool won = resourceManager.TryAssignVehicleAtomic(vehicle.VehicleId, tc.JobId, "ASSIGN");
+                if (!won)
+                {
+                    logger.Warn($"AssignVehicleToTransportCommandActivity: race detected — Vehicle {vehicle.VehicleId} no longer assignable for TC {tc.JobId}");
+                    context.Set(Success, false);
+                    return;
+                }
+
+                // 2) TC 업데이트 — Vehicle을 잡았으므로 자유롭게 TC 측 상태 갱신
                 tc.VehicleId = vehicle.VehicleId;
                 tc.State = TransportCommandEx.STATE_ASSIGNED;
                 tc.AssignedTime = DateTime.Now;
                 transferManager.UpdateTransportCommand(tc);
 
-                // Vehicle에 TC 할당
-                resourceManager.UpdateVehicleTransportCommandId(vehicle, tc.JobId);
-                resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_ASSIGNED);
-                resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_RUN);
+                // 3) 메모리 객체에도 동기화 — 후속 Activity가 이 vehicle 객체를 그대로 사용
+                vehicle.TransportCommandId = tc.JobId;
+                vehicle.TransferState = VehicleEx.TRANSFERSTATE_ASSIGNED;
+                vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_RUN;
 
-                logger.Info($"AssignVehicleToTransportCommandActivity: TC {tc.JobId} → Vehicle {vehicle.VehicleId}");
+                logger.Info($"AssignVehicleToTransportCommandActivity: TC {tc.JobId} → Vehicle {vehicle.VehicleId} (atomic)");
                 context.Set(Success, true);
             }
             catch (Exception ex)
             {
                 logger.Error($"AssignVehicleToTransportCommandActivity: {ex.Message}", ex);
                 context.Set(Success, false);
+            }
+            finally
+            {
+                sema.Release();
             }
         }
     }

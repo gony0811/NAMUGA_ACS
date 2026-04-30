@@ -775,20 +775,20 @@ namespace ACS.Manager.Path
 
             if (!containUnavailableVehicle)
             {
+                // ProcessingState 필터를 dict에 포함시켜 조회 시점부터 IDLE로 좁힘.
+                // TC가 이미 할당된 차량은 LINQ에서 제외(null 또는 ""을 동시에 처리하기 위함).
                 var attributes = new Dictionary<string, object>
                 {
                     { "ConnectionState", "CONNECT" },
                     { "State", "ALIVE" },
+                    { "ProcessingState", "IDLE" },
                     { "BayId", bayId },
                     { "FullState", "EMPTY" },
                     { "Installed", "T" }
                 };
                 IList allMatches = this.PersistentDao.FindByAttributes(typeof(VehicleEx), attributes);
-                // OR condition: ProcessingState == "IDLE" || ProcessingState == "PARK"
-                // Gt: BatteryRate > 10%
-                // Order: NodeCheckTime ASC
                 vehicleList = allMatches.Cast<VehicleEx>()
-                    .Where(v => (v.ProcessingState == "IDLE") /* && v.BatteryRate > 5.0F */)
+                    .Where(v => string.IsNullOrEmpty(v.TransportCommandId))
                     .OrderBy(v => v.NodeCheckTime)
                     .ToList<VehicleEx>();
             }

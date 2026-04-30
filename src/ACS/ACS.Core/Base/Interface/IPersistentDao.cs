@@ -284,5 +284,13 @@ namespace ACS.Core.Base.Interface
         void Evict(Object obj);
 
         int ExecuteUpdate(string s);
+
+        /// <summary>
+        /// 차량 할당의 race condition 방지를 위한 원자적 conditional UPDATE.
+        /// 전제 조건(processingState=IDLE AND transportCommandId IS NULL/'')이 모두 만족할 때만
+        /// transportCommandId/transferState/processingState/eventTime을 한 번의 SQL UPDATE로 변경한다.
+        /// 영향 행이 1이면 true(이 호출자가 차량을 잡음), 0이면 false(다른 스레드가 이미 잡음).
+        /// </summary>
+        bool TryAssignVehicleAtomic(string vehicleId, string transportCommandId);
     }
 }

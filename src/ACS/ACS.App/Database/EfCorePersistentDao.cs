@@ -8,6 +8,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using ACS.Core.Base.Interface;
+using ACS.Core.Resource.Model;
 
 namespace ACS.Database
 {
@@ -1473,6 +1474,30 @@ namespace ACS.Database
         public int ExecuteUpdate(string sql)
         {
             return _db.Database.ExecuteSqlRaw(sql);
+        }
+
+        /// <summary>
+        /// 차량 할당의 race condition 방지를 위한 conditional UPDATE.
+        /// EF Core 8 ExecuteUpdate로 single round-trip 원자적 SQL UPDATE를 발행한다.
+        /// 전제: processingState='IDLE' AND (transportCommandId IS NULL OR transportCommandId='')
+        /// 만족 시 transportCommandId/transferState/processingState/eventTime을 단일 UPDATE로 변경.
+        /// 영향 행이 1이면 본 호출자가 차량을 잡음, 0이면 다른 스레드가 이미 잡음.
+        /// </summary>
+        public bool TryAssignVehicleAtomic(string vehicleId, string transportCommandId)
+        {
+            if (string.IsNullOrEmpty(vehicleId) || string.IsNullOrEmpty(transportCommandId))
+                return false;
+
+            int n = _db.Set<VehicleExs>()
+                .Where(v => v.VehicleId == vehicleId
+                         && v.ProcessingState == VehicleEx.PROCESSINGSTATE_IDLE
+                         && (v.TransportCommandId == null || v.TransportCommandId == ""))
+                .ExecuteUpdate(s => s
+                    .SetProperty(v => v.TransportCommandId, _ => transportCommandId)
+                    .SetProperty(v => v.TransferState, _ => VehicleEx.TRANSFERSTATE_ASSIGNED)
+                    .SetProperty(v => v.ProcessingState, _ => VehicleEx.PROCESSINGSTATE_RUN)
+                    .SetProperty(v => v.EventTime, _ => DateTime.UtcNow));
+            return n > 0;
         }
 
         #endregion

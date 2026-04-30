@@ -64,6 +64,12 @@ namespace ACS.Core.Resource
         int UpdateVehicle(VehicleEx paramVehicle, string paramString, object paramObject);
         void UpdateVehicle(VehicleEx paramVehicle);
         int UpdateVehicleBatch(VehicleEx paramVehicle, IDictionary<string, object> fieldChanges, string messageName, bool createHistory);
+        /// <summary>
+        /// race condition 방지용 conditional UPDATE. ProcessingState=IDLE이면서
+        /// TransportCommandId가 비어있을 때만 차량을 단일 SQL로 ASSIGN 상태로 전이한다.
+        /// 성공 시 NA_H_VEHICLE에 history 1건 기록. 실패(0행)면 false.
+        /// </summary>
+        bool TryAssignVehicleAtomic(string vehicleId, string transportCommandId, string messageName);
         int UpdateVehicleTransferState(VehicleEx paramVehicle, string paramString1, string paramString2);
         int UpdateVehicleTransferState(VehicleEx paramVehicle, string paramString);
         int UpdateVehicleTransferState(string paramString1, string paramString2, string paramString3);
