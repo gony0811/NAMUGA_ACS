@@ -111,17 +111,45 @@ namespace ACS.Database
         /// <summary>
         /// 타입에 대한 IQueryable을 가져온다.
         /// DbContext.Set(Type) 은 non-generic IQueryable을 반환하므로 리플렉션으로 처리.
+        ///
+        /// noTracking=true 이면 AsNoTracking()을 적용해 read 결과가 ChangeTracker(1차 캐시)에
+        /// 들어가지 않도록 한다. ThreadStatic DbContext가 stale entity를 영구 캐싱하는 문제를
+        /// 방지하기 위해 모든 read 경로에서 noTracking을 사용해야 한다.
+        /// 반대로 write 경로(UpdateByAttributes, Delete*, Update 등)에서는 SaveChanges 또는
+        /// RemoveRange가 tracked entity를 요구하므로 기본값(tracking)을 그대로 둔다.
         /// </summary>
-        private IQueryable<object> GetQueryable(Type clazz)
+        private IQueryable<object> GetQueryable(Type clazz, bool noTracking = false)
         {
             // DbContext.Set<T>() 를 리플렉션으로 호출
             var setMethod = typeof(DbContext).GetMethod(nameof(DbContext.Set), Type.EmptyTypes);
             var genericSet = setMethod.MakeGenericMethod(clazz);
             var dbSet = genericSet.Invoke(_db, null);
 
+            if (noTracking)
+            {
+                // EntityFrameworkQueryableExtensions.AsNoTracking<T>(IQueryable<T>) 를 리플렉션으로 호출
+                var asNoTracking = typeof(EntityFrameworkQueryableExtensions)
+                    .GetMethods()
+                    .First(m => m.Name == nameof(EntityFrameworkQueryableExtensions.AsNoTracking) && m.GetParameters().Length == 1)
+                    .MakeGenericMethod(clazz);
+                dbSet = asNoTracking.Invoke(null, new[] { dbSet });
+            }
+
             // IQueryable<T> → IQueryable<object> 캐스트
             var castMethod = typeof(Queryable).GetMethod(nameof(Queryable.Cast)).MakeGenericMethod(typeof(object));
             return (IQueryable<object>)castMethod.Invoke(null, new[] { dbSet });
+        }
+
+        /// <summary>
+        /// SaveChanges 후 ChangeTracker.Clear()로 1차 캐시를 비운다.
+        /// ThreadStatic DbContext에서는 캐시가 영구적이므로, 쓰기 직후 캐시를 무효화하지 않으면
+        /// 같은 스레드의 다음 read가 stale entity를 반환할 수 있다.
+        /// </summary>
+        private int SaveAndClear()
+        {
+            int affected = _db.SaveChanges();
+            _db.ChangeTracker.Clear();
+            return affected;
         }
 
         /// <summary>
@@ -202,7 +230,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return null;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable().FirstOrDefault(e => Equals(GetPropertyValue(e, "Name"), value));
             return result;
         }
@@ -220,7 +248,7 @@ namespace ACS.Database
                 try
                 {
                     _db.Add(obj);
-                    _db.SaveChanges();
+                    SaveAndClear();
                     return;
                 }
                 catch (Exception)
@@ -277,7 +305,7 @@ namespace ACS.Database
                     {
                         _db.Update(obj);
                     }
-                    _db.SaveChanges();
+                    SaveAndClear();
                     return;
                 }
                 catch (Exception)
@@ -292,7 +320,7 @@ namespace ACS.Database
 
         public void Flush()
         {
-            _db.SaveChanges();
+            SaveAndClear();
         }
 
         public void UpdateAll(ICollection collection)
@@ -349,7 +377,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return null;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             return query.AsEnumerable().FirstOrDefault(e => Equals(GetPropertyValue(e, "Name"), value));
         }
 
@@ -402,7 +430,7 @@ namespace ACS.Database
                 var type = ResolveType(className);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, noTracking: true);
                 var result = query.AsEnumerable().Where(e => Equals(GetPropertyValue(e, name), value)).ToList();
                 return new ArrayList(result);
             }
@@ -435,7 +463,7 @@ namespace ACS.Database
                 var type = ResolveType(className);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, noTracking: true);
                 var result = query.AsEnumerable()
                     .Where(e => Equals(GetPropertyValue(e, name), value))
                     .OrderBy(e => GetPropertyValue(e, order))
@@ -471,7 +499,7 @@ namespace ACS.Database
                 var type = ResolveType(className);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, noTracking: true);
                 var result = query.AsEnumerable()
                     .Where(e => Equals(GetPropertyValue(e, name), value))
                     .OrderByDescending(e => GetPropertyValue(e, order))
@@ -495,7 +523,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
@@ -512,7 +540,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .OrderBy(e => GetPropertyValue(e, order))
@@ -530,7 +558,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .OrderByDescending(e => GetPropertyValue(e, order))
@@ -548,7 +576,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             return new ArrayList(query.ToList());
         }
 
@@ -562,7 +590,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable().OrderBy(e => GetPropertyValue(e, order)).ToList();
             return new ArrayList(result);
         }
@@ -577,7 +605,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable().OrderByDescending(e => GetPropertyValue(e, order)).ToList();
             return new ArrayList(result);
         }
@@ -592,7 +620,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable().Select(e => GetPropertyValue(e, property)).ToList();
             return new ArrayList(result);
         }
@@ -607,7 +635,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .OrderBy(e => GetPropertyValue(e, order))
                 .Select(e => GetPropertyValue(e, property))
@@ -625,7 +653,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .Select(e => GetPropertyValue(e, property))
@@ -643,7 +671,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .OrderBy(e => GetPropertyValue(e, order))
@@ -662,7 +690,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => attributes.Any(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
@@ -679,7 +707,7 @@ namespace ACS.Database
             var type = ResolveType(className);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e => attributes.Any(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .Select(e => GetPropertyValue(e, property))
@@ -715,7 +743,7 @@ namespace ACS.Database
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -737,7 +765,7 @@ namespace ACS.Database
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -760,7 +788,7 @@ namespace ACS.Database
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, noTracking: true);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -798,7 +826,7 @@ namespace ACS.Database
                     _db.Attach(obj);
                     entry.State = EntityState.Modified;
                 }
-                _db.SaveChanges();
+                SaveAndClear();
             }
             catch (Exception)
             {
@@ -833,7 +861,7 @@ namespace ACS.Database
             {
                 SetPropertyValue(entity, kv.Key, kv.Value);
             }
-            _db.SaveChanges();
+            SaveAndClear();
             return 1;
         }
 
@@ -870,7 +898,7 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -894,7 +922,7 @@ namespace ACS.Database
                 SetPropertyValue(entity, setName, setValue);
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -918,7 +946,7 @@ namespace ACS.Database
                 SetPropertyValue(entity, setName, setValue);
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -942,7 +970,7 @@ namespace ACS.Database
                 SetPropertyValue(entity, setName, setValue);
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -969,7 +997,7 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -996,7 +1024,7 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -1023,7 +1051,7 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -1050,7 +1078,7 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -1075,28 +1103,36 @@ namespace ACS.Database
                 }
             }
 
-            _db.SaveChanges();
+            SaveAndClear();
             return count;
         }
 
         public int UpdateByHql(string hql)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int UpdateByHql(string hql, string value)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int UpdateByHql(string hql, string[] values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int UpdateByHql(string hql, ArrayList values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         #endregion
@@ -1118,7 +1154,7 @@ namespace ACS.Database
                     _db.Attach(obj);
                 }
                 _db.Remove(obj);
-                _db.SaveChanges();
+                SaveAndClear();
             }
             catch (Exception)
             {
@@ -1141,7 +1177,7 @@ namespace ACS.Database
             if (entity == null) return 0;
 
             _db.Remove(entity);
-            _db.SaveChanges();
+            SaveAndClear();
             return 1;
         }
 
@@ -1183,7 +1219,7 @@ namespace ACS.Database
                     .ToList();
 
                 _db.RemoveRange(entities);
-                _db.SaveChanges();
+                SaveAndClear();
                 return entities.Count;
             }
             catch (Exception)
@@ -1221,7 +1257,7 @@ namespace ACS.Database
                     .ToList();
 
                 _db.RemoveRange(entities);
-                _db.SaveChanges();
+                SaveAndClear();
                 return entities.Count;
             }
             catch (Exception)
@@ -1247,7 +1283,7 @@ namespace ACS.Database
                 .ToList();
 
             _db.RemoveRange(entities);
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -1299,7 +1335,7 @@ namespace ACS.Database
                 .ToList();
 
             _db.RemoveRange(entities);
-            _db.SaveChanges();
+            SaveAndClear();
             return entities.Count;
         }
 
@@ -1348,7 +1384,7 @@ namespace ACS.Database
                     .ToList();
 
                 _db.RemoveRange(entities);
-                _db.SaveChanges();
+                SaveAndClear();
                 return entities.Count;
             }
             catch (Exception)
@@ -1384,7 +1420,7 @@ namespace ACS.Database
                 var entities = query.ToList();
 
                 _db.RemoveRange(entities);
-                _db.SaveChanges();
+                SaveAndClear();
                 return entities.Count;
             }
             catch (Exception)
@@ -1405,12 +1441,14 @@ namespace ACS.Database
                 }
                 _db.Remove(entity);
             }
-            _db.SaveChanges();
+            SaveAndClear();
         }
 
         public int DeleteByHql(string hql)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int DeleteByHql(string hql, bool ignoreException)
@@ -1428,7 +1466,9 @@ namespace ACS.Database
 
         public int DeleteByHql(string hql, string value)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int DeleteByHql(string hql, string value, bool ignoreException)
@@ -1446,7 +1486,9 @@ namespace ACS.Database
 
         public int DeleteByHql(string hql, ArrayList values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            int n = _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         public int DeleteByHql(string hql, ArrayList values, bool ignoreException)
@@ -1473,7 +1515,9 @@ namespace ACS.Database
 
         public int ExecuteUpdate(string sql)
         {
-            return _db.Database.ExecuteSqlRaw(sql);
+            int n = _db.Database.ExecuteSqlRaw(sql);
+            _db.ChangeTracker.Clear();
+            return n;
         }
 
         /// <summary>
@@ -1497,6 +1541,8 @@ namespace ACS.Database
                     .SetProperty(v => v.TransferState, _ => VehicleEx.TRANSFERSTATE_ASSIGNED)
                     .SetProperty(v => v.ProcessingState, _ => VehicleEx.PROCESSINGSTATE_RUN)
                     .SetProperty(v => v.EventTime, _ => DateTime.UtcNow));
+            // ExecuteUpdate는 ChangeTracker를 거치지 않으므로 캐시된 stale Vehicle entity가 있을 수 있음.
+            _db.ChangeTracker.Clear();
             return n > 0;
         }
 

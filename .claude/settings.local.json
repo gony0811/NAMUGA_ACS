@@ -3,7 +3,9 @@
     "allow": [
       "Bash(dotnet build *)",
       "Bash(docker exec acs-postgres-db *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(python3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")"
     ]
   }
 }
