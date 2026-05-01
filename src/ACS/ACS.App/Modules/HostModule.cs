@@ -90,7 +90,7 @@ namespace ACS.App.Modules
                 .OnActivated(e =>
                 {
                     var config = e.Context.Resolve<IConfiguration>();
-                    var tcpSection = config.GetSection("Destination:Host:Tcp");
+                    var tcpSection = config.GetSection("Host:Tcp");
                     if (tcpSection.Exists())
                     {
                         var gw = e.Instance;
