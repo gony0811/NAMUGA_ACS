@@ -24,6 +24,10 @@ public class MapCanvas : Control
     private Dictionary<string, Point> _cachedStationScreenPositions = new();
     private string? _hoveredStationId;
 
+    // Vehicle 히트테스트용 캐시
+    private Dictionary<string, Point> _cachedVehicleScreenPositions = new();
+    private string? _hoveredVehicleId;
+
     // Node 드래그 이동
     private string? _draggingNodeId;
     private bool _isDraggingNode;
@@ -57,6 +61,13 @@ public class MapCanvas : Control
     private static readonly IBrush VehicleChargeBrush = new SolidColorBrush(Color.FromRgb(230, 190, 0));
     private static readonly IBrush VehicleDownBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
     private static readonly IBrush VehicleDisconnectBrush = new SolidColorBrush(Color.FromRgb(160, 160, 160));
+    private static readonly IBrush VehicleDisconnectOutlineBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
+
+    // ProcessingState 라벨용 색상 (차량 원의 어두운 배경 위에서 가독성 확보)
+    private static readonly IBrush ProcessingIdleBrush = new SolidColorBrush(Color.FromRgb(180, 220, 255));
+    private static readonly IBrush ProcessingRunBrush = new SolidColorBrush(Color.FromRgb(180, 255, 180));
+    private static readonly IBrush ProcessingChargeBrush = new SolidColorBrush(Color.FromRgb(255, 240, 160));
+    private static readonly IBrush ProcessingParkBrush = new SolidColorBrush(Color.FromRgb(220, 200, 255));
 
     private static readonly IPen VehicleOutlinePen = new Pen(new SolidColorBrush(Color.FromRgb(50, 50, 60)), 2);
     private static readonly Typeface DefaultTypeface = new("Inter", FontStyle.Normal, FontWeight.Bold);
@@ -226,21 +237,40 @@ public class MapCanvas : Control
         if (_isPanning)
         {
             var pos = e.GetPosition(this);
-            _pan = new Point(
-                _pan.X + (pos.X - _lastMousePos.X),
-                _pan.Y + (pos.Y - _lastMousePos.Y));
+            double dx = pos.X - _lastMousePos.X;
+            double dy = pos.Y - _lastMousePos.Y;
+
+            // _pan은 Render의 변환 스택에서 rotation 이전 단계에 적용되므로,
+            // 화면 delta를 -_rotation 으로 역회전하여 누적해야 마우스 드래그 방향과
+            // 콘텐츠 이동 방향이 일치한다.
+            double cos = Math.Cos(-_rotation);
+            double sin = Math.Sin(-_rotation);
+            double rdx = dx * cos - dy * sin;
+            double rdy = dx * sin + dy * cos;
+
+            _pan = new Point(_pan.X + rdx, _pan.Y + rdy);
             _lastMousePos = pos;
             InvalidateVisual();
             return;
         }
 
-        // 일반 모드: Station hover 체크
-        var stationId = FindStationAtScreen(e.GetPosition(this));
+        // 일반 모드: Vehicle/Station hover 체크 (vehicle 우선)
+        var screenPos = e.GetPosition(this);
+        var vehicleId = FindVehicleAtScreen(screenPos);
+        var stationId = vehicleId == null ? FindStationAtScreen(screenPos) : null;
+        bool changed = false;
+        if (vehicleId != _hoveredVehicleId)
+        {
+            _hoveredVehicleId = vehicleId;
+            changed = true;
+        }
         if (stationId != _hoveredStationId)
         {
             _hoveredStationId = stationId;
-            InvalidateVisual();
+            changed = true;
         }
+        if (changed)
+            InvalidateVisual();
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -468,7 +498,14 @@ public class MapCanvas : Control
                     var label = new FormattedText($"({px:F1},{py:F1})",
                         System.Globalization.CultureInfo.InvariantCulture,
                         FlowDirection.LeftToRight, DefaultTypeface, fontSize, PendingNodeBrush);
-                    context.DrawText(label, new Point(pos.X + s * 0.8, pos.Y - fontSize * 1.5));
+                    var textPos = new Point(pos.X + s * 0.8, pos.Y - fontSize * 1.5);
+                    using (context.PushTransform(
+                        Matrix.CreateTranslation(-textPos.X, -textPos.Y)
+                        * Matrix.CreateRotation(-_rotation)
+                        * Matrix.CreateTranslation(textPos.X, textPos.Y)))
+                    {
+                        context.DrawText(label, textPos);
+                    }
                 }
             }
         }
@@ -497,8 +534,94 @@ public class MapCanvas : Control
             context.DrawText(bannerText, new Point(10, 5));
         }
 
+        // Vehicle hover 팝업 (스케일 표시 위에)
+        DrawVehicleHoverPopup(context, vehicles);
+
         // 스케일 표시 (우하단)
         DrawScaleIndicator(context);
+    }
+
+    private void DrawVehicleHoverPopup(DrawingContext context, IReadOnlyList<VehicleDto> vehicles)
+    {
+        if (string.IsNullOrEmpty(_hoveredVehicleId)) return;
+        if (!_cachedVehicleScreenPositions.TryGetValue(_hoveredVehicleId, out var anchor)) return;
+        var v = vehicles.FirstOrDefault(x => x.VehicleId == _hoveredVehicleId);
+        if (v == null) return;
+
+        string poseStr = v.PoseX.HasValue && v.PoseY.HasValue
+            ? $"{v.PoseX.Value:F2}, {v.PoseY.Value:F2} m"
+            : "N/A";
+        string angleStr = v.PoseAngle.HasValue
+            ? $"{v.PoseAngle.Value * 180.0 / Math.PI:F1}°"
+            : "N/A";
+
+        var rows = new (string Label, string Value)[]
+        {
+            ("Vehicle ID",   v.VehicleId ?? "?"),
+            ("Connection",   v.ConnectionState ?? "-"),
+            ("State",        v.State ?? "-"),
+            ("Processing",   v.ProcessingState ?? "-"),
+            ("Run",          v.RunState ?? "-"),
+            ("Alarm",        v.AlarmState ?? "-"),
+            ("Transfer",     v.TransferState ?? "-"),
+            ("Battery",      $"{v.BatteryRate}%  ({v.BatteryVoltage:F1}V)"),
+            ("Position",     poseStr),
+            ("Heading",      angleStr),
+            ("Current Node", v.CurrentNodeId ?? "-"),
+            ("ACS Dest",     v.AcsDestNodeId ?? "-"),
+            ("Vehicle Dest", v.VehicleDestNodeId ?? "-"),
+            ("Carrier",      string.IsNullOrEmpty(v.CarrierType) ? "-" : v.CarrierType),
+            ("Cmd ID",       string.IsNullOrEmpty(v.TransportCommandId) ? "-" : v.TransportCommandId),
+        };
+
+        const double fontSizePopup = 11.5;
+        var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Normal);
+        var labelBrush = new SolidColorBrush(Color.FromRgb(180, 190, 210));
+        var valueBrush = Brushes.White;
+
+        var labelTexts = new FormattedText[rows.Length];
+        var valueTexts = new FormattedText[rows.Length];
+        double maxLabelW = 0, maxValueW = 0, lineH = 0;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            labelTexts[i] = new FormattedText(rows[i].Label,
+                System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, labelTypeface, fontSizePopup, labelBrush);
+            valueTexts[i] = new FormattedText(rows[i].Value,
+                System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, DefaultTypeface, fontSizePopup, valueBrush);
+            if (labelTexts[i].Width > maxLabelW) maxLabelW = labelTexts[i].Width;
+            if (valueTexts[i].Width > maxValueW) maxValueW = valueTexts[i].Width;
+            if (labelTexts[i].Height > lineH) lineH = labelTexts[i].Height;
+        }
+
+        const double padding = 8;
+        const double colGap = 12;
+        double popupW = padding * 2 + maxLabelW + colGap + maxValueW;
+        double popupH = padding * 2 + lineH * rows.Length;
+
+        // 차량 우하단으로 약간 offset, 화면 안에 들어오도록 클램프
+        const double offX = 22, offY = 12;
+        double x = anchor.X + offX;
+        double y = anchor.Y + offY;
+        if (x + popupW > Bounds.Width - 4) x = anchor.X - offX - popupW;
+        if (y + popupH > Bounds.Height - 4) y = anchor.Y - offY - popupH;
+        if (x < 4) x = 4;
+        if (y < 4) y = 4;
+
+        var bgBrush = new SolidColorBrush(Color.FromArgb(235, 30, 35, 45));
+        var borderPen = new Pen(new SolidColorBrush(Color.FromArgb(180, 100, 110, 130)), 1);
+        context.DrawRectangle(bgBrush, borderPen, new Rect(x, y, popupW, popupH), 4, 4);
+
+        double labelX = x + padding;
+        double valueX = x + padding + maxLabelW + colGap;
+        double textY = y + padding;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            context.DrawText(labelTexts[i], new Point(labelX, textY));
+            context.DrawText(valueTexts[i], new Point(valueX, textY));
+            textY += lineH;
+        }
     }
 
     private void CalculateTransform(IReadOnlyList<NodeDto> nodes)
@@ -566,6 +689,26 @@ public class MapCanvas : Control
             {
                 closestDist = dist;
                 closest = nodeId;
+            }
+        }
+        return closest;
+    }
+
+    private string? FindVehicleAtScreen(Point screenPos)
+    {
+        const double hitRadius = 18;
+        string? closest = null;
+        double closestDist = double.MaxValue;
+
+        foreach (var (vehicleId, vehicleScreenPos) in _cachedVehicleScreenPositions)
+        {
+            double dx = screenPos.X - vehicleScreenPos.X;
+            double dy = screenPos.Y - vehicleScreenPos.Y;
+            double dist = Math.Sqrt(dx * dx + dy * dy);
+            if (dist < hitRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = vehicleId;
             }
         }
         return closest;
@@ -748,7 +891,14 @@ public class MapCanvas : Control
                 var label = new FormattedText(node.Id ?? "",
                     System.Globalization.CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight, DefaultTypeface, fontSize, labelBrush);
-                context.DrawText(label, new Point(pos.X + size + size * 0.3, pos.Y - fontSize * 0.7));
+                var textPos = new Point(pos.X + size + size * 0.3, pos.Y - fontSize * 0.7);
+                using (context.PushTransform(
+                    Matrix.CreateTranslation(-textPos.X, -textPos.Y)
+                    * Matrix.CreateRotation(-_rotation)
+                    * Matrix.CreateTranslation(textPos.X, textPos.Y)))
+                {
+                    context.DrawText(label, textPos);
+                }
             }
         }
     }
@@ -877,7 +1027,14 @@ public class MapCanvas : Control
                     var label = new FormattedText(portLabel,
                         System.Globalization.CultureInfo.InvariantCulture,
                         FlowDirection.LeftToRight, DefaultTypeface, fontSize, StationBrush);
-                    context.DrawText(label, new Point(stX + size + size * 0.3, stY - fontSize * 0.7));
+                    var textPos = new Point(stX + size + size * 0.3, stY - fontSize * 0.7);
+                    using (context.PushTransform(
+                        Matrix.CreateTranslation(-textPos.X, -textPos.Y)
+                        * Matrix.CreateRotation(-_rotation)
+                        * Matrix.CreateTranslation(textPos.X, textPos.Y)))
+                    {
+                        context.DrawText(label, textPos);
+                    }
                 }
             }
         }
@@ -888,6 +1045,8 @@ public class MapCanvas : Control
     {
         double penWidth = Math.Clamp(2.0 / _zoom, 0.1, 100);
         var outlinePen = new Pen(VehicleOutlinePen.Brush, penWidth);
+
+        _cachedVehicleScreenPositions.Clear();
 
         foreach (var vehicle in vehicles)
         {
@@ -900,10 +1059,31 @@ public class MapCanvas : Control
             else
                 continue;
 
+            // 히트테스트용 화면 좌표 캐싱 (회전/줌/팬 모두 반영)
+            if (!string.IsNullOrEmpty(vehicle.VehicleId))
+            {
+                double ssx = pos.X * _zoom + _pan.X;
+                double ssy = pos.Y * _zoom + _pan.Y;
+                double cosR = Math.Cos(_rotation);
+                double sinR = Math.Sin(_rotation);
+                double scx = Bounds.Width / 2;
+                double scy = Bounds.Height / 2;
+                _cachedVehicleScreenPositions[vehicle.VehicleId] = new Point(
+                    (ssx - scx) * cosR - (ssy - scy) * sinR + scx,
+                    (ssx - scx) * sinR + (ssy - scy) * cosR + scy);
+            }
+
             IBrush brush = GetVehicleBrush(vehicle);
 
-            // Vehicle circle
-            context.DrawEllipse(brush, outlinePen, pos, radius, radius);
+            // Vehicle circle - ConnectionState 가 DISCONNECT 면 빨간 점선 외곽선
+            bool isDisconnected = (vehicle.ConnectionState ?? "").ToUpperInvariant() == "DISCONNECT";
+            IPen circlePen = isDisconnected
+                ? new Pen(VehicleDisconnectOutlineBrush, penWidth * 1.5)
+                {
+                    DashStyle = new DashStyle(new[] { 2.0, 2.0 }, 0)
+                }
+                : outlinePen;
+            context.DrawEllipse(brush, circlePen, pos, radius, radius);
 
             // 헤딩 표시: 월드 프레임 (cos θ, sin θ) 방향, 길이는 radius와 함께 줌 보정됨
             if (vehicle.PoseAngle.HasValue)
@@ -914,9 +1094,9 @@ public class MapCanvas : Control
                 context.DrawLine(new Pen(Brushes.White, penWidth * 1.5), pos, tip);
             }
 
-            // Vehicle ID label (dark text for light theme)
+            // Vehicle ID label + ProcessingState 2단 표시 (차량 원 안 중앙)
             double labelSize = fontSize * 1.1;
-            var text = new FormattedText(
+            var idText = new FormattedText(
                 vehicle.VehicleId ?? "?",
                 System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
@@ -924,7 +1104,33 @@ public class MapCanvas : Control
                 labelSize,
                 Brushes.White);
 
-            context.DrawText(text, new Point(pos.X - text.Width / 2, pos.Y - text.Height / 2));
+            string psStr = (vehicle.ProcessingState ?? "").ToUpperInvariant();
+            FormattedText? psText = null;
+            if (!string.IsNullOrEmpty(psStr))
+            {
+                psText = new FormattedText(
+                    psStr,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    DefaultTypeface,
+                    fontSize * 0.85,
+                    GetProcessingStateBrush(psStr));
+            }
+
+            double totalH = idText.Height + (psText?.Height ?? 0);
+            double startY = pos.Y - totalH / 2;
+            var idPos = new Point(pos.X - idText.Width / 2, startY);
+
+            // 차량 중심(pos) 기준으로 -_rotation 만큼 역회전하여 라벨 글자가 항상 화면 기준으로 똑바로 보이도록.
+            using (context.PushTransform(
+                Matrix.CreateTranslation(-pos.X, -pos.Y)
+                * Matrix.CreateRotation(-_rotation)
+                * Matrix.CreateTranslation(pos.X, pos.Y)))
+            {
+                context.DrawText(idText, idPos);
+                if (psText != null)
+                    context.DrawText(psText, new Point(pos.X - psText.Width / 2, startY + idText.Height));
+            }
 
             // Battery indicator bar below vehicle
             double barWidth = radius * 1.4;
@@ -994,4 +1200,13 @@ public class MapCanvas : Control
             _ => VehicleDisconnectBrush
         };
     }
+
+    private static IBrush GetProcessingStateBrush(string processingState) => processingState switch
+    {
+        "IDLE" => ProcessingIdleBrush,
+        "RUN" => ProcessingRunBrush,
+        "CHARGE" => ProcessingChargeBrush,
+        "PARK" => ProcessingParkBrush,
+        _ => Brushes.LightGray
+    };
 }
