@@ -343,7 +343,15 @@ namespace ACS.Manager.Resource
 
         public int UpdateVehicle(VehicleEx vehicle, String propertyName, Object propertyValue)
         {
-            return this.PersistentDao.UpdateByAttribute(vehicle.GetType(), propertyName, propertyValue, "VehicleId", vehicle.VehicleId);
+            int updated = this.PersistentDao.UpdateByAttribute(vehicle.GetType(), propertyName, propertyValue, "VehicleId", vehicle.VehicleId);
+            // 메모리 객체에도 반영해 다음 메시지의 비교 및 외부 참조(UI/dto 변환 등) 가 stale 되지 않도록 함.
+            // UpdateVehicleBatch (라인 363-388) 와 동일한 동기화 정책.
+            if (updated > 0)
+            {
+                var prop = vehicle.GetType().GetProperty(propertyName);
+                if (prop != null && prop.CanWrite) prop.SetValue(vehicle, propertyValue);
+            }
+            return updated;
         }
 
         public bool TryAssignVehicleAtomic(string vehicleId, string transportCommandId, string messageName)
