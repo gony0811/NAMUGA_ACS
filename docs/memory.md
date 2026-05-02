@@ -435,6 +435,56 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 ---
 
+## 13-1. AMR ARRIVED → RAIL-VEHICLEARRIVED 포워더 추가
+
+**날짜:** 2026-05-02
+**작업:** EI 프로세스가 `amr/{id}/reply` 토픽에서 `status="ARRIVED"`를 받으면 RabbitMQ 통해 Trans로 `RAIL-VEHICLEARRIVED` JSON 전송.
+
+**파이프라인:** MQTT(AMR reply, status=ARRIVED) → `MqttInterfaceManager.HandleReplyMessage` → `AMR-REPLY-RECEIVED` 워크플로우 → `HandleAmrReplyActivity` → `IMessageManagerEx.SendVehicleUpdateJson` → TsAgent(`TransAgentSender`) → Trans `/HQ/NMG/ES/TS/LISTENER`.
+
+**status 라이프사이클 확장:** `ACCEPTED → EXECUTING → ARRIVED → COMPLETED` (ARRIVED 신규).
+
+**변경 파일:**
+| 파일 | 변경 |
+|------|------|
+| `ACS.Communication/Mqtt/Model/RailVehicleArrivedMessage.cs` | 신규. Header(messageName/transactionId/timestamp/sender) + Data(commandId/vehicleId/nodeId/resultCode/errorCode/errorMessage) |
+| `ACS.Communication/Mqtt/Model/AmrReplyMessage.cs` | `nodeId` 필드 추가, status enum 코멘트에 ARRIVED 추가 |
+| `ACS.Elsa/Activities/MqttActivities.cs::HandleAmrReplyActivity` | status별 분기로 재구성 (ARRIVED/COMPLETED). nodeId가 비면 cmdId로 TC 조회 후 jobType별 Source(UNLOAD)/Dest(LOAD) 보완 |
+| `docs/mqtt_interface.md` | reply payload에 nodeId 명시, status 라이프사이클/라우팅 표 추가 |
+
+**Trans 측 consumer는 별도 PR 스코프:** Trans의 `RAIL-VEHICLEARRIVED` 워크플로우/액티비티는 미구현 — 본 작업은 EI→RabbitMQ 발행까지만.
+
+---
+
+## 13-2. RAIL-VEHICLEARRIVED Trans 측 consumer 워크플로우 구현
+
+**날짜:** 2026-05-02
+**작업:** Trans 프로세스가 `RAIL-VEHICLEARRIVED` 메시지 수신 시 jobType별 source/dest 도착 분기 + EQP 도착 시 Host JOBREPORT(ARRIVED) 송신.
+
+**파이프라인:** RabbitMQ(Trans 큐) → `GenericWorkflowRabbitMQListener.OnJsonMessage()` → `header.messageName="RAIL-VEHICLEARRIVED"` 라우팅 → `RailVehicleArrivedWorkflow` → `HandleVehicleArrivedActivity` → 상태 전이 + (EQP일 때만) `IMessageManagerEx.SendJobReportToHost("ARRIVED", ...)` → HostAgent → Host TCP → MES.
+
+**jobType 분기:**
+| jobType | TC.State | Vehicle.TransferState | 의미 |
+|---------|----------|-----------------------|------|
+| UNLOAD  | ARRIVED_SOURCE | ASSIGNED_ACQUIRING  | AMR이 source 도착, 픽업 직전 |
+| LOAD    | ARRIVED_DEST   | ASSIGNED_DEPOSITING | AMR이 dest 도착, 드롭 직전   |
+
+**JobReport 분기 (NA_R_LOCATION.Type 조회):** `IResourceManagerEx.GetLocationByStationId(nodeId)` → `Type=="EQP"` → JOBREPORT(ARRIVED) 송신, `Type=="BUFFER"` → 자재 포트이므로 송신 생략.
+
+**ActionType:** 기존 COMPLETE 보고와 동일 패턴 — `SendJobReportToHost("ARRIVED", tc.JobId, vehicleId, tc.JobType, tc.Description)`. MES 가 `Type=ARRIVED + ActionType=LOAD/UNLOAD` 로 도착 위치 구분.
+
+**변경 파일:**
+| 파일 | 변경 |
+|------|------|
+| `ACS.Communication/Mqtt/Model/RailVehicleArrivedMessage.cs` | EI 보낸 JSON에 `JobType` 필드 포함 (사용자 직접 추가) |
+| `ACS.Elsa/Workflows/Trans/RailVehicleArrivedWorkflow.cs` | 신규. Workflow + HandleVehicleArrivedActivity (5 step) |
+| `ACS.Elsa/elsa-migration.json` | `RAIL-VEHICLEARRIVED` 추가 |
+| `publish/{CS,DS,ES,HS,TS,UI}01_P/, base/elsa-migration.json` | 위와 동일 7개 사본 동기화 |
+
+**참고:** EI 측에서 PascalCase `"JobType"` 으로 직렬화하므로 Trans 측 파서는 `JobType`/`jobType` 두 형태 모두 허용. `nodeId`는 EI에서 reply.NodeId 또는 cmdId→TC 조회로 채워서 송신.
+
+---
+
 ## 13. run-all.sh 수정
 
 **날짜:** 2026-03-17

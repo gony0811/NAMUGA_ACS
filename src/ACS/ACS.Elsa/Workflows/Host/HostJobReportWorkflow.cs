@@ -34,9 +34,11 @@ namespace ACS.Elsa.Workflows
             var jobReportXml = new Variable<XmlDocument> { Name = "JobReportXml" };
             var isValid = new Variable<bool> { Name = "IsValid" };
             var validationError = new Variable<string> { Name = "ValidationError" };
+            var jobReportType = new Variable<string> { Name = "JobReportType" };
             builder.WithVariable(jobReportXml);
             builder.WithVariable(isValid);
             builder.WithVariable(validationError);
+            builder.WithVariable(jobReportType);
 
             builder.Root = new Sequence
             {
@@ -53,7 +55,8 @@ namespace ACS.Elsa.Workflows
                     {
                         JobReportXml = new(jobReportXml),
                         Result = new(isValid),
-                        ValidationError = new(validationError)
+                        ValidationError = new(validationError),
+                        JobReportType = new(jobReportType)
                     },
 
                     // Step 3: 검증 결과에 따라 분기
@@ -70,10 +73,14 @@ namespace ACS.Elsa.Workflows
                                     JobReportXml = new(jobReportXml)
                                 },
 
-                                // Step 3b: TC 상태 업데이트
-                                new UpdateTransportCommandStateActivity
+                                // Step 3b: TC 상태 업데이트 — COMPLETE 는 Trans 가 TC 를 삭제했으므로 skip
+                                new If
                                 {
-                                    JobReportXml = new(jobReportXml)
+                                    Condition = new(ctx => !string.Equals(jobReportType.Get(ctx), "COMPLETE", StringComparison.OrdinalIgnoreCase)),
+                                    Then = new UpdateTransportCommandStateActivity
+                                    {
+                                        JobReportXml = new(jobReportXml)
+                                    }
                                 },
 
                                 new WriteLine("JOBREPORT workflow completed: validated and forwarded to MES")

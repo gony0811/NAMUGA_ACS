@@ -5,7 +5,11 @@
       "Bash(docker exec acs-postgres-db *)",
       "Bash(xargs grep *)",
       "Bash(python3 -c \"import sys; print\\(sys.version\\)\")",
-      "Bash(python -c \"import sys; print\\(sys.version\\)\")"
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git *)"
     ]
   }
 }

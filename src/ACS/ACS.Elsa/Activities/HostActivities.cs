@@ -534,6 +534,9 @@ namespace ACS.Elsa.Activities
         [Output(Description = "검증 실패 사유 (성공 시 빈 문자열)")]
         public Output<string> ValidationError { get; set; }
 
+        [Output(Description = "JOBREPORT Type (RECEIVE/COMPLETE/CANCEL/...)")]
+        public Output<string> JobReportType { get; set; }
+
         protected override void Execute(ActivityExecutionContext context)
         {
             try
@@ -565,6 +568,8 @@ namespace ACS.Elsa.Activities
                 string actionType = ExtractValue(xml, "//DataLayer/ActionType") ?? ExtractValue(xml, "//ActionType");
                 string amrId = ExtractValue(xml, "//DataLayer/AmrId") ?? ExtractValue(xml, "//AmrId");
 
+                context.Set(JobReportType, type ?? "");
+
                 if (string.IsNullOrEmpty(jobId))
                 {
                     logger.Error("ValidateJobReportActivity: JobID is missing from JOBREPORT XML");
@@ -573,10 +578,22 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
+                bool isComplete = string.Equals(type, "COMPLETE", StringComparison.OrdinalIgnoreCase);
+
                 // DB 조회
                 var tc = transferManager.GetTransportCommand(jobId);
                 if (tc == null)
                 {
+                    if (isComplete)
+                    {
+                        // Trans 가 COMPLETE 보고와 함께 TC 를 삭제하므로 TC 없음이 정상 시나리오.
+                        // 검증 통과시켜 MES 로 전달하되, 상태 업데이트는 워크플로우에서 skip.
+                        logger.Info($"ValidateJobReportActivity: TC already removed for COMPLETE - JobID={jobId}, forwarding to MES");
+                        context.Set(Result, true);
+                        context.Set(ValidationError, "");
+                        return;
+                    }
+
                     logger.Error($"ValidateJobReportActivity: TransportCommand not found - JobID={jobId}");
                     context.Set(Result, false);
                     context.Set(ValidationError, $"TransportCommand not found: JobID={jobId}");

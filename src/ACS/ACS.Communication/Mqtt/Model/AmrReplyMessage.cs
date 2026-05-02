@@ -5,7 +5,8 @@ namespace ACS.Communication.Mqtt.Model
 {
     /// <summary>
     /// AMR이 command에 대한 진행/완료를 알리는 reply 메시지 (amr/{id}/reply 토픽).
-    /// status=COMPLETED 시 ACS는 jobType에 따라 Trans로
+    /// status=ARRIVED 시 ACS는 Trans로 RAIL-VEHICLEARRIVED를,
+    /// status=COMPLETED 시 jobType에 따라
     /// RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는 RAIL-VEHICLEDEPOSITCOMPLETED(LOAD)를 발송한다.
     /// </summary>
     public class AmrReplyMessage
@@ -14,7 +15,7 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("cmdId")]
         public string CmdId { get; set; }
 
-        /// <summary>ACCEPTED / REJECTED / EXECUTING / COMPLETED / FAILED</summary>
+        /// <summary>ACCEPTED / REJECTED / EXECUTING / ARRIVED / COMPLETED / FAILED</summary>
         [JsonPropertyName("status")]
         public string Status { get; set; }
 
@@ -29,6 +30,10 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>LOAD / UNLOAD / EXCHANGE (command와 동일)</summary>
         [JsonPropertyName("jobType")]
         public string JobType { get; set; }
+
+        /// <summary>도착한 노드 ID (status=ARRIVED 시 사용). 비어있으면 EI가 cmdId로 TC 조회해 보완.</summary>
+        [JsonPropertyName("nodeId")]
+        public string NodeId { get; set; }
 
         [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; }

@@ -204,9 +204,24 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 ```json
 {
   "cmdId": "20260325_160501_001",
-  "status": "ACCEPTED", // ACCEPTED, REJECTED, EXECUTING, COMPLETED, FAILED
+  "status": "ACCEPTED", // ACCEPTED, REJECTED, EXECUTING, ARRIVED, COMPLETED, FAILED
   "resultCode": 0,      // 0: 성공, 기타: 에러 코드
   "message": "Success",  // 상세 사유 (거부 시 사유 등)
+  "jobType": "LOAD",    // LOAD / UNLOAD / EXCHANGE (command와 동일, 선택)
+  "nodeId": "N0001",    // status=ARRIVED 시 도착한 노드 ID (선택, 비어있으면 EI가 cmdId로 TC 조회 후 보완)
   "timestamp": "2026-03-25T16:05:05Z"
 }
 ```
+
+#### status 라이프사이클
+
+`ACCEPTED → EXECUTING → ARRIVED → COMPLETED`
+
+| status        | EI → Trans 라우팅                                                |
+|---------------|---------------------------------------------------------------|
+| `ACCEPTED`    | (라우팅 없음)                                                       |
+| `EXECUTING`   | (라우팅 없음)                                                       |
+| `ARRIVED`     | `RAIL-VEHICLEARRIVED` — moveCmd 목적지 노드 도착 시 1회                  |
+| `COMPLETED`   | `jobType=UNLOAD`: `RAIL-VEHICLEACQUIRECOMPLETED` / `jobType=LOAD`: `RAIL-VEHICLEDEPOSITCOMPLETED` |
+| `REJECTED`    | (라우팅 없음)                                                       |
+| `FAILED`      | (라우팅 없음)                                                       |

@@ -595,14 +595,16 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
-    /// AMR reply(amr/{id}/reply) 메시지 수신 시 status=COMPLETED와 jobType에 따라
-    /// Trans 프로세스로 RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는
-    /// RAIL-VEHICLEDEPOSITCOMPLETED(LOAD) JSON을 전송한다.
+    /// AMR reply(amr/{id}/reply) 메시지 수신 시 status에 따라 Trans 프로세스로 라우팅.
+    ///   status=ARRIVED   → RAIL-VEHICLEARRIVED
+    ///   status=COMPLETED + jobType=UNLOAD → RAIL-VEHICLEACQUIRECOMPLETED
+    ///   status=COMPLETED + jobType=LOAD   → RAIL-VEHICLEDEPOSITCOMPLETED
+    /// 그 외 status(ACCEPTED/EXECUTING/REJECTED/FAILED)는 라우팅 대상 아님.
     ///
     /// Arguments: [AmrReplyMessage reply, string vehicleId]
     /// </summary>
     [Activity("ACS.Mqtt", "Handle AMR Reply",
-        "AMR reply 수신 → COMPLETED일 때 jobType 분기로 Trans에 ACQUIRE/DEPOSIT 전송")]
+        "AMR reply 수신 → status/jobType 분기로 Trans에 ARRIVED/ACQUIRE/DEPOSIT 전송")]
     public class HandleAmrReplyActivity : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger(typeof(HandleAmrReplyActivity));
@@ -627,8 +629,9 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED/FAILED는 현재 라우팅 대상 아님.
-                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
+                bool isArrived = "ARRIVED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase);
+                bool isCompleted = "COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase);
+                if (!isArrived && !isCompleted)
                 {
                     logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
                     return;
@@ -643,11 +646,17 @@ namespace ACS.Elsa.Activities
 
                 // AMR reply 스펙(docs/mqtt_interface.md)에는 jobType이 없으므로 reply.JobType이 비어있으면
                 // cmdId(=TC JobId)로 TC를 조회해 JobType을 보완한다. reply가 JobType을 포함하는 경우(향후 호환)는 그대로 사용.
+                // ARRIVED는 nodeId 보완에도 TC가 필요할 수 있으므로 한 번만 조회해 재사용한다.
                 string jobType = reply.JobType;
-                if (string.IsNullOrEmpty(jobType))
+                ACS.Core.Transfer.Model.TransportCommandEx tc = null;
+                if (string.IsNullOrEmpty(jobType) || (isArrived && string.IsNullOrEmpty(reply.NodeId)))
                 {
                     var transferManager = accessor.Resolve<ITransferManagerEx>();
-                    var tc = transferManager?.GetTransportCommand(reply.CmdId);
+                    tc = transferManager?.GetTransportCommand(reply.CmdId);
+                }
+
+                if (string.IsNullOrEmpty(jobType))
+                {
                     if (tc == null || string.IsNullOrEmpty(tc.JobType))
                     {
                         logger.Warn($"HandleAmrReplyActivity: reply에 jobType이 없고 TC 조회 실패. 라우팅 불가. cmdId={reply.CmdId}, vehicleId={vehicleId}");
@@ -666,7 +675,42 @@ namespace ACS.Elsa.Activities
                 string messageName;
                 string json;
 
-                if ("UNLOAD".Equals(jobType, StringComparison.OrdinalIgnoreCase))
+                if (isArrived)
+                {
+                    messageName = "RAIL-VEHICLEARRIVED";
+
+                    string nodeId = reply.NodeId;
+                    if (string.IsNullOrEmpty(nodeId) && tc != null)
+                    {
+                        // UNLOAD: AMR이 Source(픽업) 노드에 도착, LOAD: Dest(드롭) 노드에 도착.
+                        nodeId = "UNLOAD".Equals(jobType, StringComparison.OrdinalIgnoreCase)
+                            ? tc.Source
+                            : tc.Dest;
+                    }
+
+                    var msg = new RailVehicleArrivedMessage
+                    {
+                        Header = new RailVehicleArrivedHeader
+                        {
+                            MessageName = messageName,
+                            TransactionId = Guid.NewGuid().ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            Sender = "EI"
+                        },
+                        Data = new RailVehicleArrivedData
+                        {
+                            CommandId = reply.CmdId ?? "",
+                            JobType = jobType,
+                            VehicleId = dbVehicleId,
+                            NodeId = nodeId ?? "",
+                            ResultCode = resultCode,
+                            ErrorCode = errorCode,
+                            ErrorMessage = errorMessage
+                        }
+                    };
+                    json = JsonSerializer.Serialize(msg);
+                }
+                else if ("UNLOAD".Equals(jobType, StringComparison.OrdinalIgnoreCase))
                 {
                     messageName = "RAIL-VEHICLEACQUIRECOMPLETED";
                     var msg = new RailVehicleAcquireCompletedMessage
