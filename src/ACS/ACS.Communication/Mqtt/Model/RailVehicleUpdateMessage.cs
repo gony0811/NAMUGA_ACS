@@ -48,9 +48,6 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("fullState")]
         public string FullState { get; set; }
 
-        [JsonPropertyName("alarmState")]
-        public string AlarmState { get; set; }
-
         [JsonPropertyName("batteryRate")]
         public int BatteryRate { get; set; }
 

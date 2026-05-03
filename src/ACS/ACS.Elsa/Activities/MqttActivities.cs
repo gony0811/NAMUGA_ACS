@@ -145,30 +145,55 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
-    /// AMR 상태 메시지를 수신하여 RAIL-VEHICLEUPDATE JSON 메시지를 생성하고
-    /// RabbitMQ를 통해 Trans 프로세스로 전송하는 Activity.
-    ///
-    /// 기존 ProcessAmrStatusActivity(DB 직접 업데이트)와
-    /// ProcessAmrLocationChangeActivity(위치 변경 시 XML 전송)를 통합하여,
-    /// 모든 상태+위치를 하나의 JSON 메시지로 Trans에 전달한다.
-    /// DB 업데이트는 Trans 프로세스의 RailVehicleUpdateActivity에서 수행.
+    /// VehicleStatusWorkflow 내에서 ParseAmrStatus → SendVehicleUpdate → SendVehicleAlarm
+    /// 단계 사이를 잇는 컨텍스트 번들. 파싱 결과(매핑된 필드, 노드 변경, DB AlarmState 등)를 보관하여
+    /// 후속 Activity가 재조회/재계산 없이 사용한다.
     /// </summary>
-    [Activity("ACS.Mqtt", "Send AMR Vehicle Update",
-        "AMR 상태+위치를 RAIL-VEHICLEUPDATE JSON으로 Trans에 전송")]
-    public class SendAmrVehicleUpdateActivity : CodeActivity
+    public class VehicleUpdateContext
     {
-        private static readonly Logger logger = Logger.GetLogger(typeof(SendAmrVehicleUpdateActivity));
+        public const string PropertyKey = "VehicleUpdateContext";
+
+        public string CommId;
+        public string DbVehicleId;
+        public string RunState;
+        public string FullState;
+        public int BatteryRate;
+        public float BatteryVoltage;
+        public string BatteryChargingState;
+        public string VehicleDestNodeId;
+        public string CurrentNodeId;
+        public bool NodeChanged;
+        public float? PoseX;
+        public float? PoseY;
+        public float? PoseAngle;
+
+        // Alarm 전이 판정용
+        public int ErrorCode;
+        public string ErrorMessage;
+        public string PreviousAlarmState;   // DB 조회 시점의 vehicle.AlarmState
+        public string ComputedAlarmState;   // ErrorCode 기준 NOALARM/ALARM
+    }
+
+    /// <summary>
+    /// AMR status 메시지를 파싱하고 Vehicle DB 조회, 위치 노드 매핑, AlarmState 계산까지 수행한 뒤
+    /// VehicleUpdateContext를 WorkflowExecutionContext.Properties에 저장하는 Activity.
+    /// 후속 SendVehicleUpdateActivity, SendVehicleAlarmActivity가 이 컨텍스트를 소비한다.
+    /// </summary>
+    [Activity("ACS.Mqtt", "Parse AMR Status",
+        "AMR status 메시지 파싱 및 VehicleUpdateContext 생성")]
+    public class ParseAmrStatusActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(ParseAmrStatusActivity));
         private static readonly NearestNodeFinder _nodeFinder = new NearestNodeFinder();
 
         protected override void Execute(ActivityExecutionContext context)
         {
             try
             {
-                // 워크플로우 Input에서 Arguments 추출: [AmrStatusMessage, vehicleId]
                 var input = context.WorkflowExecutionContext.Input;
                 if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 2)
                 {
-                    logger.Error("SendAmrVehicleUpdateActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    logger.Error("ParseAmrStatusActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
                     return;
                 }
                 var status = args[0] as AmrStatusMessage;
@@ -176,14 +201,14 @@ namespace ACS.Elsa.Activities
 
                 if (status == null || string.IsNullOrEmpty(vehicleId))
                 {
-                    logger.Error("SendAmrVehicleUpdateActivity: AmrStatusMessage 또는 vehicleId가 null입니다.");
+                    logger.Error("ParseAmrStatusActivity: AmrStatusMessage 또는 vehicleId가 null입니다.");
                     return;
                 }
 
                 var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
                 if (accessor == null)
                 {
-                    logger.Error("SendAmrVehicleUpdateActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    logger.Error("ParseAmrStatusActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
                     return;
                 }
 
@@ -208,31 +233,41 @@ namespace ACS.Elsa.Activities
 
                 if (vehicle == null)
                 {
-                    logger.Warn($"SendAmrVehicleUpdateActivity: Vehicle을 찾을 수 없습니다. commId={vehicleId}, commType=MQTT");
+                    logger.Warn($"ParseAmrStatusActivity: Vehicle을 찾을 수 없습니다. commId={vehicleId}, commType=MQTT");
                     return;
                 }
 
                 string dbVehicleId = vehicle.VehicleId;
 
-                logger.Info($"SendAmrVehicleUpdateActivity: commId={vehicleId}, dbVehicleId={dbVehicleId}, " +
+                logger.Info($"ParseAmrStatusActivity: commId={vehicleId}, dbVehicleId={dbVehicleId}, " +
                             $"runState={status.State?.RunState}, workState={status.State?.WorkState}, " +
                             $"errorCode={status.Error?.Code}, fullState={status.State?.FullState}");
 
-                // 상태값 매핑
-                string runState = MapRunState(status.State?.RunState) ?? vehicle.RunState;
-                string fullState = MapFullState(status.State?.FullState) ?? vehicle.FullState;
                 int errorCode = status.Error?.Code ?? 0;
-                string alarmState = errorCode == 0 ? VehicleEx.ALARMSTATE_NOALARM : VehicleEx.ALARMSTATE_ALARM;
-                int batteryRate = status.Battery != null ? (int)status.Battery.LevelPercent : vehicle.BatteryRate;
-                float batteryVoltage = status.Battery != null ? status.Battery.Voltage : vehicle.BatteryVoltage;
-                string batteryChargingState = status.Battery != null ? status.Battery.ChargingState.ToUpper() : "DISCHARGING";
-                string vehicleDestNodeId = !string.IsNullOrEmpty(status.State?.VehicleDestNode)
-                    ? status.State.VehicleDestNode : "";
+                string previousAlarmState = string.IsNullOrEmpty(vehicle.AlarmState)
+                    ? VehicleEx.ALARMSTATE_NOALARM : vehicle.AlarmState;
+                string computedAlarmState = errorCode == 0 ? VehicleEx.ALARMSTATE_NOALARM : VehicleEx.ALARMSTATE_ALARM;
+
+                var bundle = new VehicleUpdateContext
+                {
+                    CommId = vehicleId,
+                    DbVehicleId = dbVehicleId,
+                    RunState = MapRunState(status.State?.RunState) ?? vehicle.RunState,
+                    FullState = MapFullState(status.State?.FullState) ?? vehicle.FullState,
+                    BatteryRate = status.Battery != null ? (int)status.Battery.LevelPercent : vehicle.BatteryRate,
+                    BatteryVoltage = status.Battery != null ? status.Battery.Voltage : vehicle.BatteryVoltage,
+                    BatteryChargingState = status.Battery != null ? status.Battery.ChargingState.ToUpper() : "DISCHARGING",
+                    VehicleDestNodeId = !string.IsNullOrEmpty(status.State?.VehicleDestNode) ? status.State.VehicleDestNode : "",
+                    PoseX = status.Pose?.X,
+                    PoseY = status.Pose?.Y,
+                    PoseAngle = status.Pose?.Angle,
+                    ErrorCode = errorCode,
+                    ErrorMessage = status.Error?.Message ?? "",
+                    PreviousAlarmState = previousAlarmState,
+                    ComputedAlarmState = computedAlarmState
+                };
 
                 // Pose → 최근접 노드 판별
-                string currentNodeId = null;
-                bool nodeChanged = false;
-
                 if (status.Pose != null)
                 {
                     logger.Info($"AMR Pose: x={status.Pose.X}, y={status.Pose.Y}, angle={status.Pose.Angle}, vehicleId={vehicleId}");
@@ -255,10 +290,10 @@ namespace ACS.Elsa.Activities
                             if (nearestNode != null &&
                                 !string.Equals(nearestNode.NodeId, vehicle.CurrentNodeId, StringComparison.OrdinalIgnoreCase))
                             {
-                                currentNodeId = nearestNode.NodeId;
-                                nodeChanged = true;
-                                logger.Info($"SendAmrVehicleUpdateActivity: 노드 변경 감지. " +
-                                            $"vehicleId={dbVehicleId}, 이전={vehicle.CurrentNodeId}, 신규={currentNodeId}");
+                                bundle.CurrentNodeId = nearestNode.NodeId;
+                                bundle.NodeChanged = true;
+                                logger.Info($"ParseAmrStatusActivity: 노드 변경 감지. " +
+                                            $"vehicleId={dbVehicleId}, 이전={vehicle.CurrentNodeId}, 신규={bundle.CurrentNodeId}");
                             }
                         }
                     }
@@ -271,56 +306,11 @@ namespace ACS.Elsa.Activities
                                 $"timestamp={status.Abnormal.Timestamp}, vehicleId={vehicleId}");
                 }
 
-                // RAIL-VEHICLEUPDATE JSON 메시지 생성
-                var updateMessage = new RailVehicleUpdateMessage
-                {
-                    Header = new RailVehicleUpdateHeader
-                    {
-                        MessageName = "RAIL-VEHICLEUPDATE",
-                        TransactionId = Guid.NewGuid().ToString(),
-                        Timestamp = DateTime.UtcNow,
-                        Sender = "EI"
-                    },
-                    Data = new RailVehicleUpdateData
-                    {
-                        VehicleId = dbVehicleId,
-                        CommId = vehicleId,
-                        RunState = runState,
-                        FullState = fullState,
-                        AlarmState = alarmState,
-                        BatteryRate = batteryRate,
-                        BatteryVoltage = batteryVoltage,
-                        BatteryChargingState = batteryChargingState,
-                        VehicleDestNodeId = vehicleDestNodeId,
-                        CurrentNodeId = currentNodeId,
-                        NodeChanged = nodeChanged,
-                        ConnectionState = "CONNECT",
-                        EventTime = DateTime.UtcNow,
-                        PoseX = status.Pose?.X,
-                        PoseY = status.Pose?.Y,
-                        PoseAngle = status.Pose?.Angle
-                    }
-                };
-
-                string json = JsonSerializer.Serialize(updateMessage);
-
-                // Trans로 JSON 전송
-                var messageManager = accessor.Resolve<IMessageManagerEx>();
-                if (messageManager == null)
-                {
-                    logger.Error("SendAmrVehicleUpdateActivity: IMessageManagerEx를 찾을 수 없습니다.");
-                    return;
-                }
-
-                messageManager.SendVehicleUpdateJson(json);
-
-                logger.Info($"SendAmrVehicleUpdateActivity: RAIL-VEHICLEUPDATE 전송 완료. " +
-                            $"vehicleId={dbVehicleId}, nodeChanged={nodeChanged}" +
-                            (nodeChanged ? $", nodeId={currentNodeId}" : ""));
+                context.WorkflowExecutionContext.Properties[VehicleUpdateContext.PropertyKey] = bundle;
             }
             catch (Exception e)
             {
-                logger.Error("SendAmrVehicleUpdateActivity 오류", e);
+                logger.Error("ParseAmrStatusActivity 오류", e);
             }
         }
 
@@ -342,6 +332,178 @@ namespace ACS.Elsa.Activities
                 "Empty" => VehicleEx.FULLSTATE_EMPTY,
                 _ => null
             };
+        }
+    }
+
+    /// <summary>
+    /// VehicleUpdateContext를 읽어 RAIL-VEHICLEUPDATE JSON 메시지를 생성하고 Trans 프로세스로 전송하는 Activity.
+    /// AlarmState는 RAIL-VEHICLEALARM 으로 분리되어 더 이상 이 메시지에 포함되지 않는다.
+    /// </summary>
+    [Activity("ACS.Mqtt", "Send Vehicle Update",
+        "VehicleUpdateContext 기반 RAIL-VEHICLEUPDATE JSON을 Trans에 전송")]
+    public class SendVehicleUpdateActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(SendVehicleUpdateActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                if (!context.WorkflowExecutionContext.Properties.TryGetValue(VehicleUpdateContext.PropertyKey, out var raw)
+                    || raw is not VehicleUpdateContext bundle)
+                {
+                    logger.Warn("SendVehicleUpdateActivity: VehicleUpdateContext가 없습니다 — Parse 단계 실패. 스킵.");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("SendVehicleUpdateActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var updateMessage = new RailVehicleUpdateMessage
+                {
+                    Header = new RailVehicleUpdateHeader
+                    {
+                        MessageName = "RAIL-VEHICLEUPDATE",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "EI"
+                    },
+                    Data = new RailVehicleUpdateData
+                    {
+                        VehicleId = bundle.DbVehicleId,
+                        CommId = bundle.CommId,
+                        RunState = bundle.RunState,
+                        FullState = bundle.FullState,
+                        BatteryRate = bundle.BatteryRate,
+                        BatteryVoltage = bundle.BatteryVoltage,
+                        BatteryChargingState = bundle.BatteryChargingState,
+                        VehicleDestNodeId = bundle.VehicleDestNodeId,
+                        CurrentNodeId = bundle.CurrentNodeId,
+                        NodeChanged = bundle.NodeChanged,
+                        ConnectionState = "CONNECT",
+                        EventTime = DateTime.UtcNow,
+                        PoseX = bundle.PoseX,
+                        PoseY = bundle.PoseY,
+                        PoseAngle = bundle.PoseAngle
+                    }
+                };
+
+                string json = JsonSerializer.Serialize(updateMessage);
+
+                var messageManager = accessor.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("SendVehicleUpdateActivity: IMessageManagerEx를 찾을 수 없습니다.");
+                    return;
+                }
+
+                messageManager.SendVehicleUpdateJson(json);
+
+                logger.Info($"SendVehicleUpdateActivity: RAIL-VEHICLEUPDATE 전송 완료. " +
+                            $"vehicleId={bundle.DbVehicleId}, nodeChanged={bundle.NodeChanged}" +
+                            (bundle.NodeChanged ? $", nodeId={bundle.CurrentNodeId}" : ""));
+            }
+            catch (Exception e)
+            {
+                logger.Error("SendVehicleUpdateActivity 오류", e);
+            }
+        }
+    }
+
+    /// <summary>
+    /// VehicleUpdateContext의 PreviousAlarmState↔ComputedAlarmState 전이가 일어났을 때만
+    /// RAIL-VEHICLEALARM JSON 메시지를 생성하여 Trans에 전송한다.
+    /// - NOALARM → ALARM : type=SET (errorCode 동봉)
+    /// - ALARM → NOALARM : type=RESET
+    /// 동일 상태가 유지되는 동안에는 메시지 발행 없음.
+    /// </summary>
+    [Activity("ACS.Mqtt", "Send Vehicle Alarm",
+        "AlarmState 전이 시 RAIL-VEHICLEALARM JSON을 Trans에 전송")]
+    public class SendVehicleAlarmActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(SendVehicleAlarmActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                if (!context.WorkflowExecutionContext.Properties.TryGetValue(VehicleUpdateContext.PropertyKey, out var raw)
+                    || raw is not VehicleUpdateContext bundle)
+                {
+                    logger.Warn("SendVehicleAlarmActivity: VehicleUpdateContext가 없습니다 — Parse 단계 실패. 스킵.");
+                    return;
+                }
+
+                if (string.Equals(bundle.PreviousAlarmState, bundle.ComputedAlarmState, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                string type;
+                if (string.Equals(bundle.ComputedAlarmState, VehicleEx.ALARMSTATE_ALARM, StringComparison.OrdinalIgnoreCase))
+                {
+                    type = RailVehicleAlarmData.TYPE_SET;
+                }
+                else if (string.Equals(bundle.ComputedAlarmState, VehicleEx.ALARMSTATE_NOALARM, StringComparison.OrdinalIgnoreCase))
+                {
+                    type = RailVehicleAlarmData.TYPE_RESET;
+                }
+                else
+                {
+                    logger.Warn($"SendVehicleAlarmActivity: 미지원 ComputedAlarmState={bundle.ComputedAlarmState}. 스킵.");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("SendVehicleAlarmActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var alarmMessage = new RailVehicleAlarmMessage
+                {
+                    Header = new RailVehicleAlarmHeader
+                    {
+                        MessageName = "RAIL-VEHICLEALARM",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "EI"
+                    },
+                    Data = new RailVehicleAlarmData
+                    {
+                        VehicleId = bundle.DbVehicleId,
+                        CommId = bundle.CommId,
+                        Type = type,
+                        ErrorCode = bundle.ErrorCode,
+                        ErrorMessage = bundle.ErrorMessage,
+                        EventTime = DateTime.UtcNow
+                    }
+                };
+
+                string json = JsonSerializer.Serialize(alarmMessage);
+
+                var messageManager = accessor.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("SendVehicleAlarmActivity: IMessageManagerEx를 찾을 수 없습니다.");
+                    return;
+                }
+
+                messageManager.SendVehicleAlarmJson(json);
+
+                logger.Info($"SendVehicleAlarmActivity: RAIL-VEHICLEALARM 전송 완료. " +
+                            $"vehicleId={bundle.DbVehicleId}, type={type}, errorCode={bundle.ErrorCode}, " +
+                            $"transition={bundle.PreviousAlarmState}→{bundle.ComputedAlarmState}");
+            }
+            catch (Exception e)
+            {
+                logger.Error("SendVehicleAlarmActivity 오류", e);
+            }
         }
     }
 

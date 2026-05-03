@@ -503,8 +503,50 @@ END $$;
             {
                 const string migrationSql = @"
 DO $$
+DECLARE
+    pk_name TEXT;
 BEGIN
-    -- brokerPort varchar → integer 변환
+    -- 1. 레거시 id(varchar) → 신 스키마(SERIAL) 마이그레이션
+    --    id 값이 'MQTT_CFG01' 같은 문자열이라 직접 캐스팅 불가 → NAME으로 백필 후 SERIAL 재생성
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'NA_C_MQTT' AND column_name = 'id'
+        AND data_type = 'character varying'
+    ) THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'NA_C_MQTT' AND column_name = 'NAME'
+        ) THEN
+            ALTER TABLE ""NA_C_MQTT"" ADD COLUMN ""NAME"" VARCHAR(64);
+        END IF;
+
+        UPDATE ""NA_C_MQTT""
+           SET ""NAME"" = ""id""
+         WHERE ""NAME"" IS NULL OR ""NAME"" = '';
+
+        SELECT con.conname INTO pk_name
+          FROM pg_constraint con
+          JOIN pg_class    rel ON rel.oid = con.conrelid
+         WHERE rel.relname = 'NA_C_MQTT' AND con.contype = 'p';
+        IF pk_name IS NOT NULL THEN
+            EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', 'NA_C_MQTT', pk_name);
+        END IF;
+
+        ALTER TABLE ""NA_C_MQTT"" DROP COLUMN ""id"";
+        ALTER TABLE ""NA_C_MQTT"" ADD COLUMN ""id"" SERIAL PRIMARY KEY;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+             WHERE tablename = 'NA_C_MQTT' AND indexdef ILIKE '%UNIQUE%(%""NAME""%)%'
+        ) THEN
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_NA_C_MQTT_NAME""
+                ON ""NA_C_MQTT"" (""NAME"");
+        END IF;
+
+        RAISE NOTICE 'NA_C_MQTT migration completed: id varchar -> SERIAL PK, NAME backfilled';
+    END IF;
+
+    -- 2. 부수 컬럼 타입 정리
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'NA_C_MQTT' AND column_name = 'brokerPort'
@@ -514,7 +556,6 @@ BEGIN
         RAISE NOTICE 'NA_C_MQTT: brokerPort converted to integer';
     END IF;
 
-    -- keepAliveSeconds varchar → integer 변환
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'NA_C_MQTT' AND column_name = 'keepAliveSeconds'
@@ -524,7 +565,6 @@ BEGIN
         RAISE NOTICE 'NA_C_MQTT: keepAliveSeconds converted to integer';
     END IF;
 
-    -- reconnectDelayMs varchar → integer 변환
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'NA_C_MQTT' AND column_name = 'reconnectDelayMs'
@@ -532,19 +572,6 @@ BEGIN
     ) THEN
         ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""reconnectDelayMs"" TYPE integer USING ""reconnectDelayMs""::integer;
         RAISE NOTICE 'NA_C_MQTT: reconnectDelayMs converted to integer';
-    END IF;
-
-    -- id varchar → integer (serial) 변환
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'NA_C_MQTT' AND column_name = 'id'
-        AND data_type = 'character varying'
-    ) THEN
-        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""id"" TYPE integer USING ""id""::integer;
-        CREATE SEQUENCE IF NOT EXISTS ""NA_C_MQTT_id_seq"" OWNED BY ""NA_C_MQTT"".""id"";
-        ALTER TABLE ""NA_C_MQTT"" ALTER COLUMN ""id"" SET DEFAULT nextval('""NA_C_MQTT_id_seq""');
-        PERFORM setval('""NA_C_MQTT_id_seq""', COALESCE(MAX(""id""), 0) + 1) FROM ""NA_C_MQTT"";
-        RAISE NOTICE 'NA_C_MQTT: id converted to serial integer';
     END IF;
 END $$;
 ";

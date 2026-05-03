@@ -135,12 +135,7 @@ namespace ACS.Elsa.Workflows.Trans
                     logger.Info($"Vehicle FullState 업데이트: {vehicle.FullState} → {data.FullState}, vehicleId={data.VehicleId}");
                 }
 
-                // 4. AlarmState 업데이트
-                if (!string.IsNullOrEmpty(data.AlarmState) && data.AlarmState != vehicle.AlarmState)
-                {
-                    resourceManager.UpdateVehicleAlarmState(vehicle, data.AlarmState);
-                    logger.Info($"Vehicle AlarmState 업데이트: {vehicle.AlarmState} → {data.AlarmState}, vehicleId={data.VehicleId}");
-                }
+                // AlarmState 업데이트는 RAIL-VEHICLEALARM 워크플로우에서 SET/RESET 으로 처리.
 
                 // 5. BatteryRate 업데이트
                 if (data.BatteryRate != vehicle.BatteryRate)

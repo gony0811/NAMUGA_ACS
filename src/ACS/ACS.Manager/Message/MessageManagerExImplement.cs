@@ -1647,6 +1647,11 @@ namespace ACS.Manager.Message
             this.tsAgent.Send((object)jsonMessage);
         }
 
+        public void SendVehicleAlarmJson(string jsonMessage)
+        {
+            this.tsAgent.Send((object)jsonMessage);
+        }
+
         public void SendJobReportToHost(string reportType, string jobId, string amrId,
             string actionType, string materialType)
         {

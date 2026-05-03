@@ -258,6 +258,11 @@ namespace ACS.Core.Message
         void SendVehicleUpdateJson(string jsonMessage);
 
         /// <summary>
+        /// RAIL-VEHICLEALARM JSON을 Trans 프로세스로 RabbitMQ 전송.
+        /// </summary>
+        void SendVehicleAlarmJson(string jsonMessage);
+
+        /// <summary>
         /// JOBREPORT XML을 빌드하여 Host 프로세스로 RabbitMQ 전송.
         /// </summary>
         void SendJobReportToHost(string reportType, string jobId, string amrId,
