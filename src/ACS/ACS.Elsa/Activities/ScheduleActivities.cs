@@ -710,7 +710,9 @@ namespace ACS.Elsa.Activities
                 }
 
                 var staleList = new List<VehicleEx>();
-                DateTime currentTime = DateTime.Now;
+                // EventTime 은 EfCorePersistentDao.SetPropertyValue 에서 UTC 로 변환 저장됨.
+                // DateTime.Now(Local) 와 비교 시 KST 오프셋(9h)만큼 elapsed 가 부풀려져 항상 stale 판정됨.
+                DateTime currentTime = DateTime.UtcNow;
 
                 foreach (VehicleEx vehicle in allVehicles)
                 {

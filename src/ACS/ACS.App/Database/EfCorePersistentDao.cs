@@ -133,6 +133,9 @@ namespace ACS.Database
 
         /// <summary>
         /// 엔티티의 프로퍼티 값을 리플렉션으로 설정한다.
+        /// 단일 DbContext 가 다중 워크플로우에서 공유되면서 ChangeTracker snapshot 의
+        /// OriginalValue 가 손상되어 변경 감지가 누락되는 케이스를 방지하기 위해
+        /// EF Core 트래커에 IsModified=true 를 명시한다.
         /// </summary>
         private void SetPropertyValue(object entity, string propertyName, object value)
         {
@@ -144,6 +147,20 @@ namespace ACS.Database
                     value = dt.ToUniversalTime();
 
                 prop.SetValue(entity, value);
+
+                try
+                {
+                    var entry = _db.Entry(entity);
+                    if (entry.State != EntityState.Detached)
+                    {
+                        var efProp = entry.Property(prop.Name);
+                        if (efProp != null) efProp.IsModified = true;
+                    }
+                }
+                catch
+                {
+                    // EF 모델에 매핑되지 않은 속성이거나 추적 비활성 — 안전 무시
+                }
             }
         }
 
