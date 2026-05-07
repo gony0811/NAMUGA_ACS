@@ -19,6 +19,22 @@ namespace ACS.Communication.Msb.RabbitMQ
 {
     public abstract class AbstractRabbitMQListener : AbstractRabbitMQ, IMsbControllable
     {
+        // TEMP-MUTE-NOISE: 1초 간격 텔레메트리/스케줄 메시지 로그 억제. 복원 시 이 블록과 사용처 가드 모두 삭제.
+        // RAIL-VEHICLEALARM 은 SET 발생 시 워크플로우 안에서 상태 전이 1줄을 따로 로그하므로 게이트웨이 로그는 생략해도 추적 가능.
+        protected static readonly HashSet<string> _noisyMessageNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SCHEDULE-CHECKVEHICLES", "RAIL-VEHICLEUPDATE", "RAIL-VEHICLEALARM",
+            "CONTROL-HEARTBEAT", "CONTROL-STARTHEARTBEAT", "RAIL-VEHICLEHEARTBEAT"
+        };
+        protected static bool IsNoisyJsonMessage(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return false;
+            // 빠른 substring 검사 — 정식 JSON 파싱 부담 회피
+            foreach (var name in _noisyMessageNames)
+                if (json.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
         public ChannelDestination Destination { get; set; }
         public IModel ListenerChannel { get; set; }
         public IMsbConverter MsbConverter { get; set; }
@@ -354,7 +370,9 @@ namespace ACS.Communication.Msb.RabbitMQ
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
 
-                if (logger.IsDebugEnabled)
+                // TEMP-MUTE-NOISE: 노이즈 메시지는 DBG destination 로그도 생략
+                bool isNoisy = IsNoisyJsonMessage(message);
+                if (logger.IsDebugEnabled && !isNoisy)
                 {
                     logger.Debug("destination{" + Destination + "}, received message{" + body + "}");
                 }
@@ -364,7 +382,9 @@ namespace ACS.Communication.Msb.RabbitMQ
                 // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
                 if (IsJsonMessage(message))
                 {
-                    logger.Info("received JSON message : " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
+                    // TEMP-MUTE-NOISE: 노이즈 워크플로우 메시지는 INF 로그 생략
+                    if (!isNoisy)
+                        logger.Info("received JSON message : " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
                     OnJsonMessage(message, dest);
                     return;
                 }

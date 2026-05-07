@@ -210,8 +210,7 @@ namespace ACS.Elsa.Workflows.Trans
         private static void UpdateTransportCommandVehicleEvent(ITransferManagerEx tm, TransportCommandEx tc)
         {
             tc.VehicleEvent = MsgName;
-            var set = new Dictionary<string, object> { ["VehicleEvent"] = MsgName };
-            tm.UpdateTransportCommand(tc, set);
+            tm.UpdateTransportCommand(tc);
             logger.Info($"[Step2] UpdateTransportCommandVehicleEvent tc={tc.JobId}, vehicleEvent={MsgName}");
         }
 
@@ -342,12 +341,7 @@ namespace ACS.Elsa.Workflows.Trans
         {
             tc.State = TransportCommandEx.STATE_TRANSFERRING_DEST;
             tc.LoadedTime = DateTime.Now;
-            var set = new Dictionary<string, object>
-            {
-                ["State"] = tc.State,
-                ["LoadedTime"] = tc.LoadedTime
-            };
-            tm.UpdateTransportCommand(tc, set);
+            tm.UpdateTransportCommand(tc);
             logger.Info($"[Step11] ChangeTransportCommandStateToTransferingDest tc={tc.JobId}, state={tc.State}, loadedTime={tc.LoadedTime}");
         }
 

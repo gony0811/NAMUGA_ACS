@@ -74,8 +74,8 @@ namespace ACS.Elsa.Workflows.Trans
                 }
 
                 var data = alarmMessage.Data;
-                logger.Info($"RailVehicleAlarmActivity 시작: vehicleId={data.VehicleId}, type={data.Type}, errorCode={data.ErrorCode}");
 
+                // type → nextAlarmState 매핑
                 string nextAlarmState;
                 if (string.Equals(data.Type, RailVehicleAlarmData.TYPE_SET, StringComparison.OrdinalIgnoreCase))
                 {
@@ -112,14 +112,16 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // 이미 같은 상태면 silent skip (로그 X).
+                // 특히 EI 가 정상 상태에서도 RAIL-VEHICLEALARM type=RESET errorCode=0 을 1초 간격으로 반복 송신하기 때문에,
+                // SET 된 적 없는 vehicle 에 대해 RESET 매번 처리/로그하면 노이즈가 매우 큼.
+                // 실제 상태 전이(NOALARM→ALARM, ALARM→NOALARM)만 처리 + 로그.
                 if (string.Equals(vehicle.AlarmState, nextAlarmState, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Info($"RailVehicleAlarmActivity: AlarmState 이미 {nextAlarmState} — 변경 없음. vehicleId={data.VehicleId}");
                     return;
-                }
 
+                string previousAlarmState = vehicle.AlarmState;
                 resourceManager.UpdateVehicleAlarmState(vehicle, nextAlarmState, MsgName);
-                logger.Info($"RailVehicleAlarmActivity 완료: vehicleId={data.VehicleId}, AlarmState {vehicle.AlarmState} → {nextAlarmState} (type={data.Type}, errorCode={data.ErrorCode})");
+                logger.Info($"RailVehicleAlarmActivity: vehicleId={data.VehicleId}, AlarmState {previousAlarmState} → {nextAlarmState} (type={data.Type}, errorCode={data.ErrorCode})");
             }
             catch (Exception e)
             {

@@ -35,6 +35,16 @@ namespace ACS.Elsa.Bridge
         /// </summary>
         private readonly Dictionary<string, IWorkflow> _workflowRegistry = new(StringComparer.OrdinalIgnoreCase);
 
+        // TEMP-MUTE-NOISE: 1초 간격 텔레메트리/스케줄 워크플로우 로그 억제. 복원 시 이 블록과 사용처 가드 모두 삭제.
+        // RAIL-VEHICLEALARM 은 SET 발생 시 워크플로우 안에서 상태 전이 1줄을 따로 로그하므로 게이트웨이 로그는 생략해도 추적 가능.
+        private static readonly HashSet<string> _noisyWorkflowNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SCHEDULE-CHECKVEHICLES", "RAIL-VEHICLEUPDATE", "RAIL-VEHICLEALARM",
+            "CONTROL-HEARTBEAT", "CONTROL-STARTHEARTBEAT", "RAIL-VEHICLEHEARTBEAT"
+        };
+        private static bool IsNoisyWorkflow(string name) =>
+            !string.IsNullOrEmpty(name) && _noisyWorkflowNames.Contains(name);
+
         public ElsaWorkflowManagerBridge(
             WorkflowManagerImpl legacyManager,
             IWorkflowRunner workflowRunner)
@@ -150,7 +160,9 @@ namespace ACS.Elsa.Bridge
         {
             try
             {
-                logger.Info($"Elsa running '{workflowName}' with {args?.Length ?? 0} argument(s)...");
+                // TEMP-MUTE-NOISE: 노이즈 워크플로우는 시작/완료 로그 생략
+                if (!IsNoisyWorkflow(workflowName))
+                    logger.Info($"Elsa running '{workflowName}' with {args?.Length ?? 0} argument(s)...");
 
                 // DefinitionId 또는 클래스명으로 워크플로우 찾기
                 IWorkflow workflow = null;
@@ -194,7 +206,9 @@ namespace ACS.Elsa.Bridge
                 var result = _workflowRunner.RunAsync(workflow, options)
                     .GetAwaiter().GetResult();
 
-                logger.Info($"Elsa workflow '{workflowName}' completed. Status={result.WorkflowState.Status}");
+                // TEMP-MUTE-NOISE: 노이즈 워크플로우는 완료 로그 생략
+                if (!IsNoisyWorkflow(workflowName))
+                    logger.Info($"Elsa workflow '{workflowName}' completed. Status={result.WorkflowState.Status}");
                 return true;
             }
             catch (Exception ex)

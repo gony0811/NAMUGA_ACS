@@ -723,7 +723,7 @@ namespace ACS.Elsa.Activities
                     // EventTime이 null이면 disconnect 대상
                     if (vehicle.EventTime == default(DateTime))
                     {
-                        logger.Info($"CheckVehiclesEventTimeActivity: EventTime is default, need disconnect - Vehicle [{vehicle.VehicleId}]");
+                        // TEMP-MUTE-NOISE: logger.Info($"CheckVehiclesEventTimeActivity: EventTime is default, need disconnect - Vehicle [{vehicle.VehicleId}]");
                         staleList.Add(vehicle);
                         continue;
                     }
@@ -732,7 +732,7 @@ namespace ACS.Elsa.Activities
                     TimeSpan elapsed = currentTime - vehicle.EventTime;
                     if (elapsed.TotalSeconds > 60)
                     {
-                        logger.Info($"CheckVehiclesEventTimeActivity: EventTime expired ({elapsed.TotalSeconds:F0}s), need disconnect - Vehicle [{vehicle.VehicleId}]");
+                        // TEMP-MUTE-NOISE: logger.Info($"CheckVehiclesEventTimeActivity: EventTime expired ({elapsed.TotalSeconds:F0}s), need disconnect - Vehicle [{vehicle.VehicleId}]");
                         staleList.Add(vehicle);
                     }
                 }
@@ -740,8 +740,7 @@ namespace ACS.Elsa.Activities
                 context.Set(StaleVehicles, (ICollection<VehicleEx>)staleList);
                 context.Set(StaleCount, staleList.Count);
 
-                if (staleList.Count > 0)
-                    logger.Info($"CheckVehiclesEventTimeActivity: {staleList.Count} stale vehicle(s) found");
+                // TEMP-MUTE-NOISE: if (staleList.Count > 0) logger.Info($"CheckVehiclesEventTimeActivity: {staleList.Count} stale vehicle(s) found");
             }
             catch (Exception ex)
             {
@@ -797,7 +796,7 @@ namespace ACS.Elsa.Activities
                             VehicleEx.CONNECTIONSTATE_DISCONNECT,
                             "SCHEDULE-CHECKVEHICLES");
 
-                        logger.Info($"DisconnectVehiclesActivity: Vehicle [{vehicle.VehicleId}] (CommType={vehicle.CommType}) disconnected");
+                        // TEMP-MUTE-NOISE: logger.Info($"DisconnectVehiclesActivity: Vehicle [{vehicle.VehicleId}] (CommType={vehicle.CommType}) disconnected");
                     }
                 }
 

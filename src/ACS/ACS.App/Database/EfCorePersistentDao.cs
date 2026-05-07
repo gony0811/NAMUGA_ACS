@@ -808,11 +808,25 @@ namespace ACS.Database
         {
             try
             {
+                NormalizeDateTimeProperties(obj);
+
                 var entry = _db.Entry(obj);
                 if (entry.State == EntityState.Detached)
                 {
                     _db.Attach(obj);
                     entry.State = EntityState.Modified;
+                }
+                else
+                {
+                    // ChangeTracker snapshot 이 손상되어 변경 감지가 누락되는 케이스 방지.
+                    // PK/Concurrency token 을 제외한 모든 scalar 속성을 Modified 로 강제.
+                    // SetPropertyValue 가 단일 속성에 적용하는 IsModified 처리의 전체 버전.
+                    foreach (var prop in entry.Properties)
+                    {
+                        if (prop.Metadata.IsPrimaryKey()) continue;
+                        if (prop.Metadata.IsConcurrencyToken) continue;
+                        prop.IsModified = true;
+                    }
                 }
                 _db.SaveChanges();
             }

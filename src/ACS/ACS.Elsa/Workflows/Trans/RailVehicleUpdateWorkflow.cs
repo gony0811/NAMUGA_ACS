@@ -81,7 +81,7 @@ namespace ACS.Elsa.Workflows.Trans
                 }
 
                 var data = updateMessage.Data;
-                logger.Info($"RailVehicleUpdateActivity 시작: vehicleId={data.VehicleId}, commId={data.CommId}, nodeChanged={data.NodeChanged}");
+                // TEMP-MUTE-NOISE: logger.Info($"RailVehicleUpdateActivity 시작: vehicleId={data.VehicleId}, commId={data.CommId}, nodeChanged={data.NodeChanged}");
 
                 var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
                 if (accessor == null)
@@ -109,30 +109,30 @@ namespace ACS.Elsa.Workflows.Trans
                 if (!"CONNECT".Equals(vehicle.ConnectionState))
                 {
                     resourceManager.UpdateVehicleConnectionState(vehicle, data.ConnectionState);
-                    logger.Info($"Vehicle ConnectionState → {data.ConnectionState}: vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle ConnectionState → {data.ConnectionState}: vehicleId={data.VehicleId}");
                 }
 
                 if (!"BANNED".Equals(vehicle.State))
                 {
                     resourceManager.UpdateVehicleState(vehicle, Vehicle.STATE_ALIVE, "RAIL-VEHICLEUPDATE");
-                    logger.Info($"Vehicle State → ALIVE: vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle State → ALIVE: vehicleId={data.VehicleId}");
                 }
-                
-                
+
+
 
                 // 2. RunState 업데이트
                 if (!string.IsNullOrEmpty(data.RunState) && data.RunState != vehicle.RunState)
                 {
                     resourceManager.UpdateVehicleRunState(vehicle, data.RunState);
-                    logger.Info($"Vehicle RunState 업데이트: {vehicle.RunState} → {data.RunState}, vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle RunState 업데이트: {vehicle.RunState} → {data.RunState}, vehicleId={data.VehicleId}");
                 }
-                
+
 
                 // 3. FullState 업데이트
                 if (!string.IsNullOrEmpty(data.FullState) && data.FullState != vehicle.FullState)
                 {
                     resourceManager.UpdateVehicleFullState(vehicle, data.FullState);
-                    logger.Info($"Vehicle FullState 업데이트: {vehicle.FullState} → {data.FullState}, vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle FullState 업데이트: {vehicle.FullState} → {data.FullState}, vehicleId={data.VehicleId}");
                 }
 
                 // AlarmState 업데이트는 RAIL-VEHICLEALARM 워크플로우에서 SET/RESET 으로 처리.
@@ -141,22 +141,22 @@ namespace ACS.Elsa.Workflows.Trans
                 if (data.BatteryRate != vehicle.BatteryRate)
                 {
                     resourceManager.UpdateVehicleBatteryRate(vehicle, data.BatteryRate);
-                    logger.Info($"Vehicle BatteryRate 업데이트: {vehicle.BatteryRate} → {data.BatteryRate}, vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle BatteryRate 업데이트: {vehicle.BatteryRate} → {data.BatteryRate}, vehicleId={data.VehicleId}");
                 }
 
                 // 6. BatteryVoltage 업데이트
                 if (Math.Abs(data.BatteryVoltage - vehicle.BatteryVoltage) > 0.01f)
                 {
                     resourceManager.UpdateVehicleBatteryVoltage(vehicle, data.BatteryVoltage);
-                    logger.Info($"Vehicle BatteryVoltage 업데이트: {vehicle.BatteryVoltage} → {data.BatteryVoltage}, vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle BatteryVoltage 업데이트: {vehicle.BatteryVoltage} → {data.BatteryVoltage}, vehicleId={data.VehicleId}");
                 }
-                
+
 
                 // 7. VehicleDestNodeId 업데이트
                 if (data.VehicleDestNodeId != vehicle.VehicleDestNodeId)
                 {
                     resourceManager.UpdateVehicleVehicleDestNodeId(vehicle, data.VehicleDestNodeId);
-                    logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
+                    // TEMP-MUTE-NOISE: logger.Info($"Vehicle VehicleDestNodeId 업데이트: {vehicle.VehicleDestNodeId} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
                 }
 
                 // 7. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
@@ -168,6 +168,7 @@ namespace ACS.Elsa.Workflows.Trans
                 {
                     resourceManager.UpdateVehicleProcessingState(data.VehicleId,
                         VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
+                    // CHARGE→IDLE 전이는 의미 있으니 유지
                     logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
                 }
 
@@ -184,14 +185,14 @@ namespace ACS.Elsa.Workflows.Trans
                     {
                         string previousNodeId = vehicle.CurrentNodeId;
                         resourceManager.UpdateVehicleLocation(vehicle, data.CurrentNodeId);
-                        logger.Info($"Vehicle 위치 업데이트: {previousNodeId} → {data.CurrentNodeId}, vehicleId={data.VehicleId}");
+                        // TEMP-MUTE-NOISE: logger.Info($"Vehicle 위치 업데이트: {previousNodeId} → {data.CurrentNodeId}, vehicleId={data.VehicleId}");
                     }
                 }
 
                 // 9. EventTime 업데이트
                 resourceManager.UpdateVehicleEventTime(vehicle);
 
-                logger.Info($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}");
+                // TEMP-MUTE-NOISE: logger.Info($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}");
 
                 // 10. UI 프로세스로 원본 JSON 그대로 forward (POSE 포함, 1Hz 텔레메트리)
                 //     UI BackgroundService가 SignalR로 클라이언트에 브로드캐스트한다.
@@ -214,7 +215,7 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
                 uiAgent.Send((object)json);
-                logger.Debug($"RailVehicleUpdateActivity: UI forward 완료, len={json?.Length ?? 0}");
+                // TEMP-MUTE-NOISE: logger.Debug($"RailVehicleUpdateActivity: UI forward 완료, len={json?.Length ?? 0}");
             }
             catch (Exception ex)
             {

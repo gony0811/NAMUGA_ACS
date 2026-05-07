@@ -23,7 +23,9 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
             var originatedName = ea.BasicProperties.AppId;
             try
             {
-                if (logger.IsDebugEnabled)
+                // TEMP-MUTE-NOISE: 노이즈 메시지는 DBG/INF 로그 생략 (베이스 클래스의 IsNoisyJsonMessage 활용)
+                bool isNoisy = IsNoisyJsonMessage(message);
+                if (logger.IsDebugEnabled && !isNoisy)
                 {
                     logger.Debug("destination{" + originatedName + "}, received message{" + message + "}");
                 }
@@ -33,7 +35,9 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                 // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
                 if (IsJsonMessage(message))
                 {
-                    logger.Info("received JSON message from Daemon: " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
+                    // TEMP-MUTE-NOISE: 노이즈 워크플로우 메시지는 INF 로그 생략
+                    if (!isNoisy)
+                        logger.Info("received JSON message from Daemon: " + (message.Length > 200 ? message.Substring(0, 200) + "..." : message));
                     OnJsonMessage(message, dest);
                     return;
                 }
