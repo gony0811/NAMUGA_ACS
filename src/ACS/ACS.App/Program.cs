@@ -202,6 +202,7 @@ static class Program
         app.UseCors();
         app.MapControllers();
         app.MapHub<VehicleHub>("/hubs/vehicle");
+        app.MapHub<ACS.App.Web.Hubs.HostCommHub>("/hubs/hostcomm");
 
         // 종료 시 Executor.Stop() 호출
         var lifetime = app.Lifetime;

@@ -66,6 +66,12 @@ namespace ACS.App.Modules
             builder.RegisterType<PoseTelemetrySubscriber>()
                 .As<IHostedService>()
                 .SingleInstance();
+
+            // Host(MES) TCP 통신 로그 → SignalR HostCommHub 브로드캐스트.
+            // host 프로세스의 HostCommPublisher가 발행한 fanout(/UI/HOSTCOMM)을 구독.
+            builder.RegisterType<HostCommSubscriber>()
+                .As<IHostedService>()
+                .SingleInstance();
         }
     }
 }

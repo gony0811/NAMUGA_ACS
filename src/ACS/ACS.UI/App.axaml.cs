@@ -13,6 +13,7 @@ public partial class App : Application
     private const string BackendBaseUrl = "http://192.168.0.6:5100";
 
     private VehicleHubClient _vehicleHub;
+    private HostCommHubClient _hostCommHub;
 
     public override void Initialize()
     {
@@ -44,12 +45,50 @@ public partial class App : Application
             };
             _ = _vehicleHub.StartAsync();
 
+            // SignalR HostCommHub: Host(MES) TCP 통신 로그 → HostCommunicationViewModel 실시간 갱신
+            _hostCommHub = new HostCommHubClient(BackendBaseUrl);
+            _hostCommHub.LogReceived += log =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var vm = mainViewModel.HostCommunicationViewModel;
+                    string direction = log.Direction == "Send"
+                        ? (log.Success == false ? "Error" : "Send")
+                        : "Receive";
+                    string message = string.IsNullOrEmpty(log.Error)
+                        ? $"{log.MessageName} ({log.Length} bytes)"
+                        : $"{log.MessageName}: {log.Error}";
+                    vm.AddLog(direction, message, log.RemoteEndPoint);
+
+                    // 송신은 SenderState, 수신은 ListenState를 Connected로 갱신.
+                    if (log.Direction == "Receive") vm.UpdateListenState(true);
+                    else if (log.Direction == "Send" && log.Success != false) vm.UpdateSenderState(true);
+                });
+            };
+            _hostCommHub.ConnectionChanged += conn =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var vm = mainViewModel.HostCommunicationViewModel;
+                    vm.AddLog(conn.Connected ? "Connect" : "Disconnect",
+                              conn.Connected ? "Host connected" : "Host disconnected",
+                              conn.RemoteEndPoint);
+                    vm.UpdateListenState(conn.Connected);
+                });
+            };
+            _ = _hostCommHub.StartAsync();
+
             desktop.Exit += async (_, _) =>
             {
                 if (_vehicleHub != null)
                 {
                     try { await _vehicleHub.StopAsync(); } catch { }
                     await _vehicleHub.DisposeAsync();
+                }
+                if (_hostCommHub != null)
+                {
+                    try { await _hostCommHub.StopAsync(); } catch { }
+                    await _hostCommHub.DisposeAsync();
                 }
             };
         }

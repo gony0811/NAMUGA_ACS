@@ -38,7 +38,7 @@
         <!-- Tab 1: MES Simulator (기존 기능) -->
         <!-- ============================================================ -->
         <TabItem Header="MES Simulator">
-            <Grid Name="MesGrid" Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
+            <Grid Name="MesGrid" DataContext="{Binding MesSimulator}" Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
 
                 <!-- Row 0: Connection Settings -->
                 <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
@@ -171,7 +171,7 @@
         <!-- Tab 2: Host Test (ACS Simulator) -->
         <!-- ============================================================ -->
         <TabItem Header="Host Test (ACS Simulator)">
-            <Grid Name="HostGrid" Margin="12" RowDefinitions="Auto,Auto,Auto,*">
+            <Grid Name="HostGrid" DataContext="{Binding HostTest}" Margin="12" RowDefinitions="Auto,Auto,Auto,*">
 
                 <!-- Row 0: Connection Settings -->
                 <HeaderedContentControl Grid.Row="0" Header="Connection Settings">

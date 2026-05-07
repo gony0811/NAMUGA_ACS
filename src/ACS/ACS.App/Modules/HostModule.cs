@@ -115,6 +115,12 @@ namespace ACS.App.Modules
                 .As<IHostedService>()
                 .AsSelf()
                 .SingleInstance();
+
+            // Host TCP 이벤트 → RabbitMQ fanout(/UI/HOSTCOMM) 발행
+            // UI 프로세스의 HostCommSubscriber가 동일 fanout을 구독하여 SignalR로 브로드캐스트.
+            builder.RegisterType<ACS.App.Host.HostCommPublisher>()
+                .As<IHostedService>()
+                .SingleInstance();
         }
 
         /// <summary>

@@ -16,6 +16,9 @@ namespace ACS.Communication.Host
         public bool IsConnected => false;
 
         public event EventHandler<HostTcpMessageEventArgs> MessageReceived;
+        public event EventHandler<HostTcpConnectionEventArgs> Connected;
+        public event EventHandler<HostTcpConnectionEventArgs> Disconnected;
+        public event EventHandler<HostTcpMessageSentEventArgs> MessageSent;
 
         public void Start()
         {

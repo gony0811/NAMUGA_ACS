@@ -44,6 +44,9 @@ namespace ACS.Communication.Host
         public bool IsConnected => _isListening;
 
         public event EventHandler<HostTcpMessageEventArgs> MessageReceived;
+        public event EventHandler<HostTcpConnectionEventArgs> Connected;
+        public event EventHandler<HostTcpConnectionEventArgs> Disconnected;
+        public event EventHandler<HostTcpMessageSentEventArgs> MessageSent;
 
         // ========================================================
         //  Start / Stop
@@ -93,7 +96,10 @@ namespace ACS.Communication.Host
                 {
                     var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
                     var ep = client.Client.RemoteEndPoint as IPEndPoint;
-                    logger.Info($"[HostTcpGateway] Host connected from {ep?.Address}:{ep?.Port}");
+                    string remote = $"{ep?.Address}:{ep?.Port}";
+                    logger.Info($"[HostTcpGateway] Host connected from {remote}");
+
+                    SafeRaise(Connected, new HostTcpConnectionEventArgs { RemoteEndPoint = remote, Connected = true });
 
                     // 각 연결을 별도 Task로 처리
                     _ = Task.Run(() => ReceiveLoopAsync(client, ct), ct);
@@ -122,6 +128,7 @@ namespace ACS.Communication.Host
         private async Task ReceiveLoopAsync(TcpClient client, CancellationToken ct)
         {
             var ep = client.Client.RemoteEndPoint as IPEndPoint;
+            string remote = $"{ep?.Address}:{ep?.Port}";
             try
             {
                 using (client)
@@ -132,7 +139,7 @@ namespace ACS.Communication.Host
                         string xml = await HostMessageProtocol.ReadMessageAsync(stream, ct).ConfigureAwait(false);
                         if (xml == null)
                         {
-                            logger.Info($"[HostTcpGateway] Host disconnected: {ep?.Address}:{ep?.Port}");
+                            logger.Info($"[HostTcpGateway] Host disconnected: {remote}");
                             break;
                         }
 
@@ -144,7 +151,8 @@ namespace ACS.Communication.Host
                             MessageReceived?.Invoke(this, new HostTcpMessageEventArgs
                             {
                                 MessageName = msgName,
-                                MessageBody = xml
+                                MessageBody = xml,
+                                RemoteEndPoint = remote
                             });
                         }
                         catch (Exception ex)
@@ -163,6 +171,10 @@ namespace ACS.Communication.Host
                 if (!ct.IsCancellationRequested)
                     logger.Error($"[HostTcpGateway] Receive error from {ep?.Address}: {ex.Message}");
             }
+            finally
+            {
+                SafeRaise(Disconnected, new HostTcpConnectionEventArgs { RemoteEndPoint = remote, Connected = false });
+            }
         }
 
         // ========================================================
@@ -171,20 +183,45 @@ namespace ACS.Communication.Host
 
         public void SendToHost(string messageName, string messageBody)
         {
+            string remote = $"{SendHost}:{SendPort}";
+
             if (string.IsNullOrEmpty(messageBody))
             {
                 logger.Warn($"[HostTcpGateway] SendToHost - empty body for {messageName}");
+                SafeRaise(MessageSent, new HostTcpMessageSentEventArgs
+                {
+                    MessageName = messageName,
+                    MessageBody = messageBody,
+                    RemoteEndPoint = remote,
+                    Success = false,
+                    Error = "empty body"
+                });
                 return;
             }
 
             try
             {
                 HostMessageProtocol.ConnectAndSendAsync(SendHost, SendPort, messageBody).GetAwaiter().GetResult();
-                logger.Info($"[HostTcpGateway] Sent: {messageName} ({messageBody.Length} bytes) to {SendHost}:{SendPort}");
+                logger.Info($"[HostTcpGateway] Sent: {messageName} ({messageBody.Length} bytes) to {remote}");
+                SafeRaise(MessageSent, new HostTcpMessageSentEventArgs
+                {
+                    MessageName = messageName,
+                    MessageBody = messageBody,
+                    RemoteEndPoint = remote,
+                    Success = true
+                });
             }
             catch (Exception ex)
             {
-                logger.Error($"[HostTcpGateway] Send error to {SendHost}:{SendPort}: {ex.Message}");
+                logger.Error($"[HostTcpGateway] Send error to {remote}: {ex.Message}");
+                SafeRaise(MessageSent, new HostTcpMessageSentEventArgs
+                {
+                    MessageName = messageName,
+                    MessageBody = messageBody,
+                    RemoteEndPoint = remote,
+                    Success = false,
+                    Error = ex.Message
+                });
             }
         }
 
@@ -195,6 +232,13 @@ namespace ACS.Communication.Host
         {
             string xml = HostXmlSerializer.Serialize(message);
             SendToHost(messageName, xml);
+        }
+
+        private void SafeRaise<T>(EventHandler<T> handler, T args) where T : EventArgs
+        {
+            if (handler == null) return;
+            try { handler.Invoke(this, args); }
+            catch (Exception ex) { logger.Error($"[HostTcpGateway] event handler error: {ex.Message}"); }
         }
     }
 }

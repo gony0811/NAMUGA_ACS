@@ -28,6 +28,15 @@ namespace ACS.Core.Host
         /// HostBridgeService가 구독하여 RabbitMQ로 포워딩.
         /// </summary>
         event EventHandler<HostTcpMessageEventArgs> MessageReceived;
+
+        /// <summary>Host가 ListenPort로 접속했을 때 발생.</summary>
+        event EventHandler<HostTcpConnectionEventArgs> Connected;
+
+        /// <summary>Host와의 연결이 끊겼을 때 발생.</summary>
+        event EventHandler<HostTcpConnectionEventArgs> Disconnected;
+
+        /// <summary>SendToHost 호출 결과(성공/실패)를 알리는 이벤트.</summary>
+        event EventHandler<HostTcpMessageSentEventArgs> MessageSent;
     }
 
     /// <summary>
@@ -40,5 +49,29 @@ namespace ACS.Core.Host
 
         /// <summary>메시지 본문 (XML 문자열)</summary>
         public string MessageBody { get; set; }
+
+        /// <summary>원격 종단점 (IP:Port). 알 수 없으면 빈 문자열.</summary>
+        public string RemoteEndPoint { get; set; }
+    }
+
+    /// <summary>
+    /// Host 연결/단절 이벤트 인자.
+    /// </summary>
+    public class HostTcpConnectionEventArgs : EventArgs
+    {
+        public string RemoteEndPoint { get; set; }
+        public bool Connected { get; set; }
+    }
+
+    /// <summary>
+    /// Host로 메시지 송신 결과 이벤트 인자.
+    /// </summary>
+    public class HostTcpMessageSentEventArgs : EventArgs
+    {
+        public string MessageName { get; set; }
+        public string MessageBody { get; set; }
+        public string RemoteEndPoint { get; set; }
+        public bool Success { get; set; }
+        public string Error { get; set; }
     }
 }

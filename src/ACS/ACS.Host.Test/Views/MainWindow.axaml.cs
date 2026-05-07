@@ -13,21 +13,27 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
+    private MainWindowViewModel _subscribedVm;
+
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
 
+        // 이전 DataContext의 PropertyChanged 구독 정리 (다중 구독 방지)
+        if (_subscribedVm != null)
+        {
+            _subscribedVm.MesSimulator.PropertyChanged -= OnMesPropertyChanged;
+            _subscribedVm.HostTest.PropertyChanged -= OnHostTestPropertyChanged;
+            _subscribedVm = null;
+        }
+
         if (DataContext is MainWindowViewModel vm)
         {
-            // XAML 바인딩 대신 코드에서 직접 DataContext 설정
-            // (Avalonia 11 XAML 컴파일러의 TabItem DataContext 타입 추론 문제 우회)
-            var mesGrid = this.FindControl<Grid>("MesGrid");
-            var hostGrid = this.FindControl<Grid>("HostGrid");
-            if (mesGrid != null) mesGrid.DataContext = vm.MesSimulator;
-            if (hostGrid != null) hostGrid.DataContext = vm.HostTest;
-
+            // DataContext는 XAML의 {Binding MesSimulator} / {Binding HostTest}로 전파된다.
+            // 여기서는 인디케이터/로그 스크롤을 위해 PropertyChanged만 구독한다.
             vm.MesSimulator.PropertyChanged += OnMesPropertyChanged;
             vm.HostTest.PropertyChanged += OnHostTestPropertyChanged;
+            _subscribedVm = vm;
 
             UpdateIndicator("MesStatusIndicator", vm.MesSimulator.IsConnected);
             UpdateIndicator("HostTestStatusIndicator", vm.HostTest.IsConnected);
