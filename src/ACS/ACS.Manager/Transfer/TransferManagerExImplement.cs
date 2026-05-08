@@ -215,8 +215,7 @@ namespace ACS.Manager.Transfer
         public IList GetQueuedTransportCommands()
         {
             IList transportCommands = this.PersistentDao.FindByAttributeOrderBy(typeof(TransportCommandEx), "State", "QUEUED", "CreateTime");
-            //logger.info("conut{" + transportCommands.size() + "}, " + transportCommands);
-            return transportCommands;
+            return FilterUnassignedTransportCommands(transportCommands);
         }
 
         public IList GetQueuedUiTransportCommands()
@@ -234,10 +233,23 @@ namespace ACS.Manager.Transfer
             attributes.Add("BayId", bayId);
 
             IList transportCommands = this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
+            return FilterUnassignedTransportCommands(transportCommands);
+        }
 
-            //logger.info("conut{" + transportCommands.size() + "}, " + transportCommands);
-    
-            return transportCommands;
+        // Rollback 잘못된 발동/EF silent drop 등으로 만들어진 좀비 TC (state=QUEUED 이지만 VehicleId 가
+        // 남아있는 경우) 가 다음 사이클에서 다시 잡혀 잘못된 재할당을 일으키지 않도록 메모리에서 한 번 더 필터.
+        private static IList FilterUnassignedTransportCommands(IList transportCommands)
+        {
+            if (transportCommands == null || transportCommands.Count == 0) return transportCommands;
+            var filtered = new List<TransportCommandEx>(transportCommands.Count);
+            foreach (var item in transportCommands)
+            {
+                if (item is TransportCommandEx tc && string.IsNullOrEmpty(tc.VehicleId))
+                {
+                    filtered.Add(tc);
+                }
+            }
+            return filtered;
         }
 
         public IList GetTransportCommands()

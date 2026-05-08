@@ -355,6 +355,30 @@ namespace ACS.Elsa.Workflows.Trans
                 return true;
             }
 
+            // QUEUED regression 보정: Rollback이 진행 중인 작업을 잘못 되돌렸거나
+            // EF silent drop 으로 TC.State 가 QUEUED 로 회귀하면서 VehicleId 까지 비워진 케이스.
+            // Vehicle 측 정보(TransferState, TransportCommandId)가 진실 원천이므로 그에 맞춰 TC 재연결.
+            if (TransportCommandEx.STATE_QUEUED.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+            {
+                bool vehicleClaimsThisJob = string.Equals(v.TransportCommandId, tc.JobId, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(tc.VehicleId, v.VehicleId, StringComparison.OrdinalIgnoreCase);
+                bool vehicleInMotion = VehicleEx.TRANSFERSTATE_TRANSFERING_DEST.Equals(v.TransferState, StringComparison.OrdinalIgnoreCase)
+                    || VehicleEx.TRANSFERSTATE_ACQUIRE_COMPLETE.Equals(v.TransferState, StringComparison.OrdinalIgnoreCase);
+
+                if (vehicleClaimsThisJob && vehicleInMotion)
+                {
+                    logger.Warn($"[Step8] TC 상태 보정: QUEUED → TRANSFERRING_DEST tc={tc.JobId}, vehicleId={v.VehicleId} (regression detected, re-linking)");
+
+                    tc.VehicleId = v.VehicleId;
+                    tc.State = TransportCommandEx.STATE_TRANSFERRING_DEST;
+                    tc.LoadedTime = DateTime.Now;
+                    tm.UpdateTransportCommand(tc);
+
+                    rm.UpdateVehicleTransferState(v, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, MsgName);
+                    return true;
+                }
+            }
+
             logger.Error($"[Step8] EnsureTransportCommandStateIsTransferDest: TC 상태 비정상 tc={tc.JobId}, state={tc.State}, expected={TransportCommandEx.STATE_TRANSFERRING_DEST} or {TransportCommandEx.STATE_ASSIGNED}");
             return false;
         }

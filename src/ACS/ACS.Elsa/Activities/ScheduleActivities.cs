@@ -644,18 +644,42 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
+                // 다른 워크플로우의 ChangeTracker 스냅샷 의존성을 끊기 위해 fresh 인스턴스 재조회
+                TransportCommandEx freshTc = transferManager.GetTransportCommand(tc.JobId) ?? tc;
+                VehicleEx freshVehicle = resourceManager.GetVehicle(vehicle.VehicleId) ?? vehicle;
+
+                // Progress-aware guard: TC가 이미 ASSIGNED 단계를 넘어섰으면 롤백 스킵
+                // (carrier reply 만 누락되고 차량은 정상 진행 중인 케이스)
+                string tcState = freshTc.State ?? string.Empty;
+                if (TransportCommandEx.STATE_TRANSFERRING_SOURCE.Equals(tcState, StringComparison.OrdinalIgnoreCase)
+                    || TransportCommandEx.STATE_TRANSFERRING_DEST.Equals(tcState, StringComparison.OrdinalIgnoreCase)
+                    || TransportCommandEx.STATE_COMPLETED.Equals(tcState, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"RollbackVehicleAssignmentActivity: 롤백 스킵 - TC 이미 진행 중 tc={freshTc.JobId}, state={tcState}");
+                    return;
+                }
+
+                string vehicleTransferState = freshVehicle.TransferState ?? string.Empty;
+                if (VehicleEx.TRANSFERSTATE_ACQUIRE_COMPLETE.Equals(vehicleTransferState, StringComparison.OrdinalIgnoreCase)
+                    || VehicleEx.TRANSFERSTATE_TRANSFERING_DEST.Equals(vehicleTransferState, StringComparison.OrdinalIgnoreCase)
+                    || VehicleEx.TRANSFERSTATE_DEPOSIT_COMPLETE.Equals(vehicleTransferState, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"RollbackVehicleAssignmentActivity: 롤백 스킵 - Vehicle 이미 이동 중 vehicleId={freshVehicle.VehicleId}, transferState={vehicleTransferState}, tc={freshTc.JobId}");
+                    return;
+                }
+
                 // TC 롤백: QUEUED 상태로 복원
-                tc.State = TransportCommandEx.STATE_QUEUED;
-                tc.VehicleId = null;
-                tc.AssignedTime = null;
-                transferManager.UpdateTransportCommand(tc);
+                freshTc.State = TransportCommandEx.STATE_QUEUED;
+                freshTc.VehicleId = null;
+                freshTc.AssignedTime = null;
+                transferManager.UpdateTransportCommand(freshTc);
 
                 // Vehicle 롤백: NOTASSIGNED + IDLE 상태로 복원
-                resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
-                resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE);
-                resourceManager.UpdateVehicleTransportCommandId(vehicle, "");
+                resourceManager.UpdateVehicleTransferState(freshVehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
+                resourceManager.UpdateVehicleProcessingState(freshVehicle, VehicleEx.PROCESSINGSTATE_IDLE);
+                resourceManager.UpdateVehicleTransportCommandId(freshVehicle, "");
 
-                logger.Info($"RollbackVehicleAssignmentActivity: 롤백 완료 - TC {tc.JobId} → QUEUED, Vehicle {vehicle.VehicleId} → NOTASSIGNED/IDLE");
+                logger.Info($"RollbackVehicleAssignmentActivity: 롤백 완료 - TC {freshTc.JobId} → QUEUED, Vehicle {freshVehicle.VehicleId} → NOTASSIGNED/IDLE");
             }
             catch (Exception ex)
             {
@@ -806,6 +830,147 @@ namespace ACS.Elsa.Activities
             {
                 logger.Error($"DisconnectVehiclesActivity: {ex.Message}", ex);
                 context.Set(Success, false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// SCHEDULE-CHECKVEHICLES 보조 액티비티.
+    ///
+    /// ProcessingState=RUN 인데 RunState=STOP 으로 정지해 있는 vehicle 을 찾아
+    /// 할당된 TC 와 정합이 맞으면 RAIL-CARRIERTRANSFER 를 재전송한다.
+    ///
+    /// 발동 조건 (모두 만족해야 재전송):
+    ///   - vehicle.ProcessingState == RUN
+    ///   - vehicle.RunState == STOP
+    ///   - vehicle.AlarmState == NOALARM   (ALARM 중인 vehicle 은 이동 명령 보내지 않음)
+    ///   - !string.IsNullOrEmpty(vehicle.TransportCommandId)
+    ///   - tc = GetTransportCommand(vehicle.TransportCommandId) 가 존재
+    ///   - tc.VehicleId == vehicle.VehicleId
+    ///   - (vehicle.TransferState, tc.State) ∈ 다음 매칭 중 하나
+    ///       (ASSIGNED,           ASSIGNED 또는 TRANSFERRING_SOURCE) → useSource=true,  jobType=UNLOAD
+    ///       (TRANSFERING_DEST,   TRANSFERRING_DEST)                  → useSource=false, jobType=LOAD
+    ///
+    /// 메시지 빌드/송신은 SendCarrierTransferActivity 와 동일하게 CarrierTransferJsonBuilder 사용.
+    /// 응답 대기/재시도는 하지 않는 단순 송신 (이 vehicle 은 이미 명령 중인 상태이므로 단순 재푸시).
+    /// </summary>
+    [Activity("ACS.Schedule", "Recover Stuck Vehicles",
+        "RUN+STOP 상태로 멈춘 vehicle 에 RAIL-CARRIERTRANSFER 재전송")]
+    public class RecoverStuckVehiclesActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                var transferManager = accessor?.Resolve<ITransferManagerEx>();
+                var messageManager = accessor?.Resolve<IMessageManagerEx>();
+                if (resourceManager == null || transferManager == null || messageManager == null)
+                {
+                    logger.Error("RecoverStuckVehiclesActivity: 필수 서비스 해결 실패");
+                    return;
+                }
+
+                IList allVehicles = resourceManager.GetVehicles();
+                if (allVehicles == null || allVehicles.Count == 0) return;
+
+                int recovered = 0;
+                foreach (VehicleEx vehicle in allVehicles)
+                {
+                    if (!VehicleEx.PROCESSINGSTATE_RUN.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (!VehicleEx.RUNSTATE_STOP.Equals(vehicle.RunState, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    // ALARM 상태에서는 이동 명령 재전송하지 않음
+                    if (!VehicleEx.ALARMSTATE_NOALARM.Equals(vehicle.AlarmState, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (string.IsNullOrEmpty(vehicle.TransportCommandId))
+                        continue;
+
+                    TransportCommandEx tc = transferManager.GetTransportCommand(vehicle.TransportCommandId);
+                    if (tc == null)
+                    {
+                        logger.Warn($"RecoverStuckVehiclesActivity: TC 없음 vehicleId={vehicle.VehicleId}, transportCommandId={vehicle.TransportCommandId}");
+                        continue;
+                    }
+                    if (!string.Equals(tc.VehicleId, vehicle.VehicleId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Vehicle 측 (TransportCommandId, TransferState) 을 진실 원천으로 간주하여 TC 재연결.
+                        // Rollback 의 잘못된 발동이나 EF silent drop 으로 TC.VehicleId 가 비워진 케이스 자동 복구.
+                        bool canHeal = string.Equals(vehicle.TransportCommandId, tc.JobId, StringComparison.OrdinalIgnoreCase)
+                            && (VehicleEx.TRANSFERSTATE_TRANSFERING_DEST.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase)
+                                || VehicleEx.TRANSFERSTATE_ASSIGNED.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase));
+
+                        if (!canHeal)
+                        {
+                            logger.Warn($"RecoverStuckVehiclesActivity: TC.VehicleId 불일치 (자동 보정 불가) vehicleId={vehicle.VehicleId}, tc={tc.JobId}, tc.VehicleId={tc.VehicleId}, vehicleTransferState={vehicle.TransferState}");
+                            continue;
+                        }
+
+                        string oldVehicleId = tc.VehicleId;
+                        string oldState = tc.State;
+                        tc.VehicleId = vehicle.VehicleId;
+                        if (VehicleEx.TRANSFERSTATE_TRANSFERING_DEST.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase)
+                            && !TransportCommandEx.STATE_TRANSFERRING_DEST.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+                        {
+                            tc.State = TransportCommandEx.STATE_TRANSFERRING_DEST;
+                            if (tc.LoadedTime == null) tc.LoadedTime = DateTime.Now;
+                        }
+                        else if (VehicleEx.TRANSFERSTATE_ASSIGNED.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase)
+                            && !TransportCommandEx.STATE_ASSIGNED.Equals(tc.State, StringComparison.OrdinalIgnoreCase)
+                            && !TransportCommandEx.STATE_TRANSFERRING_SOURCE.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+                        {
+                            tc.State = TransportCommandEx.STATE_ASSIGNED;
+                        }
+
+                        transferManager.UpdateTransportCommand(tc);
+                        logger.Warn($"RecoverStuckVehiclesActivity: TC 재연결 완료 vehicleId={vehicle.VehicleId}, tc={tc.JobId}, oldVehicleId={oldVehicleId}, oldState={oldState}, newState={tc.State}");
+                    }
+
+                    bool useSource;
+                    string jobType;
+                    if (VehicleEx.TRANSFERSTATE_ASSIGNED.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase)
+                        && (TransportCommandEx.STATE_ASSIGNED.Equals(tc.State, StringComparison.OrdinalIgnoreCase)
+                            || TransportCommandEx.STATE_TRANSFERRING_SOURCE.Equals(tc.State, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        useSource = true;
+                        jobType = TransportCommandEx.JOBTYPE_UNLOAD;
+                    }
+                    else if (VehicleEx.TRANSFERSTATE_TRANSFERING_DEST.Equals(vehicle.TransferState, StringComparison.OrdinalIgnoreCase)
+                        && TransportCommandEx.STATE_TRANSFERRING_DEST.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+                    {
+                        useSource = false;
+                        jobType = TransportCommandEx.JOBTYPE_LOAD;
+                    }
+                    else
+                    {
+                        // 상태 매칭 실패 — 재전송 대상 아님
+                        continue;
+                    }
+
+                    string json = CarrierTransferJsonBuilder.Build(tc, vehicle.VehicleId, jobType, useSource, resourceManager, logger);
+                    if (string.IsNullOrEmpty(json))
+                    {
+                        logger.Error($"RecoverStuckVehiclesActivity: JSON 빌드 실패 vehicleId={vehicle.VehicleId}, tc={tc.JobId}");
+                        continue;
+                    }
+
+                    messageManager.SendCarrierTransferJson(json);
+                    recovered++;
+                    logger.Info($"RecoverStuckVehiclesActivity: RAIL-CARRIERTRANSFER 재전송 vehicleId={vehicle.VehicleId}, tc={tc.JobId}, " +
+                                $"transferState={vehicle.TransferState}, tcState={tc.State}, jobType={jobType}, useSource={useSource}, " +
+                                $"acsDestNodeId={vehicle.AcsDestNodeId}");
+                }
+
+                if (recovered > 0)
+                    logger.Info($"RecoverStuckVehiclesActivity: 총 {recovered}대 재전송 완료");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"RecoverStuckVehiclesActivity: {ex.Message}", ex);
             }
         }
     }
