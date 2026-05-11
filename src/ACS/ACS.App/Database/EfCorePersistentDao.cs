@@ -8,63 +8,53 @@ using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using ACS.Core.Base.Interface;
+using ACS.Core.Logging;
 
 namespace ACS.Database
 {
     /// <summary>
     /// EF Core 기반 IPersistentDao 구현.
-    /// NHibernate HibernateDaoImplement를 대체하며, 동일한 메서드 시그니처를 유지한다.
     ///
-    /// 주요 변경 사항:
-    /// - NHibernate Session/HibernateTemplate → DbContext
-    /// - HQL → LINQ 또는 Raw SQL
-    /// - DetachedCriteria → 제거됨 (IPersistentDao에서 삭제)
-    /// - 동적 타입 조회는 리플렉션 기반 DbContext.Set 사용
+    /// DbContext 수명 정책:
+    ///   각 public 메서드 호출마다 `using var db = new AcsDbContext()` 로 fresh DbContext 를 생성.
+    ///   이전의 `[ThreadStatic] _threadDb` 패턴은 long-lived 워커 스레드(Quartz, RabbitMQ 컨슈머, Elsa)에서
+    ///   ChangeTracker snapshot 이 누적/손상되어 UPDATE 가 silent drop 되는 버그(JOB013/JOB016 사례)를
+    ///   유발했으므로 폐기. EF Core 와 Npgsql 은 per-operation DbContext + connection pooling 을 위해
+    ///   설계되었으므로 성능 영향 없음.
     /// </summary>
     public class EfCorePersistentDao : IPersistentDao
     {
-        /// <summary>
-        /// 스레드별 DbContext를 유지하여 스레드 안전성 확보.
-        /// EF Core DbContext는 스레드 안전하지 않으므로, 스레드별로
-        /// 별도의 인스턴스를 사용하여 동시성 예외를 방지한다.
-        /// </summary>
-        [ThreadStatic]
-        private static AcsDbContext _threadDb;
-
-        private AcsDbContext _db
-        {
-            get
-            {
-                if (_threadDb == null)
-                {
-                    _threadDb = new AcsDbContext();
-                }
-                return _threadDb;
-            }
-        }
+        private static readonly Logger logger = Logger.GetLogger(typeof(EfCorePersistentDao));
 
         private int maxResults = 1000;
         private int maxUpdateCounts = 1000;
         private int dataAccessRetryCount = 3;
         private long dataAccessRetrySleep = 300L;
 
-        // NHibernate 엔티티 이름 → CLR Type 매핑 (런타임에 캐싱)
+        // NHibernate 엔티티 이름 → CLR Type 매핑 (런타임 캐싱). DbContext.Model 은
+        // 모든 인스턴스에서 동일한 메타데이터를 노출하므로 string→Type 캐시는 안전하게 공유 가능.
         private static readonly Dictionary<string, Type> _entityTypeCache = new Dictionary<string, Type>();
         private static readonly object _cacheLock = new object();
 
         public EfCorePersistentDao(AcsDbContext db)
         {
-            // 최초 인스턴스는 메인 스레드의 ThreadStatic에 저장
-            _threadDb = db;
+            // DI 호환을 위해 생성자 시그너처는 유지하지만 인스턴스는 사용하지 않는다.
+            // 각 메서드가 자체 DbContext 를 생성/해제한다.
+            _ = db;
         }
+
+        /// <summary>
+        /// 새 DbContext 를 생성한다. AcsDbContext 의 매개변수 없는 생성자는 앱 시작 시 캐싱된
+        /// connection string 을 사용하므로 DI 외부에서도 동일 DB 에 연결된다.
+        /// </summary>
+        private static AcsDbContext NewDb() => new AcsDbContext();
 
         #region Type Resolution
 
         /// <summary>
-        /// 클래스 이름(단순명 또는 정규명)을 CLR Type으로 변환.
-        /// NHibernate의 GetAllClassMetadata() 역할 대체.
+        /// 클래스 이름(단순명 또는 정규명)을 CLR Type 으로 변환.
         /// </summary>
-        private Type ResolveType(string className)
+        private Type ResolveType(string className, AcsDbContext db)
         {
             if (string.IsNullOrEmpty(className)) return null;
 
@@ -74,13 +64,11 @@ namespace ACS.Database
                     return cached;
             }
 
-            // EF Core 모델에서 엔티티 타입 검색 (정확한 이름 매칭)
-            var entityType = _db.Model.GetEntityTypes()
+            var entityType = db.Model.GetEntityTypes()
                 .FirstOrDefault(et =>
                     et.ClrType.FullName == className ||
                     et.ClrType.Name == className);
 
-            // 정확한 매칭 실패 시, 상속 관계 검색 (예: VehicleEx → VehicleExs)
             if (entityType == null)
             {
                 var requestedType = AppDomain.CurrentDomain.GetAssemblies()
@@ -89,7 +77,7 @@ namespace ACS.Database
 
                 if (requestedType != null)
                 {
-                    entityType = _db.Model.GetEntityTypes()
+                    entityType = db.Model.GetEntityTypes()
                         .FirstOrDefault(et => requestedType.IsAssignableFrom(et.ClrType));
                 }
             }
@@ -107,42 +95,31 @@ namespace ACS.Database
             return resolved;
         }
 
-        /// <summary>
-        /// 타입에 대한 IQueryable을 가져온다.
-        /// DbContext.Set(Type) 은 non-generic IQueryable을 반환하므로 리플렉션으로 처리.
-        /// </summary>
-        private IQueryable<object> GetQueryable(Type clazz)
+        private IQueryable<object> GetQueryable(Type clazz, AcsDbContext db)
         {
-            // DbContext.Set<T>() 를 리플렉션으로 호출
             var setMethod = typeof(DbContext).GetMethod(nameof(DbContext.Set), Type.EmptyTypes);
             var genericSet = setMethod.MakeGenericMethod(clazz);
-            var dbSet = genericSet.Invoke(_db, null);
+            var dbSet = genericSet.Invoke(db, null);
 
-            // IQueryable<T> → IQueryable<object> 캐스트
             var castMethod = typeof(Queryable).GetMethod(nameof(Queryable.Cast)).MakeGenericMethod(typeof(object));
             return (IQueryable<object>)castMethod.Invoke(null, new[] { dbSet });
         }
 
-        /// <summary>
-        /// 엔티티의 프로퍼티 값을 리플렉션으로 가져온다.
-        /// </summary>
         private object GetPropertyValue(object entity, string propertyName)
         {
             return entity?.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)?.GetValue(entity);
         }
 
         /// <summary>
-        /// 엔티티의 프로퍼티 값을 리플렉션으로 설정한다.
-        /// 단일 DbContext 가 다중 워크플로우에서 공유되면서 ChangeTracker snapshot 의
-        /// OriginalValue 가 손상되어 변경 감지가 누락되는 케이스를 방지하기 위해
-        /// EF Core 트래커에 IsModified=true 를 명시한다.
+        /// 엔티티의 프로퍼티 값을 리플렉션으로 설정하고 EF 트래커에 IsModified 를 명시한다.
+        /// per-operation DbContext 에서도 방어적으로 IsModified 를 셋팅하여 어떤 경우에도
+        /// UPDATE 에서 누락되지 않도록 한다.
         /// </summary>
-        private void SetPropertyValue(object entity, string propertyName, object value)
+        private void SetPropertyValue(object entity, string propertyName, object value, AcsDbContext db)
         {
             var prop = entity?.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop != null && prop.CanWrite)
             {
-                // PostgreSQL timestamp with time zone는 UTC만 허용
                 if (value is DateTime dt && dt.Kind == DateTimeKind.Local)
                     value = dt.ToUniversalTime();
 
@@ -150,7 +127,7 @@ namespace ACS.Database
 
                 try
                 {
-                    var entry = _db.Entry(entity);
+                    var entry = db.Entry(entity);
                     if (entry.State != EntityState.Detached)
                     {
                         var efProp = entry.Property(prop.Name);
@@ -164,12 +141,9 @@ namespace ACS.Database
             }
         }
 
-        /// <summary>
-        /// 엔티티 ID 프로퍼티 이름을 찾는다.
-        /// </summary>
-        private string GetKeyPropertyName(Type clazz)
+        private string GetKeyPropertyName(Type clazz, AcsDbContext db)
         {
-            var entityType = _db.Model.FindEntityType(clazz);
+            var entityType = db.Model.FindEntityType(clazz);
             if (entityType != null)
             {
                 var key = entityType.FindPrimaryKey();
@@ -185,13 +159,15 @@ namespace ACS.Database
 
         public bool Use(Type clazz)
         {
-            return _db.Model.FindEntityType(clazz) != null;
+            using var db = NewDb();
+            return db.Model.FindEntityType(clazz) != null;
         }
 
         public bool Use(string className)
         {
-            var type = ResolveType(className);
-            return type != null && Use(type);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
+            return type != null && db.Model.FindEntityType(type) != null;
         }
 
         public object Exist(Type clazz, ISerializable id)
@@ -201,11 +177,12 @@ namespace ACS.Database
 
         public object Exist(string className, ISerializable id)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return null;
 
             object idValue = NormalizeId(id);
-            return _db.Find(type, idValue);
+            return db.Find(type, idValue);
         }
 
         public object ExistByName(Type clazz, object value)
@@ -215,12 +192,12 @@ namespace ACS.Database
 
         public object ExistByName(string className, object value)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return null;
 
-            var query = GetQueryable(type);
-            var result = query.AsEnumerable().FirstOrDefault(e => Equals(GetPropertyValue(e, "Name"), value));
-            return result;
+            var query = GetQueryable(type, db);
+            return query.AsEnumerable().FirstOrDefault(e => Equals(GetPropertyValue(e, "Name"), value));
         }
 
         #endregion
@@ -235,15 +212,15 @@ namespace ACS.Database
             {
                 try
                 {
-                    _db.Add(obj);
-                    _db.SaveChanges();
+                    using var db = NewDb();
+                    db.Add(obj);
+                    db.SaveChanges();
                     return;
                 }
                 catch (Exception)
                 {
                     tryCount++;
                     if (tryCount > dataAccessRetryCount) throw;
-                    DetachEntity(obj);
                     System.Threading.Thread.Sleep((int)dataAccessRetrySleep);
                 }
             } while (tryCount <= dataAccessRetryCount);
@@ -271,36 +248,27 @@ namespace ACS.Database
             {
                 try
                 {
-                    var entry = _db.Entry(obj);
-                    if (entry.State == EntityState.Detached)
-                    {
-                        // ID로 기존 엔티티 확인
-                        var type = obj.GetType();
-                        var keyName = GetKeyPropertyName(type);
-                        var keyValue = GetPropertyValue(obj, keyName);
+                    using var db = NewDb();
+                    var type = obj.GetType();
+                    var keyName = GetKeyPropertyName(type, db);
+                    var keyValue = GetPropertyValue(obj, keyName);
 
-                        var existing = keyValue != null ? _db.Find(type, keyValue) : null;
-                        if (existing != null)
-                        {
-                            _db.Entry(existing).CurrentValues.SetValues(obj);
-                        }
-                        else
-                        {
-                            _db.Add(obj);
-                        }
+                    var existing = keyValue != null ? db.Find(type, keyValue) : null;
+                    if (existing != null)
+                    {
+                        db.Entry(existing).CurrentValues.SetValues(obj);
                     }
                     else
                     {
-                        _db.Update(obj);
+                        db.Add(obj);
                     }
-                    _db.SaveChanges();
+                    db.SaveChanges();
                     return;
                 }
                 catch (Exception)
                 {
                     tryCount++;
                     if (tryCount > dataAccessRetryCount) throw;
-                    DetachEntity(obj);
                     System.Threading.Thread.Sleep((int)dataAccessRetrySleep);
                 }
             } while (tryCount <= dataAccessRetryCount);
@@ -308,7 +276,8 @@ namespace ACS.Database
 
         public void Flush()
         {
-            _db.SaveChanges();
+            // per-operation DbContext 모델에서는 외부에서 호출되는 명시적 Flush 가 의미 없다.
+            // 모든 변경은 각 메서드 내부에서 SaveChanges 로 즉시 커밋된다.
         }
 
         public void UpdateAll(ICollection collection)
@@ -325,34 +294,34 @@ namespace ACS.Database
 
         public IList<T> Find<T>(string hql) where T : class
         {
-            // HQL → Raw SQL 변환은 불가능하므로 빈 리스트 반환 (사용자가 LINQ로 전환 필요)
-            // 대부분의 HQL 쿼리는 단순 SELECT이므로 fallback으로 전체 조회
-            return _db.Set<T>().ToList();
+            using var db = NewDb();
+            return db.Set<T>().ToList();
         }
 
         public object Find(Type clazz, ISerializable id)
         {
+            using var db = NewDb();
             object idValue = NormalizeId(id);
-            return _db.Find(clazz, idValue);
+            return db.Find(clazz, idValue);
         }
 
         public object Find(string className, ISerializable id)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return null;
-            return Find(type, id);
+            object idValue = NormalizeId(id);
+            return db.Find(type, idValue);
         }
 
         public object Find(Type clazz, ISerializable id, bool throwExceptionIfNotFound)
         {
-            var result = Find(clazz, id);
-            return result;
+            return Find(clazz, id);
         }
 
         public object Find(string className, ISerializable id, bool throwExceptionIfNotFound)
         {
-            var result = Find(className, id);
-            return result;
+            return Find(className, id);
         }
 
         public object FindByName(Type clazz, object value)
@@ -362,10 +331,11 @@ namespace ACS.Database
 
         public object FindByName(string className, object value)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return null;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             return query.AsEnumerable().FirstOrDefault(e => Equals(GetPropertyValue(e, "Name"), value));
         }
 
@@ -392,7 +362,6 @@ namespace ACS.Database
 
         public IList FindByExample(object obj, bool ignoreException)
         {
-            // NHibernate의 FindByExample은 원래도 구현되지 않았음 (빈 리스트 반환)
             return new ArrayList();
         }
 
@@ -415,10 +384,11 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var result = query.AsEnumerable().Where(e => Equals(GetPropertyValue(e, name), value)).ToList();
                 return new ArrayList(result);
             }
@@ -448,10 +418,11 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var result = query.AsEnumerable()
                     .Where(e => Equals(GetPropertyValue(e, name), value))
                     .OrderBy(e => GetPropertyValue(e, order))
@@ -484,10 +455,11 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return new ArrayList();
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var result = query.AsEnumerable()
                     .Where(e => Equals(GetPropertyValue(e, name), value))
                     .OrderByDescending(e => GetPropertyValue(e, order))
@@ -508,10 +480,11 @@ namespace ACS.Database
 
         public IList FindByAttributes(string className, Dictionary<string, object> attributes)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
@@ -525,10 +498,11 @@ namespace ACS.Database
 
         public IList FindByAttributesOrderBy(string className, Dictionary<string, object> attributes, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .OrderBy(e => GetPropertyValue(e, order))
@@ -543,10 +517,11 @@ namespace ACS.Database
 
         public IList FindByAttributesOrderByDesc(string className, Dictionary<string, object> attributes, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .OrderByDescending(e => GetPropertyValue(e, order))
@@ -561,10 +536,11 @@ namespace ACS.Database
 
         public IList FindAll(string className)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             return new ArrayList(query.ToList());
         }
 
@@ -575,10 +551,11 @@ namespace ACS.Database
 
         public IList FindAllOrderBy(string className, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable().OrderBy(e => GetPropertyValue(e, order)).ToList();
             return new ArrayList(result);
         }
@@ -590,10 +567,11 @@ namespace ACS.Database
 
         public IList FindAllOrderByDesc(string className, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable().OrderByDescending(e => GetPropertyValue(e, order)).ToList();
             return new ArrayList(result);
         }
@@ -605,10 +583,11 @@ namespace ACS.Database
 
         public IList FindProperty(string className, string property)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable().Select(e => GetPropertyValue(e, property)).ToList();
             return new ArrayList(result);
         }
@@ -620,10 +599,11 @@ namespace ACS.Database
 
         public IList FindPropertyOrderBy(string className, string property, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .OrderBy(e => GetPropertyValue(e, order))
                 .Select(e => GetPropertyValue(e, property))
@@ -638,10 +618,11 @@ namespace ACS.Database
 
         public IList FindPropertyByAttributes(string className, string property, string conditionName, object conditionValue)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .Select(e => GetPropertyValue(e, property))
@@ -656,10 +637,11 @@ namespace ACS.Database
 
         public IList FindPropertyByAttributesOrderBy(string className, string property, string conditionName, object conditionValue, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .OrderBy(e => GetPropertyValue(e, order))
@@ -675,10 +657,11 @@ namespace ACS.Database
 
         public IList FindByAttributesOR(string className, Dictionary<string, object> attributes)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => attributes.Any(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
@@ -692,10 +675,11 @@ namespace ACS.Database
 
         public IList FindPropertyByAttributesOR(string className, string property, Dictionary<string, object> attributes)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e => attributes.Any(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .Select(e => GetPropertyValue(e, property))
@@ -727,11 +711,12 @@ namespace ACS.Database
 
         public IList FindByLike(string className, string name, object value)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -749,11 +734,12 @@ namespace ACS.Database
 
         public IList FindByLikeOrderByDesc(string className, string name, object value, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -772,11 +758,12 @@ namespace ACS.Database
 
         public IList FindByLikeOrderByAsc(string className, string name, object value, string order)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return new ArrayList();
 
             string pattern = value?.ToString() ?? "";
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var result = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -790,8 +777,6 @@ namespace ACS.Database
 
         public IList<T> FindByBindingQuery<T>(string hql, ArrayList parameters)
         {
-            // HQL 바인딩 쿼리 → EF Core에서 직접 지원 불가
-            // 호출 코드에서 LINQ로 전환 필요
             return new List<T>();
         }
 
@@ -804,34 +789,32 @@ namespace ACS.Database
             Update(obj, false);
         }
 
+        /// <summary>
+        /// 단일 엔티티 업데이트.
+        /// per-operation DbContext 에서 항상 Detached 상태이므로 Attach 후 State=Modified 로 마킹.
+        /// EF Core 가 모든 non-key 속성을 UPDATE 문에 포함시키므로 silent drop 불가.
+        /// </summary>
         public void Update(object obj, bool ignoreException)
         {
             try
             {
                 NormalizeDateTimeProperties(obj);
+                using var db = NewDb();
 
-                var entry = _db.Entry(obj);
-                if (entry.State == EntityState.Detached)
+                db.Attach(obj);
+                db.Entry(obj).State = EntityState.Modified;
+
+                int saved = db.SaveChanges();
+                if (saved == 0)
                 {
-                    _db.Attach(obj);
-                    entry.State = EntityState.Modified;
+                    var keyName = GetKeyPropertyName(obj.GetType(), db);
+                    var keyValue = GetPropertyValue(obj, keyName);
+                    logger.Warn($"PersistentDao.Update: 0 rows affected. type={obj.GetType().Name}, {keyName}={keyValue}");
                 }
-                else
-                {
-                    // ChangeTracker snapshot 이 손상되어 변경 감지가 누락되는 케이스 방지.
-                    // PK/Concurrency token 을 제외한 모든 scalar 속성을 Modified 로 강제.
-                    // SetPropertyValue 가 단일 속성에 적용하는 IsModified 처리의 전체 버전.
-                    foreach (var prop in entry.Properties)
-                    {
-                        if (prop.Metadata.IsPrimaryKey()) continue;
-                        if (prop.Metadata.IsConcurrencyToken) continue;
-                        prop.IsModified = true;
-                    }
-                }
-                _db.SaveChanges();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger.Error($"PersistentDao.Update: {ex.Message}", ex);
                 if (!ignoreException) throw;
             }
         }
@@ -853,18 +836,21 @@ namespace ACS.Database
 
         public int Update(string className, Dictionary<string, object> setAttributes, string id)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var entity = _db.Find(type, id);
+            var entity = db.Find(type, id);
             if (entity == null) return 0;
 
             foreach (var kv in setAttributes)
             {
-                SetPropertyValue(entity, kv.Key, kv.Value);
+                SetPropertyValue(entity, kv.Key, kv.Value, db);
             }
-            _db.SaveChanges();
-            return 1;
+            int saved = db.SaveChanges();
+            if (saved == 0)
+                logger.Warn($"PersistentDao.Update(dict): 0 rows affected. type={type.Name}, id={id}");
+            return saved > 0 ? 1 : 0;
         }
 
         public int UpdateByName(Type clazz, string setName, object setValue, string name)
@@ -884,10 +870,11 @@ namespace ACS.Database
 
         public int UpdateByName(string className, Dictionary<string, object> setAttributes, string value)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, "Name"), value))
                 .ToList();
@@ -896,11 +883,13 @@ namespace ACS.Database
             {
                 foreach (var kv in setAttributes)
                 {
-                    SetPropertyValue(entity, kv.Key, kv.Value);
+                    SetPropertyValue(entity, kv.Key, kv.Value, db);
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByName: 0 rows affected. type={type.Name}, matched={entities.Count}, value={value}");
             return entities.Count;
         }
 
@@ -911,20 +900,23 @@ namespace ACS.Database
 
         public int UpdateByAttribute(string className, string setName, object setValue, string conditionName, object conditionValue)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .ToList();
 
             foreach (var entity in entities)
             {
-                SetPropertyValue(entity, setName, setValue);
+                SetPropertyValue(entity, setName, setValue, db);
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttribute: 0 rows affected. type={type.Name}, matched={entities.Count}, {conditionName}={conditionValue}, set {setName}={setValue}");
             return entities.Count;
         }
 
@@ -935,20 +927,23 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, string setName, object setValue, Dictionary<string, object> conditionAttributes)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => conditionAttributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
 
             foreach (var entity in entities)
             {
-                SetPropertyValue(entity, setName, setValue);
+                SetPropertyValue(entity, setName, setValue, db);
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes: 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
@@ -959,20 +954,23 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, string setName, object setValue, Dictionary<string, object> conditionAttributes, string[] operators)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => MatchByOperators(e, conditionAttributes, operators))
                 .ToList();
 
             foreach (var entity in entities)
             {
-                SetPropertyValue(entity, setName, setValue);
+                SetPropertyValue(entity, setName, setValue, db);
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes(op): 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
@@ -983,10 +981,11 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, Dictionary<string, object> setAttributes, string conditionName, string conditionValue)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .ToList();
@@ -995,11 +994,13 @@ namespace ACS.Database
             {
                 foreach (var kv in setAttributes)
                 {
-                    SetPropertyValue(entity, kv.Key, kv.Value);
+                    SetPropertyValue(entity, kv.Key, kv.Value, db);
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes(dict-single): 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
@@ -1010,10 +1011,11 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, Dictionary<string, object> setAttributes, Dictionary<string, object> conditionAttributes)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => conditionAttributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                 .ToList();
@@ -1022,11 +1024,13 @@ namespace ACS.Database
             {
                 foreach (var kv in setAttributes)
                 {
-                    SetPropertyValue(entity, kv.Key, kv.Value);
+                    SetPropertyValue(entity, kv.Key, kv.Value, db);
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes(dict-dict): 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
@@ -1037,10 +1041,11 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, Dictionary<string, object> setAttributes, Dictionary<string, object> conditionAttributes, string[] operators)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => MatchByOperators(e, conditionAttributes, operators))
                 .ToList();
@@ -1049,11 +1054,13 @@ namespace ACS.Database
             {
                 foreach (var kv in setAttributes)
                 {
-                    SetPropertyValue(entity, kv.Key, kv.Value);
+                    SetPropertyValue(entity, kv.Key, kv.Value, db);
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes(dict-dict-op): 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
@@ -1064,10 +1071,11 @@ namespace ACS.Database
 
         public int UpdateByAttributes(string className, Dictionary<string, object> setAttributes, string conditionName, object conditionValue)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => Equals(GetPropertyValue(e, conditionName), conditionValue))
                 .ToList();
@@ -1076,20 +1084,23 @@ namespace ACS.Database
             {
                 foreach (var kv in setAttributes)
                 {
-                    SetPropertyValue(entity, kv.Key, kv.Value);
+                    SetPropertyValue(entity, kv.Key, kv.Value, db);
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && entities.Count > 0)
+                logger.Warn($"PersistentDao.UpdateByAttributes(dict-name-obj): 0 rows affected. type={type.Name}, matched={entities.Count}");
             return entities.Count;
         }
 
         public int UpdateByListAttributes(string className, string setName, object setValue, ArrayList conditionList)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             int count = 0;
 
             foreach (var conditionValue in conditionList)
@@ -1100,33 +1111,39 @@ namespace ACS.Database
 
                 foreach (var entity in entities)
                 {
-                    SetPropertyValue(entity, setName, setValue);
+                    SetPropertyValue(entity, setName, setValue, db);
                     count++;
                 }
             }
 
-            _db.SaveChanges();
+            int saved = db.SaveChanges();
+            if (saved == 0 && count > 0)
+                logger.Warn($"PersistentDao.UpdateByListAttributes: 0 rows affected. type={type.Name}, matched={count}");
             return count;
         }
 
         public int UpdateByHql(string hql)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db));
         }
 
         public int UpdateByHql(string hql, string value)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db), value);
         }
 
         public int UpdateByHql(string hql, string[] values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db), values.Cast<object>().ToArray());
         }
 
         public int UpdateByHql(string hql, ArrayList values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db), values.Cast<object>().ToArray());
         }
 
         #endregion
@@ -1142,16 +1159,16 @@ namespace ACS.Database
         {
             try
             {
-                var entry = _db.Entry(obj);
-                if (entry.State == EntityState.Detached)
-                {
-                    _db.Attach(obj);
-                }
-                _db.Remove(obj);
-                _db.SaveChanges();
+                using var db = NewDb();
+                db.Attach(obj);
+                db.Remove(obj);
+                int saved = db.SaveChanges();
+                if (saved == 0)
+                    logger.Warn($"PersistentDao.Delete: 0 rows affected. type={obj.GetType().Name}");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger.Error($"PersistentDao.Delete: {ex.Message}", ex);
                 if (!ignoreException) throw;
             }
         }
@@ -1163,16 +1180,17 @@ namespace ACS.Database
 
         public int Delete(string className, ISerializable id)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
             object idValue = NormalizeId(id);
-            var entity = _db.Find(type, idValue);
+            var entity = db.Find(type, idValue);
             if (entity == null) return 0;
 
-            _db.Remove(entity);
-            _db.SaveChanges();
-            return 1;
+            db.Remove(entity);
+            int saved = db.SaveChanges();
+            return saved > 0 ? 1 : 0;
         }
 
         public int DeleteByName(Type clazz, string value)
@@ -1204,16 +1222,17 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return 0;
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var entities = query.AsEnumerable()
                     .Where(e => Equals(GetPropertyValue(e, name), value))
                     .ToList();
 
-                _db.RemoveRange(entities);
-                _db.SaveChanges();
+                db.RemoveRange(entities);
+                db.SaveChanges();
                 return entities.Count;
             }
             catch (Exception)
@@ -1242,16 +1261,17 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return 0;
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var entities = query.AsEnumerable()
                     .Where(e => attributes.All(kv => Equals(GetPropertyValue(e, kv.Key), kv.Value)))
                     .ToList();
 
-                _db.RemoveRange(entities);
-                _db.SaveChanges();
+                db.RemoveRange(entities);
+                db.SaveChanges();
                 return entities.Count;
             }
             catch (Exception)
@@ -1268,16 +1288,17 @@ namespace ACS.Database
 
         public int DeleteByAttributes(string className, Dictionary<string, object> attributes, string[] operators)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e => MatchByOperators(e, attributes, operators))
                 .ToList();
 
-            _db.RemoveRange(entities);
-            _db.SaveChanges();
+            db.RemoveRange(entities);
+            db.SaveChanges();
             return entities.Count;
         }
 
@@ -1313,10 +1334,11 @@ namespace ACS.Database
 
         public int DeleteByTime(string className, DateTime startDate, DateTime endDate, int maxCount)
         {
-            var type = ResolveType(className);
+            using var db = NewDb();
+            var type = ResolveType(className, db);
             if (type == null) return 0;
 
-            var query = GetQueryable(type);
+            var query = GetQueryable(type, db);
             var entities = query.AsEnumerable()
                 .Where(e =>
                 {
@@ -1328,8 +1350,8 @@ namespace ACS.Database
                 .Take(maxCount)
                 .ToList();
 
-            _db.RemoveRange(entities);
-            _db.SaveChanges();
+            db.RemoveRange(entities);
+            db.SaveChanges();
             return entities.Count;
         }
 
@@ -1362,10 +1384,11 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return 0;
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var entities = query.AsEnumerable()
                     .Where(e =>
                     {
@@ -1377,8 +1400,8 @@ namespace ACS.Database
                     .Take(maxCount)
                     .ToList();
 
-                _db.RemoveRange(entities);
-                _db.SaveChanges();
+                db.RemoveRange(entities);
+                db.SaveChanges();
                 return entities.Count;
             }
             catch (Exception)
@@ -1407,14 +1430,15 @@ namespace ACS.Database
         {
             try
             {
-                var type = ResolveType(className);
+                using var db = NewDb();
+                var type = ResolveType(className, db);
                 if (type == null) return 0;
 
-                var query = GetQueryable(type);
+                var query = GetQueryable(type, db);
                 var entities = query.ToList();
 
-                _db.RemoveRange(entities);
-                _db.SaveChanges();
+                db.RemoveRange(entities);
+                db.SaveChanges();
                 return entities.Count;
             }
             catch (Exception)
@@ -1426,21 +1450,19 @@ namespace ACS.Database
 
         public void DeleteAll(ICollection collection)
         {
+            using var db = NewDb();
             foreach (var entity in collection)
             {
-                var entry = _db.Entry(entity);
-                if (entry.State == EntityState.Detached)
-                {
-                    _db.Attach(entity);
-                }
-                _db.Remove(entity);
+                db.Attach(entity);
+                db.Remove(entity);
             }
-            _db.SaveChanges();
+            db.SaveChanges();
         }
 
         public int DeleteByHql(string hql)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql));
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db));
         }
 
         public int DeleteByHql(string hql, bool ignoreException)
@@ -1458,7 +1480,8 @@ namespace ACS.Database
 
         public int DeleteByHql(string hql, string value)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), value);
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db), value);
         }
 
         public int DeleteByHql(string hql, string value, bool ignoreException)
@@ -1476,7 +1499,8 @@ namespace ACS.Database
 
         public int DeleteByHql(string hql, ArrayList values)
         {
-            return _db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql), values.Cast<object>().ToArray());
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(ConvertHqlToSql(hql, db), values.Cast<object>().ToArray());
         }
 
         public int DeleteByHql(string hql, ArrayList values, bool ignoreException)
@@ -1498,12 +1522,14 @@ namespace ACS.Database
 
         public void Evict(object obj)
         {
-            DetachEntity(obj);
+            // per-operation DbContext 모델에서 호출자 측 detach 는 의미 없다 (이미 외부 객체).
+            // no-op 로 안전하게 보존.
         }
 
         public int ExecuteUpdate(string sql)
         {
-            return _db.Database.ExecuteSqlRaw(sql);
+            using var db = NewDb();
+            return db.Database.ExecuteSqlRaw(sql);
         }
 
         #endregion
@@ -1519,19 +1545,8 @@ namespace ACS.Database
             return id;
         }
 
-        private void DetachEntity(object entity)
-        {
-            var entry = _db.Entry(entity);
-            if (entry.State != EntityState.Detached)
-            {
-                entry.State = EntityState.Detached;
-            }
-        }
-
         /// <summary>
-        /// 엔티티의 모든 DateTime/DateTime? 프로퍼티를 UTC로 정규화.
-        /// PostgreSQL의 timestamp with time zone 컬럼은 Npgsql에서 UTC만 허용하므로,
-        /// DateTimeKind.Local 또는 Unspecified인 값을 UTC로 변환한다.
+        /// 엔티티의 모든 DateTime/DateTime? 프로퍼티를 UTC 로 정규화.
         /// </summary>
         private void NormalizeDateTimeProperties(object entity)
         {
@@ -1564,10 +1579,6 @@ namespace ACS.Database
             }
         }
 
-        /// <summary>
-        /// 연산자 배열을 사용하여 조건 매칭 (AND/OR 혼합).
-        /// operators[i]는 i번째 조건과 (i+1)번째 조건 사이의 연산자.
-        /// </summary>
         private bool MatchByOperators(object entity, Dictionary<string, object> attributes, string[] operators)
         {
             var keys = attributes.Keys.ToArray();
@@ -1589,14 +1600,8 @@ namespace ACS.Database
             return result;
         }
 
-        /// <summary>
-        /// HQL을 SQL로 간단히 변환.
-        /// NHibernate HQL에서 '?'를 EF Core의 {0}, {1} 파라미터로 변환.
-        /// 엔티티 이름을 테이블 이름으로 변환.
-        /// </summary>
-        private string ConvertHqlToSql(string hql)
+        private string ConvertHqlToSql(string hql, AcsDbContext db)
         {
-            // '?' 파라미터를 {0}, {1}, ... 로 치환
             string sql = hql;
             int paramIndex = 0;
             while (sql.Contains("?"))
@@ -1606,14 +1611,12 @@ namespace ACS.Database
                 paramIndex++;
             }
 
-            // 엔티티 이름 → 테이블 이름 변환
-            foreach (var entityType in _db.Model.GetEntityTypes())
+            foreach (var entityType in db.Model.GetEntityTypes())
             {
                 string entityName = entityType.ClrType.Name;
                 string fullName = entityType.ClrType.FullName;
                 string tableName = entityType.GetTableName() ?? entityName;
 
-                // 전체 이름 우선 치환 (짧은 이름과 충돌 방지)
                 if (sql.Contains(fullName))
                 {
                     sql = sql.Replace(fullName, tableName);
