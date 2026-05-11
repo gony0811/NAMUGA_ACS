@@ -43,6 +43,9 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# DB 마스터 데이터 백업물 (docker/scripts/backup-master.ps1 출력)
+docker/backups/
+
 # MSBuild Binary and Structured Log
 *.binlog
 
