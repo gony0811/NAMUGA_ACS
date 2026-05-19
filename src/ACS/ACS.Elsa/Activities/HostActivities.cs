@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Xml;
 using Elsa.Extensions;
 using Elsa.Workflows;
@@ -7,7 +8,11 @@ using Elsa.Workflows.Models;
 using ACS.Core.Host;
 using ACS.Core.Logging;
 using ACS.Core.Base;
+using ACS.Core.Cache;
 using ACS.Core.Path;
+using ACS.Core.Path.Model;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
 using ACS.Elsa.Bridge;
@@ -353,9 +358,100 @@ namespace ACS.Elsa.Activities
                 string acsId = ExtractValue(moveCmdXml, "//DataLayer/AcsId")
                             ?? ExtractValue(moveCmdXml, "//AcsId") ?? "";
 
+                // MES.dest 의 station 타입이 ActionType 과 호환되는지 검증.
+                //   LOAD  : 차량이 도착해서 'deposit' → station type ∈ {DEPOSIT, BOTH}
+                //   UNLOAD: 차량이 도착해서 'acquire' → station type ∈ {ACQUIRE, BOTH}
+                // station 타입이 일치하지 않으면 NACK. 데이터에 없는 location 은 후속 검증에서 따로 처리.
+                {
+                    bool isLoadCheck   = string.Equals(actionType, "LOAD",   StringComparison.OrdinalIgnoreCase);
+                    bool isUnloadCheck = string.Equals(actionType, "UNLOAD", StringComparison.OrdinalIgnoreCase);
+                    if ((isLoadCheck || isUnloadCheck) && !string.IsNullOrWhiteSpace(destLoc))
+                    {
+                        var cacheChk = accessor.Resolve<ICacheManagerEx>();
+                        if (cacheChk != null)
+                        {
+                            var destKeyChk = string.IsNullOrEmpty(destPort) ? destLoc : $"{destLoc}:{destPort}";
+                            var destLocChk = cacheChk.GetLocationByLocationId(destKeyChk);
+                            var destStChk = destLocChk != null ? cacheChk.GetStationById(destLocChk.StationId) : null;
+                            if (destStChk != null)
+                            {
+                                string expectedType = isLoadCheck ? StationExs.TYPE_DEPOSITE : StationExs.TYPE_ACQUIRE;
+                                bool typeOk = string.Equals(destStChk.Type, expectedType, StringComparison.OrdinalIgnoreCase)
+                                           || string.Equals(destStChk.Type, StationExs.TYPE_BOTH, StringComparison.OrdinalIgnoreCase);
+                                if (!typeOk)
+                                {
+                                    logger.Warn($"CreateTransportCommandActivity: {actionType} dest station type mismatch - Dest={destKeyChk}, Station={destStChk.Id}, expected={expectedType}/BOTH, actual={destStChk.Type}");
+                                    context.Set(ErrCode, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item1);
+                                    context.Set(ErrMsg, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item2);
+                                    context.Set(Result, false);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // LOAD/UNLOAD 액션이고 SourceLoc + SourcePort 가 모두 비어 있으면 자동 해석.
+                //   LOAD : DestLoc 의 zone 과 동일 zone 의 ACQUIRE BUFFER 를 source 로 채움. SourcePort="LEFT".
+                //   UNLOAD: DestLoc/DestPort 를 source 로 옮기고, 동일 zone 의 DEPOSIT BUFFER 를 dest 로 채움.
+                //           새 DestPort 는 "LEFT" 로 통일.
+                bool isLoad   = string.Equals(actionType, "LOAD",   StringComparison.OrdinalIgnoreCase);
+                bool isUnload = string.Equals(actionType, "UNLOAD", StringComparison.OrdinalIgnoreCase);
+                if ((isLoad || isUnload)
+                    && string.IsNullOrWhiteSpace(sourceLoc)
+                    && string.IsNullOrWhiteSpace(sourcePort))
+                {
+                    if (isLoad)
+                    {
+                        var resolved = ResolveZoneMatchedBuffer(accessor, destLoc, destPort, StationExs.TYPE_ACQUIRE);
+                        if (resolved == null)
+                        {
+                            logger.Warn($"CreateTransportCommandActivity: LOAD source auto-resolve failed - Dest={destLoc}");
+                            context.Set(ErrCode, AbstractManager.ID_RESULT_SOURCEMACHINE_NOTFOUND.Item1);
+                            context.Set(ErrMsg, AbstractManager.ID_RESULT_SOURCEMACHINE_NOTFOUND.Item2);
+                            context.Set(Result, false);
+                            return;
+                        }
+                        sourceLoc = resolved;
+                        sourcePort = "LEFT";
+                        logger.Info($"CreateTransportCommandActivity: LOAD source auto-resolved - SourceLoc={sourceLoc}, SourcePort={sourcePort}, Dest={destLoc}");
+                    }
+                    else // UNLOAD
+                    {
+                        // 1) 원래 dest(=EQP) 를 source 로 이동
+                        sourceLoc = destLoc;
+                        sourcePort = destPort;
+
+                        // 2) 동일 zone 의 DEPOSIT BUFFER 로 dest 자동 해석
+                        var resolved = ResolveZoneMatchedBuffer(accessor, sourceLoc, sourcePort, StationExs.TYPE_DEPOSITE);
+                        if (resolved == null)
+                        {
+                            logger.Warn($"CreateTransportCommandActivity: UNLOAD dest auto-resolve failed - Source={sourceLoc}:{sourcePort}");
+                            // dest 측 NOTFOUND 로 응답
+                            context.Set(ErrCode, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item1);
+                            context.Set(ErrMsg, AbstractManager.ID_RESULT_DESTMACHINE_NOTFOUND.Item2);
+                            context.Set(Result, false);
+                            return;
+                        }
+                        destLoc = resolved;
+                        destPort = "LEFT";
+                        logger.Info($"CreateTransportCommandActivity: UNLOAD dest auto-resolved - Source={sourceLoc}:{sourcePort}, DestLoc={destLoc}, DestPort={destPort}");
+                    }
+                }
+
                 // Source, Dest 조합: "SourceLoc:SourcePort" 형식
                 string source = string.IsNullOrEmpty(sourcePort) ? sourceLoc : $"{sourceLoc}:{sourcePort}";
                 string dest = string.IsNullOrEmpty(destPort) ? destLoc : $"{destLoc}:{destPort}";
+
+                // Source == Dest 차단 (자동해석 결과가 anchor 와 동일해지는 경우 등 방지)
+                if (!string.IsNullOrEmpty(source) && string.Equals(source, dest, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"CreateTransportCommandActivity: source and dest are identical - {source}");
+                    context.Set(ErrCode, AbstractManager.ID_RESULT_SOURCEDESTMACHINE_DUPLICATE.Item1);
+                    context.Set(ErrMsg, AbstractManager.ID_RESULT_SOURCEDESTMACHINE_DUPLICATE.Item2);
+                    context.Set(Result, false);
+                    return;
+                }
 
                 // 중복 검증: 동일 JobID가 이미 DB에 존재하면 생성하지 않음
                 if (transferManager.ExistTransportCommand(jobId))
@@ -458,6 +554,126 @@ namespace ACS.Elsa.Activities
             {
                 return null;
             }
+        }
+
+        // anchorLoc/anchorPort 의 zone 과 동일 zone 에 속한 BUFFER + 지정 stationType 후보의 LocationId 반환.
+        //   LOAD : anchor=Dest(EQP),   stationType=ACQUIRE → source 후보
+        //   UNLOAD: anchor=Source(EQP), stationType=DEPOSIT → dest 후보
+        // 단계별 사유는 logger.Warn 으로만 출력 (MES NACK 는 호출부에서 단일 SOURCEMACHINENOTFOUND).
+        // LocationId 오름차순 첫 번째 후보를 ':' 로 split 한 [0] 을 반환. 후보 없으면 null.
+        private static string ResolveZoneMatchedBuffer(
+            AutofacContainerAccessor accessor, string anchorLoc, string anchorPort, string stationType)
+        {
+            var tag = $"ResolveZoneMatchedBuffer({stationType})";
+
+            if (string.IsNullOrWhiteSpace(anchorLoc))
+            {
+                logger.Warn($"{tag}: anchorLoc empty");
+                return null;
+            }
+
+            var cache = accessor.Resolve<ICacheManagerEx>();
+            var resource = accessor.Resolve<IResourceManagerEx>();
+            if (cache == null || resource == null)
+            {
+                logger.Warn($"{tag}: DI resolve failed (cache={(cache != null)},resource={(resource != null)})");
+                return null;
+            }
+
+            // 1. anchorLoc(+anchorPort) → Station → LinkZone → ZoneId (기준 zone)
+            var anchorKey = string.IsNullOrEmpty(anchorPort) ? anchorLoc : $"{anchorLoc}:{anchorPort}";
+            var anchorLocation = cache.GetLocationByLocationId(anchorKey);
+            if (anchorLocation == null)
+            {
+                logger.Warn($"{tag}: NA_R_LOCATION miss '{anchorKey}'");
+                return null;
+            }
+            logger.Info($"{tag}: anchorLocation={anchorLocation.LocationId}, StationId={anchorLocation.StationId}, Type={anchorLocation.Type}");
+
+            var anchorStation = cache.GetStationById(anchorLocation.StationId);
+            if (anchorStation == null)
+            {
+                logger.Warn($"{tag}: NA_R_STATION miss '{anchorLocation.StationId}'");
+                return null;
+            }
+            if (string.IsNullOrEmpty(anchorStation.LinkId))
+            {
+                logger.Warn($"{tag}: Station '{anchorLocation.StationId}' has no LinkId");
+                return null;
+            }
+            logger.Info($"{tag}: anchorStation={anchorStation.Id}, Type={anchorStation.Type}, LinkId={anchorStation.LinkId}");
+
+            var anchorLinkZones = resource.GetLinkZonesByLinkId(anchorStation.LinkId);
+            if (anchorLinkZones == null || anchorLinkZones.Count == 0)
+            {
+                logger.Warn($"{tag}: NA_R_LINK_ZONE miss for LinkId='{anchorStation.LinkId}'");
+                return null;
+            }
+            var anchorZoneId = ((LinkZoneEx)anchorLinkZones[0]).ZoneId;
+            if (string.IsNullOrEmpty(anchorZoneId))
+            {
+                logger.Warn($"{tag}: LinkZone has empty ZoneId (LinkId='{anchorStation.LinkId}')");
+                return null;
+            }
+            logger.Info($"{tag}: anchorZoneId={anchorZoneId} (from LinkId={anchorStation.LinkId})");
+
+            // 2. BUFFER + (stationType) + 동일 zone 인 LocationEx 후보 수집
+            var allLocations = resource.GetLocations();
+            if (allLocations == null)
+            {
+                logger.Warn($"{tag}: GetLocations returned null");
+                return null;
+            }
+
+            int bufferCount = 0, typeMatchCount = 0, zoneMatchCount = 0;
+            var candidates = new List<string>();
+            foreach (LocationEx loc in allLocations)
+            {
+                if (loc == null) continue;
+                if (!string.Equals(loc.Type, "BUFFER", StringComparison.OrdinalIgnoreCase)) continue;
+                bufferCount++;
+
+                var st = cache.GetStationById(loc.StationId);
+                if (st == null) continue;
+                if (!string.Equals(st.Type, stationType, StringComparison.OrdinalIgnoreCase)) continue;
+                typeMatchCount++;
+                if (string.IsNullOrEmpty(st.LinkId)) continue;
+
+                var lzList = resource.GetLinkZonesByLinkId(st.LinkId);
+                if (lzList == null) continue;
+
+                bool zoneMatch = false;
+                foreach (LinkZoneEx lz in lzList)
+                {
+                    if (lz != null && string.Equals(lz.ZoneId, anchorZoneId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        zoneMatch = true;
+                        break;
+                    }
+                }
+                if (zoneMatch)
+                {
+                    zoneMatchCount++;
+                    if (!string.IsNullOrEmpty(loc.LocationId))
+                        candidates.Add(loc.LocationId);
+                }
+            }
+
+            logger.Info($"{tag}: scan result - BUFFER={bufferCount}, {stationType}={typeMatchCount}, zoneMatch={zoneMatchCount}, candidates={candidates.Count}");
+
+            if (candidates.Count == 0)
+            {
+                logger.Warn($"{tag}: no candidate in zone='{anchorZoneId}' (BUFFER={bufferCount},{stationType}={typeMatchCount},zoneMatch={zoneMatchCount})");
+                return null;
+            }
+
+            // 3. LocationId 오름차순 첫 번째, ':' 로 split 한 [0]
+            candidates.Sort(StringComparer.OrdinalIgnoreCase);
+            var first = candidates[0];
+            var parts = first.Split(':');
+            var result = parts.Length > 0 ? parts[0] : first;
+            logger.Info($"{tag}: chosen first candidate '{first}' → '{result}'");
+            return result;
         }
     }
 

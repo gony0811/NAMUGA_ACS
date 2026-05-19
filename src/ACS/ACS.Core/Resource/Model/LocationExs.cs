@@ -10,6 +10,8 @@ namespace ACS.Core.Resource.Model
     public class LocationExs : LocationEx
     {
         public static String LOCATION_TYPE_BUFFER = "BUFFER";
+        public static String LOCATION_TYPE_INPUT = "INPUT";
+        public static String LOCATION_TYPE_OUTPUT = "OUTPUT";
         public static String LOCATION_TYPE_CHARGE = "CHARGE";
         public static String LOCATION_TYPE_VIRTUAL_BUFF = "VBUFFER";
         public static String LOCATION_TYPE_EQP = "EQP";

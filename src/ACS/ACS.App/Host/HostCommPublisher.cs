@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using ACS.Core.Host;
+using ACS.Core.Logging;
 
 namespace ACS.App.Host
 {
@@ -21,7 +21,7 @@ namespace ACS.App.Host
     {
         private readonly IHostTcpGateway _gateway;
         private readonly IConfiguration _configuration;
-        private readonly ILogger<HostCommPublisher> _logger;
+        private readonly Logger _logger = Logger.GetLogger(typeof(HostCommPublisher));
 
         private IConnection _connection;
         private IModel _channel;
@@ -32,12 +32,10 @@ namespace ACS.App.Host
 
         public HostCommPublisher(
             IHostTcpGateway gateway,
-            IConfiguration configuration,
-            ILogger<HostCommPublisher> logger)
+            IConfiguration configuration)
         {
             _gateway = gateway;
             _configuration = configuration;
-            _logger = logger;
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -49,11 +47,11 @@ namespace ACS.App.Host
                 _gateway.Disconnected += OnDisconnected;
                 _gateway.MessageReceived += OnMessageReceived;
                 _gateway.MessageSent += OnMessageSent;
-                _logger.LogInformation("HostCommPublisher started. exchange={Exchange}", _exchangeName);
+                _logger.Info($"HostCommPublisher started. exchange={_exchangeName}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "HostCommPublisher start failed.");
+                _logger.Error("HostCommPublisher start failed.", ex);
             }
             return Task.CompletedTask;
         }
@@ -139,7 +137,7 @@ namespace ACS.App.Host
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "HostCommPublisher: publish failed.");
+                _logger.Warn("HostCommPublisher: publish failed.", ex);
             }
         }
 

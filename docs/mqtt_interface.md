@@ -38,7 +38,7 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
     "runState": "Running",
     "fullState": "full",
     "workState": "Idle",
-    "vehicleDestNode": "N0001"
+    "vehicleDestNode": "N001"
   },
   
   "pose": {
