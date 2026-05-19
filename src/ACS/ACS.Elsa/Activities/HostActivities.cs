@@ -513,7 +513,7 @@ namespace ACS.Elsa.Activities
                     CreateTime = DateTime.Now,
                     QueuedTime = DateTime.Now,
                     // 나머지 시간 필드 null로 초기화
-                    AssignedTime = null,
+                        AssignedTime = null,
                     CompletedTime = null,
                     LoadArrivedTime = null,
                     LoadingTime = null,

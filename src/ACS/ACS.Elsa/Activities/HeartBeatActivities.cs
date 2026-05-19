@@ -56,7 +56,8 @@ namespace ACS.Elsa.Activities
                     }
                 }
 
-                // TEMP-MUTE-NOISE: logger.Info($"GetApplicationsByHardwareActivity: {hardwareType} 서버의 앱 {result.Count}개 조회됨.");
+                if (logger.IsDebugEnabled)
+                    logger.Debug($"GetApplicationsByHardwareActivity: {hardwareType} 서버의 앱 {result.Count}개 조회됨.");
             }
             catch (Exception ex)
             {
@@ -118,7 +119,8 @@ namespace ACS.Elsa.Activities
 
                 if (!string.IsNullOrEmpty(reply))
                 {
-                    // TEMP-MUTE-NOISE: logger.Info($"SendHeartBeatActivity: {appName} 응답 수신 성공.");
+                    if (logger.IsDebugEnabled)
+                        logger.Debug($"SendHeartBeatActivity: {appName} 응답 수신 성공.");
                     context.Set(Result, true);
                 }
                 else
