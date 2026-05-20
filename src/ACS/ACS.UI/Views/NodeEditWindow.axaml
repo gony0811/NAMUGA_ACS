@@ -9,7 +9,7 @@
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
 
         <!-- ID / Type -->
-        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,8">
             <StackPanel>
                 <TextBlock Text="ID / Type" FontWeight="SemiBold" FontSize="11"
@@ -37,7 +37,7 @@
         </Border>
 
         <!-- Location -->
-        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="Location" FontWeight="SemiBold" FontSize="11"

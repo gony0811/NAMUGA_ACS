@@ -24,6 +24,8 @@ bld/
 [Ll]ogs/
 [Pp]ublish/
 [Dd]eploy/
+.publish-staging/
+.DS_Store
 
 # .NET Core
 project.lock.json

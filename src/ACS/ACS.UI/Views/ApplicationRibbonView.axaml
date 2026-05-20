@@ -9,7 +9,7 @@
             BorderThickness="1"
             Margin="4"
             MaxHeight="160"
-            Background="White">
+            Background="{StaticResource AcsSurfacePanelBrush}">
 
         <StackPanel Orientation="Horizontal">
             <StackPanel.Styles>
@@ -21,7 +21,7 @@
                     <Setter Property="Padding" Value="8,6" />
                 </Style>
                 <Style Selector="Border.ribbon-category:pointerover">
-                    <Setter Property="Background" Value="#10000000" />
+                    <Setter Property="Background" Value="{StaticResource AcsSurfaceOverlayBrush}" />
                 </Style>
 
                 <!-- 메뉴 아이템 스타일 -->

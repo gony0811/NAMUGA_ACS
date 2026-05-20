@@ -12,6 +12,7 @@ using ACS.Communication.Mqtt.Model;
 using ACS.Core.Cache;
 using ACS.Core.Logging;
 using ACS.Core.Path;
+using ACS.Core.Path.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
@@ -975,6 +976,195 @@ namespace ACS.Elsa.Activities
             catch (Exception ex)
             {
                 logger.Error($"RecoverStuckVehiclesActivity: {ex.Message}", ex);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  ChargeJob Activity
+    //  Category: ACS.Schedule
+    //
+    //  SCHEDULE-CHARGEJOB 워크플로우 단일 액티비티.
+    //  Bay 단위로 빈 충전 슬롯(Location.Type=CHARGE) + IDLE 후보 vehicle 매칭 →
+    //  배터리 가장 낮은 1대에 CHARGEMOVE TC 생성 + RAIL-CARRIERTRANSFER 송신.
+    //
+    //  Daemon AwakeChargeTransportJob 이 20초/Bay 주기로 트리거.
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCHEDULE-CHARGEJOB 디스패치.
+    ///
+    /// 동작:
+    ///   1. 메시지에서 BayId 추출
+    ///   2. CacheManager.GetChargeLocationViewsByBayId(bayId) 로 충전 슬롯 후보 조회
+    ///      - 점유 vehicle 없고 (GetVehiclesByCurrentNode 결과 0)
+    ///      - 점유 TC 도 없는 (CheckTransportCommandByDestLocationId == false)
+    ///        첫 슬롯 선정
+    ///   3. 같은 Bay 의 vehicle 들 중 후보 조건 만족 + 배터리 최저 1대 선정
+    ///   4. CHARGEMOVE TC 생성 (CreateRechargeTransportCommand)
+    ///   5. vehicle.TransportCommandId 갱신
+    ///   6. CarrierTransferJsonBuilder 로 JSON 빌드 후 SendCarrierTransferJson 송신 (단발)
+    /// </summary>
+    [Activity("ACS.Schedule", "Dispatch Charge Job",
+        "Bay 별 빈 충전 슬롯에 배터리 낮은 IDLE vehicle 1대 dispatch (CHARGEMOVE)")]
+    public class DispatchChargeJobActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var resourceManager = accessor?.Resolve<IResourceManagerEx>();
+                var transferManager = accessor?.Resolve<ITransferManagerEx>();
+                var cacheManager = accessor?.Resolve<ICacheManagerEx>();
+                var messageManager = accessor?.Resolve<IMessageManagerEx>();
+
+                if (resourceManager == null || transferManager == null
+                    || cacheManager == null || messageManager == null)
+                {
+                    logger.Error("DispatchChargeJobActivity: 필수 서비스 해결 실패");
+                    return;
+                }
+
+                string bayId = ExtractBayIdFromInput(context);
+                if (string.IsNullOrEmpty(bayId))
+                {
+                    logger.Warn("DispatchChargeJobActivity: BayId 가 메시지에 없음");
+                    return;
+                }
+
+                // 1. 빈 충전 슬롯 찾기
+                List<LocationViewEx> chargeLocations = cacheManager.GetChargeLocationViewsByBayId(bayId);
+                if (chargeLocations == null || chargeLocations.Count == 0)
+                {
+                    if (logger.IsDebugEnabled)
+                        logger.Debug($"DispatchChargeJobActivity: bayId={bayId} 에 충전 슬롯 없음");
+                    return;
+                }
+
+                LocationViewEx availableSlot = null;
+                foreach (LocationViewEx loc in chargeLocations)
+                {
+                    IList occupied = resourceManager.GetVehiclesByCurrentNode(loc.StationId);
+                    bool nodeBusy = occupied != null && occupied.Count > 0;
+                    bool tcBusy = transferManager.CheckTransportCommandByDestLocationId(loc.LocationId);
+
+                    if (!nodeBusy && !tcBusy)
+                    {
+                        availableSlot = loc;
+                        break;
+                    }
+                }
+                if (availableSlot == null)
+                {
+                    if (logger.IsDebugEnabled)
+                        logger.Debug($"DispatchChargeJobActivity: bayId={bayId} 의 충전 슬롯 모두 사용 중");
+                    return;
+                }
+
+                // 2. 후보 vehicle 선정 (배터리 최저)
+                IList vehiclesInBay = resourceManager.GetVehiclesByBayId(bayId);
+                if (vehiclesInBay == null || vehiclesInBay.Count == 0) return;
+
+                VehicleEx candidate = null;
+                int lowestBattery = int.MaxValue;
+                foreach (VehicleEx v in vehiclesInBay)
+                {
+                    if (!VehicleEx.PROCESSINGSTATE_IDLE.Equals(v.ProcessingState, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!VehicleEx.RUNSTATE_STOP.Equals(v.RunState, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!VehicleEx.TRANSFERSTATE_NOTASSIGNED.Equals(v.TransferState, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!VehicleEx.INSTALL_INSTALLED.Equals(v.Installed, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!string.IsNullOrEmpty(v.TransportCommandId)) continue;
+                    if (VehicleEx.CONNECTIONSTATE_DISCONNECT.Equals(v.ConnectionState, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!VehicleEx.ALARMSTATE_NOALARM.Equals(v.AlarmState, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (v.BatteryRate < lowestBattery)
+                    {
+                        lowestBattery = v.BatteryRate;
+                        candidate = v;
+                    }
+                }
+                if (candidate == null)
+                {
+                    if (logger.IsDebugEnabled)
+                        logger.Debug($"DispatchChargeJobActivity: bayId={bayId} 에 충전 후보 vehicle 없음");
+                    return;
+                }
+
+                // 3. CHARGEMOVE TC 생성 (기존 TransferServiceEx.CreateRechargeTransportCommand 패턴과 동일)
+                string commandId = "C" + candidate.VehicleId + DateTime.Now.ToString("yyyyMMddHHmmss");
+                var tc = new TransportCommandEx
+                {
+                    JobId = commandId,
+                    CarrierId = commandId,
+                    State = TransportCommandEx.STATE_CREATED,
+                    Dest = availableSlot.LocationId,
+                    VehicleId = candidate.VehicleId,
+                    BayId = bayId,
+                    CreateTime = DateTime.Now,
+                    AssignedTime = DateTime.Now,
+                    JobType = TransportCommandEx.JOBTYPE_CHARGEMOVE,
+                    LoadedTime = null,
+                    UnloadArrivedTime = null,
+                    UnloadedTime = null,
+                    LoadingTime = null,
+                    UnloadingTime = null,
+                    CompletedTime = null,
+                    StartedTime = null
+                };
+
+                TransportCommandEx createdTc = transferManager.CreateRechargeTransportCommand(tc);
+                if (createdTc == null)
+                {
+                    logger.Error($"DispatchChargeJobActivity: TC 생성 실패 vehicleId={candidate.VehicleId}, bayId={bayId}");
+                    return;
+                }
+
+                // 4. vehicle 측 TC 연결 (다음 사이클에서 같은 vehicle 재선정 방지)
+                resourceManager.UpdateVehicleTransportCommandId(candidate, tc.JobId);
+
+                // 5. RAIL-CARRIERTRANSFER JSON 빌드 & 송신 (단발, 응답 대기 없음)
+                string json = CarrierTransferJsonBuilder.Build(tc, candidate.VehicleId,
+                    TransportCommandEx.JOBTYPE_CHARGEMOVE, useSource: false, resourceManager, logger);
+                if (string.IsNullOrEmpty(json))
+                {
+                    logger.Error($"DispatchChargeJobActivity: JSON 빌드 실패 vehicleId={candidate.VehicleId}, tc={tc.JobId}");
+                    return;
+                }
+
+                messageManager.SendCarrierTransferJson(json);
+
+                logger.Info($"DispatchChargeJobActivity: 충전 이동 dispatched bayId={bayId}, vehicleId={candidate.VehicleId}, " +
+                            $"batteryRate={candidate.BatteryRate}, chargeLocationId={availableSlot.LocationId}, " +
+                            $"chargeStationId={availableSlot.StationId}, tc={tc.JobId}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"DispatchChargeJobActivity: {ex.Message}", ex);
+            }
+        }
+
+        private string ExtractBayIdFromInput(ActivityExecutionContext context)
+        {
+            try
+            {
+                if (!context.WorkflowExecutionContext.Input.TryGetValue("Arguments", out var argsObj))
+                    return "";
+                var args = argsObj as object[];
+                if (args == null || args.Length == 0)
+                    return "";
+                string jsonStr = args[0] as string;
+                if (string.IsNullOrEmpty(jsonStr))
+                    return "";
+                var msg = JsonSerializer.Deserialize<DaemonScheduleMessage>(jsonStr);
+                return msg?.Data?.BayId ?? "";
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"DispatchChargeJobActivity: bayId 추출 실패: {ex.Message}");
+                return "";
             }
         }
     }

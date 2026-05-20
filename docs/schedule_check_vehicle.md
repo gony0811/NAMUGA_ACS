@@ -21,6 +21,30 @@ Stuck 복구 로직은 2026-05-08 커밋 `69c105d "Recover stuck vehicles; filte
 | DI 등록 위치 | `src/ACS/ACS.App/Modules/SchedulingModule.cs:57` |
 | 트리거 방식 | `IMessageAgent.Send` 로 `DaemonScheduleMessage { MessageName = "SCHEDULE-CHECKVEHICLES" }` JSON 전송 → Elsa 워크플로우 엔진 라우팅 |
 
+### Daemon → Trans 라우팅 흐름
+
+별개 프로세스인 Daemon 이 메시지를 발행하면 Trans 프로세스의 Elsa 엔진이 받아 워크플로우를 띄우는 구조다.
+
+```
+[Daemon 프로세스]
+  AwakeCheckVehiclesJob.ExecuteOnce()   ← 10초 주기 (PeriodicBackgroundService)
+    │
+    ├─ DaemonScheduleMessage { MessageName = "SCHEDULE-CHECKVEHICLES" } JSON 직렬화
+    └─ IMessageAgent.Send(json) → MSB(RabbitMQ) 발행
+                                      │
+                                      ▼
+[Trans 프로세스]
+  Elsa 메시지 디스패처가 Header.MessageName 으로 워크플로우 매칭
+    │
+    ▼
+  ScheduleCheckvehiclesWorkflow (DefinitionId = "SCHEDULE-CHECKVEHICLES") 인스턴스 실행
+```
+
+근거:
+- `src/ACS/ACS.App/Scheduling/Awake/AwakeCheckVehiclesJob.cs:20-43` — JSON 생성 후 `_messageAgent.Send((object)json)`.
+- `src/ACS/ACS.App/Modules/SchedulingModule.cs:52-64` — `Acs:Process:Type == "daemon"` 일 때만 HostedService 로 등록.
+- `src/ACS/ACS.Elsa/Workflows/Trans/ScheduleCheckvehiclesWorkflow.cs` — Trans 측 워크플로우 정의 (DefinitionId 매칭).
+
 ## 워크플로우 구조
 
 ```
@@ -119,6 +143,16 @@ SCHEDULE-CHECKVEHICLES  (10초 주기)
 - 송신: `messageManager.SendCarrierTransferJson(json)` — **응답 대기·재시도 없음** (단발 재푸시)
 - 비교: 신규 할당 경로의 `SendCarrierTransferWithRetryActivity` 는 5초 timeout × 3회 재시도를 수행하지만, Recover 는 이미 명령 중인 vehicle 의 재푸시이므로 단순 송신만 한다.
 - JSON 빌드 실패 시 ERROR 로그(`JSON 빌드 실패 vehicleId=..., tc=...`) 남기고 스킵.
+
+**송신 경로 (`SendCarrierTransferJson` 내부)** — `src/ACS/ACS.Manager/Message/MessageManagerExImplement.cs:1706-1781`:
+
+1. JSON 에서 `vehicleId` 추출 → `resourceManager.GetVehicle(vehicleId)` 로 VehicleEx 조회 → `vehicle.CommId` 획득.
+2. `CommId` 로 `MqttConfig` 조회 (`PersistentDao.FindByName`).
+3. `ApplicationManager.GetApplication(...)` 로 대상 Application 조회.
+4. `destinationName = application.DestinationName + "/" + application.Name` 조립.
+5. `esAgent.Send(jsonMessage, destinationName, false, "")` 호출로 EI(MQTT) 토픽에 발행.
+
+즉 Trans 가 직접 vehicle 의 EI 토픽을 계산해 단발 publish 하는 구조이며, 도중에 응답을 기다리는 hop 은 없다.
 
 ### 3.5 로깅
 

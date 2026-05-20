@@ -58,12 +58,8 @@ static class Program
         Console.WriteLine($"[ACS] Process: {processId} (PID: {Process.GetCurrentProcess().Id})");
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-            .WriteTo.File(
-                System.IO.Path.Combine(appDir, "logs", "acs-.log"),
-                rollingInterval: Serilog.RollingInterval.Day,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+            .ReadFrom.
+            Configuration(configuration)
             .CreateLogger();
 
         var processType = configuration["Acs:Process:Type"];

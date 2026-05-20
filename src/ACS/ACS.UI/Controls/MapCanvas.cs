@@ -39,46 +39,46 @@ public class MapCanvas : Control
     private double _offsetY;
     private const double Padding = 40;
 
-    // Light theme brushes
-    private static readonly IBrush BackgroundBrush = new SolidColorBrush(Color.FromRgb(245, 247, 250));
+    // Dark theme brushes
+    private static readonly IBrush BackgroundBrush = new SolidColorBrush(Color.FromRgb(28, 34, 44));
 
-    private static readonly IBrush LinkAvailableBrush = new SolidColorBrush(Color.FromRgb(60, 160, 60));
-    private static readonly IBrush LinkUnavailableBrush = new SolidColorBrush(Color.FromRgb(160, 160, 160));
-    private static readonly IBrush LinkBannedBrush = new SolidColorBrush(Color.FromRgb(200, 60, 60));
+    private static readonly IBrush LinkAvailableBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128));
+    private static readonly IBrush LinkUnavailableBrush = new SolidColorBrush(Color.FromRgb(110, 118, 137));
+    private static readonly IBrush LinkBannedBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
 
     private static readonly IPen LinkAvailablePen = new Pen(LinkAvailableBrush, 1.5);
     private static readonly IPen LinkUnavailablePen = new Pen(LinkUnavailableBrush, 1.5);
     private static readonly IPen LinkBannedPen = new Pen(LinkBannedBrush, 1.5);
 
-    private static readonly IBrush NodeCommonBrush = new SolidColorBrush(Color.FromRgb(140, 140, 140));
-    private static readonly IBrush NodeChargeBrush = new SolidColorBrush(Color.FromRgb(40, 170, 40));
-    private static readonly IBrush NodeCrossBrush = new SolidColorBrush(Color.FromRgb(200, 180, 30));
-    private static readonly IBrush NodeStockBrush = new SolidColorBrush(Color.FromRgb(50, 110, 200));
-    private static readonly IBrush NodeMonitorBrush = new SolidColorBrush(Color.FromRgb(160, 80, 200));
+    private static readonly IBrush NodeCommonBrush = new SolidColorBrush(Color.FromRgb(180, 190, 210));
+    private static readonly IBrush NodeChargeBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128));
+    private static readonly IBrush NodeCrossBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21));
+    private static readonly IBrush NodeStockBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+    private static readonly IBrush NodeMonitorBrush = new SolidColorBrush(Color.FromRgb(192, 132, 252));
 
-    private static readonly IBrush VehicleIdleBrush = new SolidColorBrush(Color.FromRgb(30, 120, 230));
-    private static readonly IBrush VehicleRunBrush = new SolidColorBrush(Color.FromRgb(40, 180, 40));
-    private static readonly IBrush VehicleChargeBrush = new SolidColorBrush(Color.FromRgb(230, 190, 0));
-    private static readonly IBrush VehicleDownBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
-    private static readonly IBrush VehicleDisconnectBrush = new SolidColorBrush(Color.FromRgb(160, 160, 160));
+    private static readonly IBrush VehicleIdleBrush = new SolidColorBrush(Color.FromRgb(96, 165, 250));
+    private static readonly IBrush VehicleRunBrush = new SolidColorBrush(Color.FromRgb(74, 222, 128));
+    private static readonly IBrush VehicleChargeBrush = new SolidColorBrush(Color.FromRgb(250, 204, 21));
+    private static readonly IBrush VehicleDownBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+    private static readonly IBrush VehicleDisconnectBrush = new SolidColorBrush(Color.FromRgb(110, 118, 137));
 
-    private static readonly IPen VehicleOutlinePen = new Pen(new SolidColorBrush(Color.FromRgb(50, 50, 60)), 2);
+    private static readonly IPen VehicleOutlinePen = new Pen(new SolidColorBrush(Color.FromRgb(220, 225, 235)), 2);
     private static readonly Typeface DefaultTypeface = new("Inter", FontStyle.Normal, FontWeight.Bold);
 
     // Node 배치 모드
-    private static readonly IBrush PendingNodeBrush = new SolidColorBrush(Color.FromRgb(255, 80, 80));
+    private static readonly IBrush PendingNodeBrush = new SolidColorBrush(Color.FromRgb(252, 165, 165));
     private static readonly IPen PendingNodePen = new Pen(PendingNodeBrush, 2);
-    private static readonly IBrush PlacementBannerBrush = new SolidColorBrush(Color.FromArgb(200, 30, 30, 30));
+    private static readonly IBrush PlacementBannerBrush = new SolidColorBrush(Color.FromArgb(220, 15, 20, 30));
     private static readonly IBrush PlacementBannerTextBrush = Brushes.White;
 
     // Node 사각형 기본 스타일
-    private static readonly IPen NodeDefaultPen = new Pen(new SolidColorBrush(Color.FromRgb(120, 120, 130)), 1.5);
-    private static readonly IBrush StationBrush = new SolidColorBrush(Color.FromRgb(255, 160, 40));
-    private static readonly IPen StationPen = new Pen(new SolidColorBrush(Color.FromRgb(200, 120, 20)), 1.5);
+    private static readonly IPen NodeDefaultPen = new Pen(new SolidColorBrush(Color.FromRgb(60, 70, 85)), 1.5);
+    private static readonly IBrush StationBrush = new SolidColorBrush(Color.FromRgb(251, 146, 60));
+    private static readonly IPen StationPen = new Pen(new SolidColorBrush(Color.FromRgb(234, 88, 12)), 1.5);
 
     // Link 선택 모드
     private static readonly IPen NodeHoverPen = new Pen(Brushes.White, 3);
-    private static readonly IPen NodeSelectedFromPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 60, 60)), 3);
+    private static readonly IPen NodeSelectedFromPen = new Pen(new SolidColorBrush(Color.FromRgb(248, 113, 113)), 3);
 
     /// <summary>
     /// 현재 유효 스케일 (px per meter). baseScale * zoom.
@@ -1050,7 +1050,7 @@ public class MapCanvas : Control
                 context.DrawLine(new Pen(Brushes.White, penWidth * 1.5), pos, tip);
             }
 
-            // Vehicle ID label (dark text for light theme)
+            // Vehicle ID label
             double labelSize = fontSize * 1.1;
             var text = new FormattedText(
                 vehicle.VehicleId ?? "?",
@@ -1068,7 +1068,7 @@ public class MapCanvas : Control
             double barY = pos.Y + radius + radius * 0.2;
             double fillWidth = barWidth * vehicle.BatteryRate / 100.0;
 
-            context.DrawRectangle(new SolidColorBrush(Color.FromRgb(200, 200, 200)), null,
+            context.DrawRectangle(new SolidColorBrush(Color.FromRgb(60, 70, 85)), null,
                 new Rect(pos.X - barWidth / 2, barY, barWidth, barHeight));
 
             IBrush batteryBrush = vehicle.BatteryRate >= 70 ? Brushes.LimeGreen :
@@ -1099,7 +1099,7 @@ public class MapCanvas : Control
         var ft = new FormattedText(scaleText,
             System.Globalization.CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight, DefaultTypeface, 11,
-            new SolidColorBrush(Color.FromRgb(100, 100, 100)));
+            new SolidColorBrush(Color.FromRgb(150, 158, 175)));
         context.DrawText(ft, new Point(Bounds.Width - ft.Width - 10, Bounds.Height - ft.Height - 8));
     }
 

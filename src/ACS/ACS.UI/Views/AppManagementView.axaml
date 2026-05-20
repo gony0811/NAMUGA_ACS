@@ -52,7 +52,7 @@
                     <TreeView Grid.Row="1"
                               ItemsSource="{Binding PrimaryProcesses}"
                               SelectedItem="{Binding SelectedProcess}"
-                              Background="White" Padding="4">
+                              Background="{StaticResource AcsSurfaceCardBrush}" Padding="4">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
@@ -80,7 +80,7 @@
                     <TreeView Grid.Row="1"
                               ItemsSource="{Binding SecondaryProcesses}"
                               SelectedItem="{Binding SelectedProcess}"
-                              Background="White" Padding="4">
+                              Background="{StaticResource AcsSurfaceCardBrush}" Padding="4">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
@@ -110,7 +110,7 @@
                           CanUserSortColumns="False"
                           GridLinesVisibility="All"
                           BorderThickness="0"
-                          Background="White"
+                          Background="{StaticResource AcsSurfaceCardBrush}"
                           FontSize="12">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Property"

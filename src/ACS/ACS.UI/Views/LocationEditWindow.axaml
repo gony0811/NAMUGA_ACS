@@ -10,7 +10,7 @@
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
 
         <!-- ID / Station -->
-        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,8">
             <StackPanel>
                 <TextBlock Text="Location Info" FontWeight="SemiBold" FontSize="11"
@@ -30,7 +30,7 @@
         </Border>
 
         <!-- Properties -->
-        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="11"

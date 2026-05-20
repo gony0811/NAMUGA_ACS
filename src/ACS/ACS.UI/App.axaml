@@ -1,34 +1,41 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ACS.UI.App"
-             RequestedThemeVariant="Light">
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
-    </Application.Styles>
+             RequestedThemeVariant="Dark">
 
     <Application.Resources>
-        <!-- ACS Color Palette (from ACS.StartUp) -->
-        <Color x:Key="AcsHeaderColor">#1a3a5c</Color>
-        <Color x:Key="AcsTabBarColor">#e8edf2</Color>
-        <Color x:Key="AcsTabBorderColor">#b0bec5</Color>
-        <Color x:Key="AcsActiveTabColor">#1565c0</Color>
-        <Color x:Key="AcsPrimaryBlue">#0d47a1</Color>
-        <Color x:Key="AcsInfoBlue">#42a5f5</Color>
-        <Color x:Key="AcsLightBlue">#4fc3f7</Color>
-        <Color x:Key="AcsWarningOrange">#fb8c00</Color>
-        <Color x:Key="AcsAlarmGreen">#43a047</Color>
-        <Color x:Key="AcsAlarmRed">#e53935</Color>
-        <Color x:Key="AcsDashGradientStart">#dce8f4</Color>
-        <Color x:Key="AcsDashGradientEnd">#c4d6ea</Color>
-        <Color x:Key="AcsSectionBorder">#b0c4d8</Color>
-        <Color x:Key="AcsStatBorder">#90caf9</Color>
-        <Color x:Key="AcsTextPrimary">#333333</Color>
-        <Color x:Key="AcsTextSecondary">#555555</Color>
-        <Color x:Key="AcsTextMuted">#777777</Color>
+        <!-- ACS Dark Palette -->
+        <Color x:Key="AcsHeaderColor">#0d1b2a</Color>
+        <Color x:Key="AcsTabBarColor">#161b24</Color>
+        <Color x:Key="AcsTabBorderColor">#2a3140</Color>
+        <Color x:Key="AcsActiveTabColor">#60a5fa</Color>
+        <Color x:Key="AcsPrimaryBlue">#3b82f6</Color>
+        <Color x:Key="AcsInfoBlue">#60a5fa</Color>
+        <Color x:Key="AcsLightBlue">#93c5fd</Color>
+        <Color x:Key="AcsWarningOrange">#fb923c</Color>
+        <Color x:Key="AcsAlarmGreen">#4ade80</Color>
+        <Color x:Key="AcsAlarmRed">#f87171</Color>
+        <Color x:Key="AcsDashGradientStart">#1a2233</Color>
+        <Color x:Key="AcsDashGradientEnd">#0f1520</Color>
+        <Color x:Key="AcsSectionBorder">#2a3140</Color>
+        <Color x:Key="AcsStatBorder">#3b4658</Color>
+        <Color x:Key="AcsTextPrimary">#e8ecf2</Color>
+        <Color x:Key="AcsTextSecondary">#a8b0bd</Color>
+        <Color x:Key="AcsTextMuted">#6e7689</Color>
+
+        <!-- Surface / structural tokens (new) -->
+        <Color x:Key="AcsSurfaceBase">#0f131a</Color>
+        <Color x:Key="AcsSurfacePanel">#161b24</Color>
+        <Color x:Key="AcsSurfaceCard">#1c222c</Color>
+        <Color x:Key="AcsSurfaceOverlay">#252b38</Color>
+        <Color x:Key="AcsBorderStrong">#3a4254</Color>
+        <Color x:Key="AcsGridStripe">#1a2030</Color>
+        <Color x:Key="AcsGridHeader">#1f2632</Color>
+        <Color x:Key="AcsGridHeaderText">#9ec5ff</Color>
 
         <SolidColorBrush x:Key="AcsHeaderBrush" Color="{StaticResource AcsHeaderColor}" />
         <SolidColorBrush x:Key="AcsTabBarBrush" Color="{StaticResource AcsTabBarColor}" />
+        <SolidColorBrush x:Key="AcsTabBorderBrush" Color="{StaticResource AcsTabBorderColor}" />
         <SolidColorBrush x:Key="AcsActiveTabBrush" Color="{StaticResource AcsActiveTabColor}" />
         <SolidColorBrush x:Key="AcsSectionBorderBrush" Color="{StaticResource AcsSectionBorder}" />
         <SolidColorBrush x:Key="AcsStatBorderBrush" Color="{StaticResource AcsStatBorder}" />
@@ -41,5 +48,41 @@
         <SolidColorBrush x:Key="AcsInfoBlueBrush" Color="{StaticResource AcsInfoBlue}" />
         <SolidColorBrush x:Key="AcsPrimaryBlueBrush" Color="{StaticResource AcsPrimaryBlue}" />
         <SolidColorBrush x:Key="AcsLightBlueBrush" Color="{StaticResource AcsLightBlue}" />
+
+        <SolidColorBrush x:Key="AcsSurfaceBaseBrush" Color="{StaticResource AcsSurfaceBase}" />
+        <SolidColorBrush x:Key="AcsSurfacePanelBrush" Color="{StaticResource AcsSurfacePanel}" />
+        <SolidColorBrush x:Key="AcsSurfaceCardBrush" Color="{StaticResource AcsSurfaceCard}" />
+        <SolidColorBrush x:Key="AcsSurfaceOverlayBrush" Color="{StaticResource AcsSurfaceOverlay}" />
+        <SolidColorBrush x:Key="AcsBorderStrongBrush" Color="{StaticResource AcsBorderStrong}" />
+        <SolidColorBrush x:Key="AcsGridStripeBrush" Color="{StaticResource AcsGridStripe}" />
+        <SolidColorBrush x:Key="AcsGridHeaderBrush" Color="{StaticResource AcsGridHeader}" />
+        <SolidColorBrush x:Key="AcsGridHeaderTextBrush" Color="{StaticResource AcsGridHeaderText}" />
     </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource AcsSurfaceBaseBrush}" />
+            <Setter Property="FontFamily" Value="Inter" />
+            <Setter Property="Foreground" Value="{DynamicResource AcsTextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource AcsGridHeaderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AcsGridHeaderTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="DataGridRow:nth-child(2n)">
+            <Setter Property="Background" Value="{DynamicResource AcsGridStripeBrush}" />
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="TextBox, ComboBox, NumericUpDown">
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+    </Application.Styles>
 </Application>

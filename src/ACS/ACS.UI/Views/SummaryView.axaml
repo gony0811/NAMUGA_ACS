@@ -63,7 +63,7 @@
                                    Foreground="{StaticResource AcsActiveTabBrush}" />
 
                         <!-- Total -->
-                        <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsStatBorderBrush}"
+                        <Border Background="{StaticResource AcsSurfaceOverlayBrush}" BorderBrush="{StaticResource AcsStatBorderBrush}"
                                 BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,4,0,4">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Total Vehicles" FontSize="11"
@@ -82,7 +82,7 @@
                                     <Setter Property="Padding" Value="6,3" />
                                     <Setter Property="Margin" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
-                                    <Setter Property="Background" Value="#0A000000" />
+                                    <Setter Property="Background" Value="{StaticResource AcsSurfaceOverlayBrush}" />
                                 </Style>
                             </Grid.Styles>
 
@@ -91,7 +91,7 @@
                                     <TextBlock Text="Working" FontSize="9"
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
                                     <TextBlock Text="{Binding VehicleWorking}" FontSize="13"
-                                               FontWeight="Bold" Foreground="#43a047" />
+                                               FontWeight="Bold" Foreground="{StaticResource AcsAlarmGreenBrush}" />
                                 </StackPanel>
                             </Border>
                             <Border Classes="info-cell" Grid.Row="0" Grid.Column="1">
@@ -107,7 +107,7 @@
                                     <TextBlock Text="Charging" FontSize="9"
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
                                     <TextBlock Text="{Binding VehicleCharging}" FontSize="13"
-                                               FontWeight="Bold" Foreground="#e6a700" />
+                                               FontWeight="Bold" Foreground="{StaticResource AcsWarningBrush}" />
                                 </StackPanel>
                             </Border>
                             <Border Classes="info-cell" Grid.Row="1" Grid.Column="1">
@@ -131,7 +131,7 @@
                                     <TextBlock Text="Offline" FontSize="9"
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
                                     <TextBlock Text="{Binding VehicleOffline}" FontSize="13"
-                                               FontWeight="Bold" Foreground="Gray" />
+                                               FontWeight="Bold" Foreground="{StaticResource AcsTextMutedBrush}" />
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -145,7 +145,7 @@
                         <TextBlock Text="Transfer Info" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource AcsActiveTabBrush}" />
 
-                        <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsStatBorderBrush}"
+                        <Border Background="{StaticResource AcsSurfaceOverlayBrush}" BorderBrush="{StaticResource AcsStatBorderBrush}"
                                 BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,4,0,4">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Total Commands" FontSize="11"
@@ -162,7 +162,7 @@
                                     <Setter Property="Padding" Value="6,3" />
                                     <Setter Property="Margin" Value="1" />
                                     <Setter Property="CornerRadius" Value="2" />
-                                    <Setter Property="Background" Value="#0A000000" />
+                                    <Setter Property="Background" Value="{StaticResource AcsSurfaceOverlayBrush}" />
                                 </Style>
                             </Grid.Styles>
 
@@ -172,7 +172,7 @@
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
                                     <TextBlock Text="{Binding TransferActive}" FontSize="13"
                                                HorizontalAlignment="Center"
-                                               FontWeight="Bold" Foreground="#43a047" />
+                                               FontWeight="Bold" Foreground="{StaticResource AcsAlarmGreenBrush}" />
                                 </StackPanel>
                             </Border>
                             <Border Classes="tr-cell" Grid.Column="1">
@@ -205,7 +205,7 @@
                                    Foreground="{StaticResource AcsActiveTabBrush}" />
 
                         <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
-                            <Border Padding="6,3" Margin="1" CornerRadius="2" Background="#0A000000">
+                            <Border Padding="6,3" Margin="1" CornerRadius="2" Background="{StaticResource AcsSurfaceOverlayBrush}">
                                 <StackPanel HorizontalAlignment="Center">
                                     <TextBlock Text="Total" FontSize="9" HorizontalAlignment="Center"
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
@@ -214,7 +214,7 @@
                                                FontWeight="Bold" Foreground="{StaticResource AcsActiveTabBrush}" />
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="1" Padding="6,3" Margin="1" CornerRadius="2" Background="#0A000000">
+                            <Border Grid.Column="1" Padding="6,3" Margin="1" CornerRadius="2" Background="{StaticResource AcsSurfaceOverlayBrush}">
                                 <StackPanel HorizontalAlignment="Center">
                                     <TextBlock Text="Disabled" FontSize="9" HorizontalAlignment="Center"
                                                Foreground="{StaticResource AcsTextMutedBrush}" />
@@ -232,7 +232,7 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="Mini Map" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource AcsActiveTabBrush}" />
-                        <Border Background="#08000000" CornerRadius="3"
+                        <Border Background="{StaticResource AcsSurfaceOverlayBrush}" CornerRadius="3"
                                 Height="120" Margin="0,4,0,0">
                             <TextBlock Text="(Mini Map)" FontSize="10"
                                        Foreground="{StaticResource AcsTextMutedBrush}"

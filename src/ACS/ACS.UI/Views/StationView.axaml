@@ -42,7 +42,7 @@
                     <Button Content="-" ToolTip.Tip="Delete Station" Command="{Binding DeleteStationCommand}"
                             FontWeight="Bold" />
                     <Button Content="&#x270F;" ToolTip.Tip="Modify Station" Command="{Binding EditStationCommand}" />
-                    <Border Width="1" Background="#CCC" Margin="4,4" />
+                    <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="&#x1F4CB;" ToolTip.Tip="Copy" />
                     <Button Content="&#x1F4CA;" ToolTip.Tip="Export" />
                     <Button Content="&#x25AE;" ToolTip.Tip="Column" />
@@ -56,7 +56,7 @@
         </Border>
 
         <!-- Row 1: Table Option -->
-        <Border Grid.Row="1" Background="White"
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}"
                 BorderBrush="{StaticResource AcsSectionBorderBrush}"
                 BorderThickness="0,0,0,1" Padding="6,4">
             <StackPanel>
@@ -78,22 +78,16 @@
                   CanUserReorderColumns="True"
                   GridLinesVisibility="All"
                   BorderThickness="0"
-                  Background="White"
+                  Background="{StaticResource AcsSurfaceCardBrush}"
                   FontSize="11"
                   RowHeight="26"
                   HeadersVisibility="Column">
 
             <DataGrid.Styles>
                 <Style Selector="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#DCE6F5" />
-                    <Setter Property="Foreground" Value="#D32F2F" />
-                    <Setter Property="FontWeight" Value="SemiBold" />
                     <Setter Property="FontSize" Value="11" />
                     <Setter Property="HorizontalContentAlignment" Value="Center" />
                     <Setter Property="Padding" Value="8,4" />
-                </Style>
-                <Style Selector="DataGridRow:nth-child(2n)">
-                    <Setter Property="Background" Value="#E8EEF7" />
                 </Style>
             </DataGrid.Styles>
 

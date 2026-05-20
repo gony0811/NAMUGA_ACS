@@ -7,7 +7,10 @@
         x:DataType="vm:MainWindowViewModel"
         Title="ACS - AMR Control System"
         Width="1400" Height="900"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Inter"
+        Background="{StaticResource AcsSurfaceBaseBrush}"
+        Foreground="{StaticResource AcsTextPrimaryBrush}">
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
@@ -55,23 +58,20 @@
                         </Style>
                         <!-- Selected tab: raised with border, merges into content -->
                         <Style Selector="RadioButton:checked">
-                            <Setter Property="Foreground" Value="{StaticResource AcsPrimaryBlueBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AcsLightBlueBrush}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Background" Value="White" />
-                            <Setter Property="BorderBrush" Value="{StaticResource AcsSectionBorderBrush}" />
+                            <Setter Property="Background" Value="{StaticResource AcsSurfaceCardBrush}" />
+                            <Setter Property="BorderBrush" Value="{StaticResource AcsBorderStrongBrush}" />
                         </Style>
                         <!-- Hover -->
                         <Style Selector="RadioButton:pointerover:not(:checked)">
-                            <Setter Property="Background" Value="#18000000" />
+                            <Setter Property="Background" Value="{StaticResource AcsSurfaceOverlayBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AcsTextPrimaryBrush}" />
                         </Style>
                     </StackPanel.Styles>
 
                     <RadioButton Content="Dashboard" GroupName="Tabs"
                                  IsChecked="{Binding IsTab0Selected}" />
-                    <RadioButton Content="User" GroupName="Tabs"
-                                 IsChecked="{Binding IsTab1Selected}" />
-                    <RadioButton Content="Basic Control" GroupName="Tabs"
-                                 IsChecked="{Binding IsTab2Selected}" />
                     <RadioButton Content="Data View" GroupName="Tabs"
                                  IsChecked="{Binding IsTab3Selected}" />
                     <RadioButton Content="History" GroupName="Tabs"
@@ -80,43 +80,24 @@
                                  IsChecked="{Binding IsTab5Selected}" />
                     <RadioButton Content="Application" GroupName="Tabs"
                                  IsChecked="{Binding IsTab6Selected}" />
-                    <RadioButton Content="Layout" GroupName="Tabs"
-                                 IsChecked="{Binding IsTab7Selected}" />
-                    <RadioButton Content="Preference" GroupName="Tabs"
-                                 IsChecked="{Binding IsTab8Selected}" />
                 </StackPanel>
 
                 <!-- Ribbon Content Area (border merges with selected tab) -->
                 <Border Grid.Row="1"
-                        BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        Background="{StaticResource AcsSurfaceCardBrush}"
+                        BorderBrush="{StaticResource AcsBorderStrongBrush}"
                         BorderThickness="0,1,0,0">
                     <Panel>
                         <!-- Dashboard -->
                         <views:DashboardView DataContext="{Binding DashboardViewModel}"
                                              IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTab0Selected}" />
 
-                        <!-- User -->
-                        <Border Background="White" Padding="12,8"
-                                IsVisible="{Binding IsTab1Selected}" MinHeight="80">
-                            <TextBlock Text="User Management" FontSize="11"
-                                       Foreground="{StaticResource AcsTextSecondaryBrush}"
-                                       VerticalAlignment="Center" />
-                        </Border>
-
-                        <!-- Basic Control -->
-                        <Border Background="White" Padding="12,8"
-                                IsVisible="{Binding IsTab2Selected}" MinHeight="80">
-                            <TextBlock Text="Transport / Move / Install State / Rail Setting" FontSize="11"
-                                       Foreground="{StaticResource AcsTextSecondaryBrush}"
-                                       VerticalAlignment="Center" />
-                        </Border>
-
                         <!-- Data View -->
                         <views:DataViewRibbonView DataContext="{Binding DataViewViewModel}"
                                                   IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTab3Selected}" />
 
                         <!-- History -->
-                        <Border Background="White" Padding="12,8"
+                        <Border Background="{StaticResource AcsSurfaceCardBrush}" Padding="12,8"
                                 IsVisible="{Binding IsTab4Selected}" MinHeight="80">
                             <TextBlock Text="History" FontSize="11"
                                        Foreground="{StaticResource AcsTextSecondaryBrush}"
@@ -124,7 +105,7 @@
                         </Border>
 
                         <!-- Log -->
-                        <Border Background="White" Padding="12,8"
+                        <Border Background="{StaticResource AcsSurfaceCardBrush}" Padding="12,8"
                                 IsVisible="{Binding IsTab5Selected}" MinHeight="80">
                             <TextBlock Text="Log" FontSize="11"
                                        Foreground="{StaticResource AcsTextSecondaryBrush}"
@@ -134,22 +115,6 @@
                         <!-- Application -->
                         <views:ApplicationRibbonView DataContext="{Binding ApplicationViewModel}"
                                                      IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTab6Selected}" />
-
-                        <!-- Layout -->
-                        <Border Background="White" Padding="12,8"
-                                IsVisible="{Binding IsTab7Selected}" MinHeight="80">
-                            <TextBlock Text="Layout" FontSize="11"
-                                       Foreground="{StaticResource AcsTextSecondaryBrush}"
-                                       VerticalAlignment="Center" />
-                        </Border>
-
-                        <!-- Preference -->
-                        <Border Background="White" Padding="12,8"
-                                IsVisible="{Binding IsTab8Selected}" MinHeight="80">
-                            <TextBlock Text="Preference" FontSize="11"
-                                       Foreground="{StaticResource AcsTextSecondaryBrush}"
-                                       VerticalAlignment="Center" />
-                        </Border>
                     </Panel>
                 </Border>
             </Grid>
@@ -160,15 +125,15 @@
             <views:SummaryView Grid.Column="0"
                                DataContext="{Binding SummaryViewModel}" />
             <GridSplitter Grid.Column="1" Width="3"
-                          Background="{StaticResource AcsSectionBorderBrush}" />
+                          Background="{StaticResource AcsBorderStrongBrush}" />
             <views:MapView Grid.Column="2"
                            DataContext="{Binding MapViewModel}" />
         </Grid>
 
         <!-- Status Bar -->
         <Border Grid.Row="4"
-                Background="{StaticResource AcsTabBarBrush}"
-                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                Background="{StaticResource AcsSurfacePanelBrush}"
+                BorderBrush="{StaticResource AcsBorderStrongBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="10,4">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -190,7 +155,8 @@
                     <Button Content="&#x1F504;" ToolTip.Tip="Refresh"
                             Command="{Binding RefreshCommand}"
                             Width="22" Height="22" Padding="0" FontSize="11"
-                            Background="Transparent" />
+                            Background="Transparent"
+                            Foreground="{StaticResource AcsTextPrimaryBrush}" />
                 </StackPanel>
             </Grid>
         </Border>

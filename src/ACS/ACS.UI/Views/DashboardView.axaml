@@ -41,7 +41,7 @@
 
                             <!-- Circle Gauge -->
                             <Border Width="44" Height="44" CornerRadius="22"
-                                    BorderBrush="#d0d8e0" BorderThickness="3"
+                                    BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="3"
                                     HorizontalAlignment="Center">
                                 <Border CornerRadius="19"
                                         BorderThickness="3" Width="38" Height="38"
@@ -104,7 +104,7 @@
                                 <!-- Active gauge -->
                                 <StackPanel HorizontalAlignment="Center" Spacing="2">
                                     <Border Width="44" Height="44" CornerRadius="22"
-                                            BorderBrush="#d0d8e0" BorderThickness="3">
+                                            BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="3">
                                         <Border CornerRadius="19"
                                                 BorderThickness="3" Width="38" Height="38"
                                                 BorderBrush="{StaticResource AcsInfoBlueBrush}"
@@ -122,7 +122,7 @@
                                 <!-- Queued gauge -->
                                 <StackPanel HorizontalAlignment="Center" Spacing="2">
                                     <Border Width="44" Height="44" CornerRadius="22"
-                                            BorderBrush="#d0d8e0" BorderThickness="3">
+                                            BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="3">
                                         <Border CornerRadius="19"
                                                 BorderThickness="3" Width="38" Height="38"
                                                 BorderBrush="{StaticResource AcsWarningBrush}"
@@ -140,7 +140,7 @@
                             </StackPanel>
 
                             <!-- Completed stat -->
-                            <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsStatBorderBrush}"
+                            <Border Background="{StaticResource AcsSurfaceOverlayBrush}" BorderBrush="{StaticResource AcsStatBorderBrush}"
                                     BorderThickness="1" CornerRadius="2" Padding="6,2"
                                     HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
@@ -176,7 +176,7 @@
                                         HorizontalAlignment="Center">
                                 <!-- Total gauge -->
                                 <Border Width="48" Height="48" CornerRadius="24"
-                                        BorderBrush="#d0d8e0" BorderThickness="3">
+                                        BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="3">
                                     <Border CornerRadius="21"
                                             BorderThickness="3" Width="42" Height="42"
                                             BorderBrush="{StaticResource AcsInfoBlueBrush}"
@@ -216,7 +216,7 @@
 
                                 <!-- Working gauge -->
                                 <Border Width="48" Height="48" CornerRadius="24"
-                                        BorderBrush="#d0d8e0" BorderThickness="3">
+                                        BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="3">
                                     <Border CornerRadius="21"
                                             BorderThickness="3" Width="42" Height="42"
                                             BorderBrush="{StaticResource AcsLightBlueBrush}"
@@ -262,9 +262,10 @@
                                   HorizontalAlignment="Center">
                                 <Grid.Styles>
                                     <Style Selector="Border.vg-cell">
-                                        <Setter Property="Background" Value="#80FFFFFF" />
+                                        <Setter Property="Background" Value="{StaticResource AcsSurfaceOverlayBrush}" />
                                         <Setter Property="BorderBrush" Value="{StaticResource AcsSectionBorderBrush}" />
                                         <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="CornerRadius" Value="3" />
                                         <Setter Property="Padding" Value="4,1" />
                                         <Setter Property="Margin" Value="2" />
                                     </Style>
@@ -331,7 +332,7 @@
                                        FontSize="18" FontWeight="Bold"
                                        Foreground="{StaticResource AcsActiveTabBrush}"
                                        HorizontalAlignment="Center" />
-                            <Border Background="#80FFFFFF" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            <Border Background="{StaticResource AcsSurfaceOverlayBrush}" BorderBrush="{StaticResource AcsSectionBorderBrush}"
                                     BorderThickness="1" CornerRadius="2" Padding="8,2"
                                     HorizontalAlignment="Center" Margin="0,3,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
@@ -356,9 +357,9 @@
                 <!-- Map Section -->
                 <Border MinWidth="110" Padding="10,8">
                     <Grid RowDefinitions="*,Auto">
-                        <Border Grid.Row="0" Background="#99FFFFFF"
+                        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceOverlayBrush}"
                                 BorderBrush="{StaticResource AcsStatBorderBrush}"
-                                BorderThickness="1" CornerRadius="2"
+                                BorderThickness="1" CornerRadius="4"
                                 Padding="10,6"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
                             <StackPanel Spacing="2" HorizontalAlignment="Center">

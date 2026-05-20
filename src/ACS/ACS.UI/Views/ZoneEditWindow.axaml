@@ -9,7 +9,7 @@
     <Grid RowDefinitions="Auto,Auto" Margin="12">
 
         <!-- Zone 정보 -->
-        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="Zone Info" FontWeight="SemiBold" FontSize="11"

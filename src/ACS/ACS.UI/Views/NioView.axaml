@@ -42,7 +42,7 @@
                   CanUserReorderColumns="True"
                   GridLinesVisibility="All"
                   BorderThickness="0"
-                  Background="White"
+                  Background="{StaticResource AcsSurfaceCardBrush}"
                   FontSize="11"
                   RowHeight="26"
                   HeadersVisibility="Column">

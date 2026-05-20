@@ -9,7 +9,7 @@
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
 
         <!-- ID / 기본 정보 -->
-        <Border Grid.Row="0" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,8">
             <StackPanel>
                 <TextBlock Text="Bay Info" FontWeight="SemiBold" FontSize="11"
@@ -39,7 +39,7 @@
         </Border>
 
         <!-- 충전/전압/유휴 + 기타 -->
-        <Border Grid.Row="1" BorderBrush="#999" BorderThickness="1" CornerRadius="3"
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}" BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
                 Padding="10,8" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="11"

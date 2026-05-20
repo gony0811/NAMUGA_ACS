@@ -72,7 +72,7 @@
         </Border>
 
         <!-- Row 1: Job Report 버튼 영역 -->
-        <Border Grid.Row="1" Background="White"
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}"
                 BorderBrush="{StaticResource AcsSectionBorderBrush}"
                 BorderThickness="0,0,0,1" Padding="6,4">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -113,7 +113,7 @@
                   CanUserReorderColumns="True"
                   GridLinesVisibility="All"
                   BorderThickness="0"
-                  Background="White"
+                  Background="{StaticResource AcsSurfaceCardBrush}"
                   FontSize="11"
                   RowHeight="26"
                   HeadersVisibility="Column">
