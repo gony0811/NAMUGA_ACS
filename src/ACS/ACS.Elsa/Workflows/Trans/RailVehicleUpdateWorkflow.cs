@@ -200,6 +200,15 @@ namespace ACS.Elsa.Workflows.Trans
                         resourceManager.UpdateVehicleLocation(vehicle, data.CurrentNodeId);
                         if (logger.IsDebugEnabled)
                             logger.Debug($"Vehicle 위치 업데이트: {previousNodeId} → {data.CurrentNodeId}, vehicleId={data.VehicleId}");
+
+                        // NA_R_NODE.Type == CHARGE 노드 도착 시 ProcessingState → CHARGE
+                        if (NodeEx.TYPE_CHARGE.Equals(node.Type, StringComparison.OrdinalIgnoreCase) &&
+                            !VehicleEx.PROCESSINGSTATE_CHARGE.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
+                        {
+                            resourceManager.UpdateVehicleProcessingState(data.VehicleId,
+                                VehicleEx.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
+                            logger.Info($"Vehicle ProcessingState → CHARGE (충전 노드 도착): vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}");
+                        }
                     }
                 }
 
