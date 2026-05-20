@@ -61,8 +61,10 @@ namespace ACS.Elsa
                 .AsSelf()
                 .SingleInstance();
 
-            builder.Register(c => serviceProvider.GetRequiredService<IWorkflowRunner>())
-                .As<IWorkflowRunner>()
+            // IServiceScopeFactory는 root provider의 SingleInstance 서비스이므로 안전.
+            // Bridge가 매 워크플로우 호출마다 새 scope를 만들어 IWorkflowRunner(scoped)를 해석한다.
+            builder.Register(c => serviceProvider.GetRequiredService<IServiceScopeFactory>())
+                .As<IServiceScopeFactory>()
                 .SingleInstance();
 
             // 4. Legacy WorkflowManagerImpl (still needed for non-Elsa commands)

@@ -35,6 +35,11 @@ namespace ACS.App.Modules
             var destSection = _configuration.GetSection("Destination");
             FlattenSection(destSection, "", dest);
 
+            // 루트 레벨 Host 섹션도 host.* 키로 흡수 (Host:Domain:ConnectUrl 등 MES broker 설정)
+            var hostSection = _configuration.GetSection("Host");
+            if (hostSection.Exists())
+                FlattenSection(hostSection, "host", dest);
+
             // 하위 호환성: ${server.domain} placeholder가 "VM/DEMO" 등 DomainValue를 참조하도록
             // (JSON 구조에서 Server:Domain은 섹션이므로 값이 없고, Server:DomainValue에 실제 값 존재)
             if (dest["server.domain"] == null && dest["server.domainvalue"] != null)

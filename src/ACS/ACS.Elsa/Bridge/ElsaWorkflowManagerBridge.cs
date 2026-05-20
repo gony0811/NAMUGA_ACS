@@ -7,6 +7,7 @@ using System.Xml;
 using System.Text.Json;
 using Elsa.Workflows;
 using Elsa.Workflows.Options;
+using Microsoft.Extensions.DependencyInjection;
 using ACS.Core.Logging;
 using ACS.Core.Workflow;
 
@@ -25,7 +26,7 @@ namespace ACS.Elsa.Bridge
         private static readonly Logger logger = Logger.GetLogger(typeof(ElsaWorkflowManagerBridge));
 
         private readonly WorkflowManagerImpl _legacyManager;
-        private readonly IWorkflowRunner _workflowRunner;
+        private readonly IServiceScopeFactory _scopeFactory;
         private HashSet<string> _elsaCommands;
         private readonly string _configPath;
 
@@ -47,10 +48,10 @@ namespace ACS.Elsa.Bridge
 
         public ElsaWorkflowManagerBridge(
             WorkflowManagerImpl legacyManager,
-            IWorkflowRunner workflowRunner)
+            IServiceScopeFactory scopeFactory)
         {
             _legacyManager = legacyManager;
-            _workflowRunner = workflowRunner;
+            _scopeFactory = scopeFactory;
 
             // Config file next to the running executable
             _configPath = Path.Combine(AppContext.BaseDirectory, "elsa-migration.json");
@@ -210,7 +211,11 @@ namespace ACS.Elsa.Bridge
                     Input = input
                 };
 
-                var result = _workflowRunner.RunAsync(workflow, options)
+                // Scoped 의존성(IServiceProvider, DB 컨텍스트 등)이 살아 있는 새 scope에서 실행.
+                // 필드에 IWorkflowRunner를 캐싱하면 첫 scope dispose 후 ObjectDisposedException 발생.
+                using var scope = _scopeFactory.CreateScope();
+                var workflowRunner = scope.ServiceProvider.GetRequiredService<IWorkflowRunner>();
+                var result = workflowRunner.RunAsync(workflow, options)
                     .GetAwaiter().GetResult();
 
                 if (isTelemetry)

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Microsoft.Extensions.Configuration;
 using ACS.UI.Services;
 using ACS.UI.ViewModels;
 using ACS.UI.Views;
@@ -10,8 +11,6 @@ namespace ACS.UI;
 
 public partial class App : Application
 {
-    private const string BackendBaseUrl = "http://10.0.26.2:5100";
-
     private VehicleHubClient _vehicleHub;
     private HostCommHubClient _hostCommHub;
 
@@ -24,7 +23,14 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var apiService = new AcsApiService(BackendBaseUrl);
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .Build();
+            var backend = configuration.GetSection("Backend").Get<BackendSettings>() ?? new BackendSettings();
+            var baseUrl = backend.BaseUrl;
+
+            var apiService = new AcsApiService(baseUrl);
             var mainViewModel = new MainWindowViewModel(apiService);
             desktop.MainWindow = new MainWindow
             {
@@ -32,7 +38,7 @@ public partial class App : Application
             };
 
             // SignalR VehicleHub: 차량 POSE 텔레메트리(1Hz) → MapViewModel 실시간 갱신
-            _vehicleHub = new VehicleHubClient(BackendBaseUrl);
+            _vehicleHub = new VehicleHubClient(baseUrl);
             _vehicleHub.PoseUpdated += pose =>
             {
                 // [TEMP DEBUG] SignalR PoseUpdate 수신 로그
@@ -46,7 +52,7 @@ public partial class App : Application
             _ = _vehicleHub.StartAsync();
 
             // SignalR HostCommHub: Host(MES) TCP 통신 로그 → HostCommunicationViewModel 실시간 갱신
-            _hostCommHub = new HostCommHubClient(BackendBaseUrl);
+            _hostCommHub = new HostCommHubClient(baseUrl);
             _hostCommHub.LogReceived += log =>
             {
                 Dispatcher.UIThread.Post(() =>
