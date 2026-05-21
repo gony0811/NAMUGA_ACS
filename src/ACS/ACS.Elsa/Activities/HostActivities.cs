@@ -1168,4 +1168,100 @@ namespace ACS.Elsa.Activities
             }
         }
     }
+
+    /// <summary>
+    /// ACTIONCMD XML을 JSON으로 변환하여 RabbitMQ(HostAgentSender)를 통해 Trans 프로세스로 전송.
+    /// </summary>
+    [Activity("ACS.Host", "Send ActionCmd JSON to Trans",
+        "ACTIONCMD XML → JSON 변환 후 RabbitMQ로 Trans에 전송")]
+    public class SendActionCmdJsonToTransActivity : CodeActivity<bool>
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "수신한 ACTIONCMD XmlDocument")]
+        public Input<XmlDocument> ActionCmdXml { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var actionCmdXml = ActionCmdXml?.Get(context);
+                if (actionCmdXml == null)
+                {
+                    logger.Error("SendActionCmdJsonToTransActivity: ActionCmdXml is null");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("SendActionCmdJsonToTransActivity: AutofacContainerAccessor not available");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var hostAgentSender = accessor.ResolveNamed<ACS.Communication.Msb.IMessageAgent>("HostAgentSender");
+                if (hostAgentSender == null)
+                {
+                    logger.Error("SendActionCmdJsonToTransActivity: HostAgentSender not available");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                string acsId = ExtractValue(actionCmdXml, "//DataLayer/AcsId") ?? ExtractValue(actionCmdXml, "//AcsId") ?? "";
+                string targetLoc = ExtractValue(actionCmdXml, "//DataLayer/TargetLoc") ?? ExtractValue(actionCmdXml, "//TargetLoc") ?? "";
+                string targetPort = ExtractValue(actionCmdXml, "//DataLayer/TargetPort") ?? ExtractValue(actionCmdXml, "//TargetPort") ?? "";
+                string jobId = ExtractValue(actionCmdXml, "//DataLayer/JobID") ?? ExtractValue(actionCmdXml, "//JobID") ?? "";
+                string materialType = ExtractValue(actionCmdXml, "//DataLayer/MaterialType") ?? ExtractValue(actionCmdXml, "//MaterialType") ?? "";
+                string actionType = ExtractValue(actionCmdXml, "//DataLayer/ActionType") ?? ExtractValue(actionCmdXml, "//ActionType") ?? "";
+                string userId = ExtractValue(actionCmdXml, "//DataLayer/UserID") ?? ExtractValue(actionCmdXml, "//UserID") ?? "";
+
+                var message = new ACS.Communication.Mqtt.Model.ActionCmdMessage
+                {
+                    Header = new ACS.Communication.Mqtt.Model.ActionCmdHeader
+                    {
+                        MessageName = "ACTIONCMD",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "Host"
+                    },
+                    Data = new ACS.Communication.Mqtt.Model.ActionCmdData
+                    {
+                        AcsId = acsId,
+                        TargetLoc = targetLoc,
+                        TargetPort = targetPort,
+                        JobId = jobId,
+                        MaterialType = materialType,
+                        ActionType = actionType,
+                        UserId = userId
+                    }
+                };
+
+                string json = System.Text.Json.JsonSerializer.Serialize(message);
+                hostAgentSender.Send((object)json);
+
+                logger.Info($"SendActionCmdJsonToTransActivity: sent ACTIONCMD JSON to Trans - jobId={jobId}, targetLoc={targetLoc}, actionType={actionType}");
+                context.Set(Result, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"SendActionCmdJsonToTransActivity: {ex.Message}", ex);
+                context.Set(Result, false);
+            }
+        }
+
+        private static string ExtractValue(XmlDocument doc, string xpath)
+        {
+            try
+            {
+                var node = doc.SelectSingleNode(xpath);
+                return string.IsNullOrWhiteSpace(node?.InnerText) ? null : node.InnerText.Trim();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
 }

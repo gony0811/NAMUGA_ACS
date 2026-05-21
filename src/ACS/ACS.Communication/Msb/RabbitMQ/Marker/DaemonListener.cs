@@ -34,15 +34,14 @@ namespace ACS.Communication.Msb.RabbitMQ.Marker
                 // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
                 if (IsJsonMessage(message))
                 {
-                    string preview = message.Length > 200 ? message.Substring(0, 200) + "..." : message;
                     if (isTelemetry)
                     {
                         if (logger.IsDebugEnabled)
-                            logger.Debug("received JSON telemetry from Daemon: " + preview);
+                            logger.Debug("received JSON telemetry from Daemon: " + message);
                     }
                     else
                     {
-                        logger.Info("received JSON message from Daemon: " + preview);
+                        logger.Info("received JSON message from Daemon: " + message);
                     }
                     OnJsonMessage(message, dest);
                     return;

@@ -546,7 +546,36 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 ---
 
-## 17. 현재 상태 및 미완료 항목
+## 17. ChargeJob TC 정리 누락 — Step 순서/메모리 동기화 재수정
+
+**날짜:** 2026-05-21
+**작업:** §14 의 후속. `RailVehicleUpdateWorkflow.cs` Step 7/8 순서를 뒤집고 메모리 동기화를 보강하여, BatteryRate≥30 상태로 N1001 에 도착하는 메시지에서도 TC 가 즉시 정리되도록 한다.
+
+**문제:**
+- §14 의 훅이 들어간 후에도 "ChargeJob 정상 완료 (배터리 30%↑) 후 `NA_T_TRANSPORTCMD` 의 CHARGEMOVE row 잔존" 재현.
+- 원인 1 — **블록 순서**: 기존 코드는 Step 7(CHARGE→IDLE + TC 정리) 가 Step 8(NodeChanged→CHARGE 진입) 보다 먼저였음. AMR 이 N1001 도착 메시지에 이미 BatteryRate≥30 인 경우, 같은 메시지에서 Step 7 은 `vehicle.ProcessingState=IDLE` 로 보고 건너뛰고 Step 8 만 CHARGE 로 세팅 → 정리 누락.
+- 원인 2 — **인메모리 비동기화**: `ResourceManagerExImplement.UpdateVehicle(...)` 은 `PersistentDao.UpdateByAttribute` 직접 호출로 DB 만 갱신, 인메모리 `VehicleEx` 객체를 mutate 하지 않음 (`ResourceManagerExImplement.cs:344-347`). Step 8 에서 DB 를 CHARGE 로 바꿔도 같은 활동의 후속 조건 평가에는 반영 안 됨.
+- 원인 3 — **case-sensitive 비교**: Step 7 의 `vehicle.ProcessingState == VehicleEx.PROCESSINGSTATE_CHARGE` 는 case-sensitive `String ==` 인 반면 Step 8 은 `OrdinalIgnoreCase` 사용. 대소문자 혼입 시 미발화 위험.
+
+**변경:** `src/ACS/ACS.Elsa/Workflows/Trans/RailVehicleUpdateWorkflow.cs`
+1. Step 8(NodeChanged→CHARGE) 을 Step 7(CHARGE→IDLE + TC 정리) **앞**으로 이동.
+2. Step 8 에서 ProcessingState 를 DB 에 쓴 직후 `vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_CHARGE;` 로 인메모리 동기화 (Step 7 평가가 같은 메시지에서 정확히 발화하도록).
+3. Step 7 비교를 `OrdinalIgnoreCase` 로 통일.
+4. Step 7 의 IDLE 전이 직후도 동일하게 `vehicle.ProcessingState = ...IDLE` 동기화.
+5. 진단 로그 보강: 분기 진입 시 (ProcessingState/BatteryRate/threshold) 출력, TC 미존재/JobType 불일치 케이스 명시 로그, `DeleteTransportCommand` 가 0행 반환 시 `Error` 로 승격.
+
+**Why:** §14 fix 가 동작하지 않는 시나리오가 실측으로 재현됨. 단일 진실원천은 DB 지만, 같은 활동 안에서 두 단계가 ProcessingState 를 가지고 분기하므로 인메모리 일관성을 유지해야 함. 디자인은 그대로(삭제 시점=BatteryRate≥30) 유지하고 순서/동기화만 교정.
+
+**검증:** `dotnet build ACS.Elsa.csproj` 성공 (0 오류, 기존 경고만). 실측 검증 포인트:
+- (a) `NA_T_TRANSPORTCMD` CHARGEMOVE 사라짐
+- (b) `NA_H_TRANSPORTCMDHISTORY` 에 cause=`CHARGECOMPLETED` 이력 1행
+- (c) `NA_R_VEHICLE` TransportCommandId/Path/AcsDestNodeId 빈 문자열, ProcessingState=IDLE
+- (d) 로그에서 `Vehicle ProcessingState → CHARGE (충전 노드 도착)` 다음 줄에 `ChargeJob 완료: TC 삭제 tc=..., deleted=1` 가 같은 vehicleId 로 연속해서 찍힘
+- (e) 회귀 — BatteryRate<30 도착 시에는 TC 잔존 + ProcessingState=CHARGE 만 설정
+
+---
+
+## 18. 현재 상태 및 미완료 항목
 
 **빌드 상태:** 성공 (경고만, 오류 0)
 

@@ -175,48 +175,9 @@ namespace ACS.Elsa.Workflows.Trans
                         logger.Debug($"Vehicle VehicleDestNodeId 업데이트: {prev} → {data.VehicleDestNodeId}, vehicleId={data.VehicleId}");
                 }
 
-                // 7. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
-                //    RUN(Job 진행 중)은 절대 덮어쓰지 않아 Job 중복 할당을 방지하고,
-                //    CHARGE 진입은 충전 스테이션 도착 시 ResourceServiceEx에서 처리한다.
-                const int BATTERY_CHARGE_RELEASE_RATE = 30;
-                if (vehicle.ProcessingState == VehicleEx.PROCESSINGSTATE_CHARGE
-                    && data.BatteryRate >= BATTERY_CHARGE_RELEASE_RATE)
-                {
-                    // 충전 완료 → CHARGEMOVE TC 정리: History 이관 → NA_T_TRANSPORTCMD 삭제 → Vehicle 측 FK/잔여 필드 클리어
-                    var transferManager = accessor.Resolve<ITransferManagerEx>();
-                    var historyManager = accessor.Resolve<IHistoryManagerEx>();
-
-                    if (transferManager != null && historyManager != null)
-                    {
-                        TransportCommandEx tc = transferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
-                        if (tc != null
-                            && TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
-                        {
-                            historyManager.CreateTransportCommandHistory(tc, "", TransportCommandEx.STATE_CHARGE_COMPLETED);
-
-                            int deleted = transferManager.DeleteTransportCommand(tc);
-                            logger.Info($"ChargeJob 완료: TC 삭제 tc={tc.JobId}, vehicleId={vehicle.VehicleId}, deleted={deleted}");
-
-                            resourceManager.UpdateVehicleTransportCommandId(vehicle, "", "RAIL-VEHICLEUPDATE");
-                            resourceManager.UpdateVehicleAcsDestNodeId(vehicle, "", "RAIL-VEHICLEUPDATE");
-                            resourceManager.UpdateVehicle(vehicle, "Path", "");
-                            vehicle.TransportCommandId = "";
-                            vehicle.AcsDestNodeId = "";
-                            vehicle.Path = "";
-                        }
-                    }
-                    else
-                    {
-                        logger.Warn("ChargeJob 완료 처리: ITransferManagerEx/IHistoryManagerEx 해석 실패, TC 정리 건너뜀");
-                    }
-
-                    resourceManager.UpdateVehicleProcessingState(data.VehicleId,
-                        VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
-                    // CHARGE→IDLE 전이는 의미 있으니 유지
-                    logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
-                }
-
-                // 8. 노드 변경 시 CurrentNodeId 업데이트
+                // 7. 노드 변경 시 CurrentNodeId 업데이트 (충전 노드 도착 시 ProcessingState → CHARGE)
+                //    같은 메시지 안에서 도착 + 충전 완료(BatteryRate≥30) 가 동시 성립하는 경우를 처리하기 위해
+                //    Step 8(CHARGE→IDLE + TC 정리) 보다 먼저 평가한다.
                 if (data.NodeChanged && !string.IsNullOrEmpty(data.CurrentNodeId))
                 {
                     var cacheManager = accessor.Resolve<ICacheManagerEx>();
@@ -238,9 +199,69 @@ namespace ACS.Elsa.Workflows.Trans
                         {
                             resourceManager.UpdateVehicleProcessingState(data.VehicleId,
                                 VehicleEx.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
+                            // UpdateVehicleProcessingState(vehicleId,...) 는 새 VehicleEx 를 fetch 해 DB 만 갱신하므로
+                            // 이 활동 안에서 이어지는 Step 8 조건 평가가 정확하도록 인메모리 객체도 동기화한다.
+                            vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_CHARGE;
                             logger.Info($"Vehicle ProcessingState → CHARGE (충전 노드 도착): vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}");
                         }
                     }
+                }
+
+                // 8. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
+                //    RUN(Job 진행 중)은 절대 덮어쓰지 않아 Job 중복 할당을 방지하고,
+                //    CHARGE 진입은 Step 7(충전 노드 도착)에서 처리한다.
+                const int BATTERY_CHARGE_RELEASE_RATE = 30;
+                bool inCharge = VehicleEx.PROCESSINGSTATE_CHARGE.Equals(
+                    vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase);
+                if (inCharge && data.BatteryRate >= BATTERY_CHARGE_RELEASE_RATE)
+                {
+                    logger.Info($"ChargeJob 완료 조건 진입: vehicleId={data.VehicleId}, " +
+                                $"ProcessingState={vehicle.ProcessingState}, BatteryRate={data.BatteryRate}, threshold={BATTERY_CHARGE_RELEASE_RATE}");
+
+                    // 충전 완료 → CHARGEMOVE TC 정리: History 이관 → NA_T_TRANSPORTCMD 삭제 → Vehicle 측 FK/잔여 필드 클리어
+                    var transferManager = accessor.Resolve<ITransferManagerEx>();
+                    var historyManager = accessor.Resolve<IHistoryManagerEx>();
+
+                    if (transferManager != null && historyManager != null)
+                    {
+                        TransportCommandEx tc = transferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
+                        if (tc == null)
+                        {
+                            logger.Info($"ChargeJob 완료: 정리할 TC 없음 vehicleId={vehicle.VehicleId}");
+                        }
+                        else if (!TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            logger.Warn($"ChargeJob 완료: TC 발견했으나 JobType 불일치 — 정리 건너뜀. " +
+                                        $"vehicleId={vehicle.VehicleId}, tc={tc.JobId}, jobType={tc.JobType}");
+                        }
+                        else
+                        {
+                            historyManager.CreateTransportCommandHistory(tc, "", TransportCommandEx.STATE_CHARGE_COMPLETED);
+
+                            int deleted = transferManager.DeleteTransportCommand(tc);
+                            if (deleted > 0)
+                                logger.Info($"ChargeJob 완료: TC 삭제 tc={tc.JobId}, vehicleId={vehicle.VehicleId}, deleted={deleted}");
+                            else
+                                logger.Error($"ChargeJob 완료: TC 삭제 호출했으나 0행 영향 tc={tc.JobId}, vehicleId={vehicle.VehicleId}");
+
+                            resourceManager.UpdateVehicleTransportCommandId(vehicle, "", "RAIL-VEHICLEUPDATE");
+                            resourceManager.UpdateVehicleAcsDestNodeId(vehicle, "", "RAIL-VEHICLEUPDATE");
+                            resourceManager.UpdateVehicle(vehicle, "Path", "");
+                            vehicle.TransportCommandId = "";
+                            vehicle.AcsDestNodeId = "";
+                            vehicle.Path = "";
+                        }
+                    }
+                    else
+                    {
+                        logger.Warn("ChargeJob 완료 처리: ITransferManagerEx/IHistoryManagerEx 해석 실패, TC 정리 건너뜀");
+                    }
+
+                    resourceManager.UpdateVehicleProcessingState(data.VehicleId,
+                        VehicleEx.PROCESSINGSTATE_IDLE, "RAIL-VEHICLEUPDATE");
+                    // 이후 같은 활동에서 재참조 가능성 + 다음 메시지 fetch 전 일관성 확보
+                    vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_IDLE;
+                    logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
                 }
 
                 // 9. EventTime 업데이트
