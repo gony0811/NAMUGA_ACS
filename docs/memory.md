@@ -468,7 +468,85 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 ---
 
-## 15. 현재 상태 및 미완료 항목
+## 15. RecoverStuckVehiclesActivity 에 CHARGEMOVE 재전송 분기 추가
+
+**날짜:** 2026-05-21
+**작업:** `RecoverStuckVehiclesActivity` (`src/ACS/ACS.Elsa/Activities/ScheduleActivities.cs`) 의 vehicle 루프에 ChargeJob 전용 stuck 복구 분기 추가.
+
+**문제:** ChargeJob 은 `DispatchChargeJobActivity` 가 ProcessingState/TransferState 를 안 바꾸고 IDLE/NOTASSIGNED 그대로 두어, 기존 `RecoverStuckVehiclesActivity` 의 PROCESSINGSTATE_RUN 첫 필터에서 탈락. 충전소 이동 중 AMR 이 RunState=STOP 으로 멈춰도 CARRIERTRANSFER 재전송이 안 됐음.
+
+**변경:**
+- 루프 진입 직후 공통 필터(STOP, NOALARM, TC 비어있지 않음)를 먼저 적용.
+- ProcessingState=IDLE 분기에서 TC.JobType=CHARGEMOVE 면 destNode 미도착(StationId 불일치) 조건 만족 시 `CarrierTransferJsonBuilder.Build(..., JOBTYPE_CHARGEMOVE, useSource:false, ...)` + `SendCarrierTransferJson` 으로 재전송.
+- 기존 일반 Job (ProcessingState=RUN) 분기는 CHARGEMOVE 분기 뒤로 이동, 로직 그대로 유지.
+
+**Why:** 사용자 질문 "ChargeJob 도 RunState=STOP 시 CARRIERTRANSFER 재전송하는가" 확인 중 누락 발견. Stuck ChargeJob 자동 복구 추가로 수동 개입 없이 충전 디스패치 회복 가능.
+
+**검증:** `dotnet build ACS.Elsa.csproj` 성공 (0 오류). 실제 시나리오는 AMR Simulator 로 (1) battery<30 → ChargeJob assign, (2) RunState=STOP 보고 (destNode 미도착), (3) 10초 내 로그에 `CHARGEMOVE 재전송` Info 확인, (4) 충전 노드 도착 후엔 재전송 발화 안 되는지 회귀 체크 필요.
+
+---
+
+## 16. EI → AMR moveCmd 사양 일치화 (portType + amrSlot 추가)
+
+**날짜:** 2026-05-21
+**작업:** `docs/ACS-AMR_mqtt_movecmd.md` 사양에 맞춰 EI 가 AMR 로 발행하는 `moveCmd` JSON 에 `portType` / `amrSlot` 필드 추가.
+
+**문제:**
+- AMR 측은 `portType` (FACILITY=설비포트 / MATERIAL=자재포트) 으로 도착 후 시퀀스를 분기 (`AMR/Service/MoveSequenceRunner.cs:577-587`) 하는데, 기존 ACS 송신 페이로드에는 `portType` 필드 자체가 없었음.
+- ACS 내부 `RailCarrierTransferMessage.Data.PortType` 은 이미 `"EQP"`/`"MAT"` 로 채워서 들어오지만, `HandleCarrierTransferActivity` 가 JSON 파싱에서 그 키를 무시하고 버림.
+- 사양은 `amrSlot` (int 1~4, 기본 1) 도 요구 — Cobot DI 매핑(`amrSlotOffset = amrSlot - 1`)에 사용됨.
+
+**변경:**
+- `src/ACS/ACS.Communication/Mqtt/Model/AmrCommandMessage.cs`
+  - 필드 추가: `PortType` (string), `AmrSlot` (int, 기본값 1)
+  - `AmrPortTypeMapper` static 클래스 추가 — 도메인 `"EQP"` → AMR `"FACILITY"`, 그 외(`MAT`/`LP`/`OP`/`BP`/`null`) → `"MATERIAL"` (사양 default 와 일치)
+- `src/ACS/ACS.Communication/Mqtt/MqttInterfaceManager.cs`
+  - `SendDestination(...)` 시그니처에 `string portType = null, int amrSlot = 1` 추가
+  - `AmrCommandMessage` 생성 시 `AmrPortTypeMapper.ToAmr(portType)` 으로 변환하여 설정
+  - `SendCommand` 의 INFO 로그에 `portType` / `amrSlot` 추가
+- `src/ACS/ACS.Elsa/Activities/MqttActivities.cs` (`HandleCarrierTransferActivity`)
+  - JSON 파싱에서 `portType` 키 추출
+  - `SendDestination(..., commandId, portType)` 로 전달 (amrSlot 은 default 1)
+  - 성공/실패 로그에 `portType` 추가
+
+**Why:** 사용자 검증 중 "moveCmd 페이로드에 설비/자재 구분자가 없다" 지적. AMR이 portType 없으면 자재포트로 간주(사양 default)하여 설비포트 도착 시 ActionCmd 대기 단계를 스킵하므로 실제 운영에서 reach goal 시퀀스 오류 가능.
+
+**결정 사항 (디폴트 채택):**
+- LP/OP/BP 매핑: 일단 모두 MATERIAL 로 묶음. 추후 LP 도 FACILITY 분류가 필요해지면 `AmrPortTypeMapper.ToAmr` 만 수정하면 됨.
+- amrSlot 출처: 현재 도메인 매핑 없어서 사양 default `1` 고정. Vehicle 다중 슬롯 운용 시 RAIL-CARRIERTRANSFER 에 `amrSlot` 필드 신설 + `SendDestination` 마지막 인자로 전달하는 방식으로 확장 예정.
+- `SendAction` (actionCmd) 은 사양에 portType 명시가 없어 미변경.
+
+**검증:** `dotnet build ACS.sln` 성공 (0 오류, 기존 경고 71개만). 실제 검증은 MQTT 클라이언트로 `amr/{commId}/command` 구독 → CARRIERTRANSFER 트리거 시 JSON 에 7개 필드(cmdId/command/nodeId/port/jobType/portType/amrSlot) 모두 포함, EQP 포트 → `"FACILITY"`, 그 외 → `"MATERIAL"` 출력 확인 필요.
+
+**※ 16-1 후속 결정 (동일일):** 사용자 요청으로 매핑(FACILITY/MATERIAL)을 폐기하고 **LocationEx.Type 값을 그대로** AMR 에 통과시키는 방식으로 변경. 자세한 내용은 §16-1 참조.
+
+---
+
+## 16-1. EI → AMR moveCmd portType 을 LocationEx.Type 그대로 통과로 전환
+
+**날짜:** 2026-05-21
+**작업:** §16 의 EQP↔FACILITY 매핑을 폐기하고 ACS LocationEx.Type 값을 그대로 AMR `portType` 에 실어 보내도록 전환.
+
+**문제/배경:**
+- §16 에서 사양 문서(`docs/ACS-AMR_mqtt_movecmd.md`) 의 `FACILITY/MATERIAL` 표기를 따라 `AmrPortTypeMapper` 로 매핑 처리했음.
+- 사용자 의도는 "도메인에 있는 LOCATION type 정보(EQP/BUFFER/CHARGE 등) 를 그대로 보내라" — 임의 변환을 한 곳에 두지 말고 송신·수신 양쪽이 같은 어휘를 쓰자는 것.
+
+**변경:**
+- `src/ACS/ACS.Elsa/Activities/ScheduleActivities.cs` — `CarrierTransferJsonBuilder.Build()` 에서 `Port.PortType` (EQP/MAT/LP/OP/BP) 대신 `LocationEx.Type` (EQP/BUFFER/INPUT/OUTPUT/CHARGE/VBUFFER) 사용. 기존 location 조회를 그대로 활용 (nodeId 추출과 같은 호출에서 같이 가져옴) — `GetUnitByName` + `Port.PortType` 블록은 제거.
+- `src/ACS/ACS.Communication/Mqtt/Model/AmrCommandMessage.cs` — `AmrPortTypeMapper` static 클래스 삭제, `PortType` 필드 주석을 LocationEx.Type 값으로 갱신.
+- `src/ACS/ACS.Communication/Mqtt/MqttInterfaceManager.cs` — `SendDestination(...)` 의 `PortType = AmrPortTypeMapper.ToAmr(portType)` 을 `PortType = portType ?? ""` 로 변경 (매핑 호출 제거).
+- `src/ACS/ACS.Communication/Mqtt/Model/RailCarrierTransferMessage.cs` — `PortType` 필드 주석을 LocationEx.Type 값으로 갱신.
+- `docs/ACS-AMR_mqtt_movecmd.md` — 요청 메시지 예시 값, 필드 표, "PortType에 따른 시퀀스 차이", "Cobot Digital Input 매핑" 표를 `EQP` (설비포트) / `BUFFER`·`INPUT`·`OUTPUT`·`VBUFFER` (자재포트) / `CHARGE` (충전소) 카테고리 기준으로 재기술.
+
+**Why:** AMR 인터페이스 어휘를 ACS 도메인 어휘와 일치시키기 위함. 임의 매핑이 EI 한 곳에 끼면 진실 표가 2개가 되어 LP/OP/BP 같은 모호한 케이스 분류 정책에 결정 부담이 생긴다. 한쪽(LocationEx) 에 정의를 두고 그대로 통과시키면 향후 카테고리 추가/변경 시 사양 문서·도메인 두 곳만 손대면 된다.
+
+**검증:** `dotnet build ACS.sln` 성공 (0 오류, 기존 경고 71개만). 실제 검증은 MQTT 클라이언트로 `amr/{commId}/command` 구독 → 설비포트 도착 시 `"portType":"EQP"`, 버퍼 도착 시 `"portType":"BUFFER"`, 충전소 도착 시 `"portType":"CHARGE"` 직렬화 확인 필요.
+
+**후속 작업 (별도 레포):** AMR 프로그램의 `AMR/Service/MoveSequenceRunner.cs:577-587` 분기를 새 값(`EQP`/`BUFFER`/`INPUT`/`OUTPUT`/`CHARGE`/`VBUFFER`) 기준으로 동기화해야 운영 정합성이 유지됨.
+
+---
+
+## 17. 현재 상태 및 미완료 항목
 
 **빌드 상태:** 성공 (경고만, 오류 0)
 

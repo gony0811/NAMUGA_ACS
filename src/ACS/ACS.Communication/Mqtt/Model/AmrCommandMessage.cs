@@ -4,7 +4,7 @@ namespace ACS.Communication.Mqtt.Model
 {
     /// <summary>
     /// ACS가 AMR에 발행하는 명령 메시지 (amr/{id}/command 토픽).
-    /// mqtt_interface.md 스펙 준수.
+    /// docs/ACS-AMR_mqtt_movecmd.md 사양 준수.
     /// </summary>
     public class AmrCommandMessage
     {
@@ -27,5 +27,13 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>목적지에 도착해서 할 일 (LOAD / UNLOAD / EXCHANGE)</summary>
         [JsonPropertyName("jobType")]
         public string JobType { get; set; }
+
+        /// <summary>포트 유형 (LocationEx.Type 값: EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER). EI는 도메인 값을 그대로 송신하며 AMR이 분기 처리.</summary>
+        [JsonPropertyName("portType")]
+        public string PortType { get; set; }
+
+        /// <summary>AMR 슬롯 번호 (1~4, 기본 1)</summary>
+        [JsonPropertyName("amrSlot")]
+        public int AmrSlot { get; set; } = 1;
     }
 }

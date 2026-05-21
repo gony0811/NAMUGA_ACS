@@ -483,7 +483,7 @@ namespace ACS.Communication.Mqtt
 
                 await _mqttClient.PublishAsync(message);
 
-                logger.Info($"MQTT 명령 전송: topic={topic}, cmdId={command.CmdId}, command={command.Command}, nodeId={command.NodeId}, port={command.Port}, jobType={command.JobType}");
+                logger.Info($"MQTT 명령 전송: topic={topic}, cmdId={command.CmdId}, command={command.Command}, nodeId={command.NodeId}, port={command.Port}, jobType={command.JobType}, portType={command.PortType}, amrSlot={command.AmrSlot}");
                 return true;
             }
             catch (Exception e)
@@ -496,8 +496,9 @@ namespace ACS.Communication.Mqtt
         /// <summary>
         /// AMR에 이동 명령을 전송한다 (moveCmd).
         /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
+        /// portType은 LocationEx.Type 값을 그대로 통과시킨다 (EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER).
         /// </summary>
-        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null)
+        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string portType = null, int amrSlot = 1)
         {
             var command = new AmrCommandMessage
             {
@@ -505,7 +506,9 @@ namespace ACS.Communication.Mqtt
                 Command = "moveCmd",
                 NodeId = nodeId,
                 Port = port ?? "",
-                JobType = jobType ?? ""
+                JobType = jobType ?? "",
+                PortType = portType ?? "",
+                AmrSlot = amrSlot
             };
 
             return await SendCommand(vehicleId, command);

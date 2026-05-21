@@ -627,12 +627,13 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // JSON 파싱: vehicleId, destNodeId, port, jobType 추출
+                // JSON 파싱: vehicleId, destNodeId, port, jobType, portType 추출
                 string vehicleId = null;
                 string destNodeId = null;
                 string commandId = null;
                 string port = null;
                 string jobType = null;
+                string portType = null;
 
                 using (var doc = JsonDocument.Parse(jsonMessage))
                 {
@@ -648,6 +649,8 @@ namespace ACS.Elsa.Activities
                             port = portEl.GetString();
                         if (dataEl.TryGetProperty("jobType", out var jtEl))
                             jobType = jtEl.GetString();
+                        if (dataEl.TryGetProperty("portType", out var ptEl))
+                            portType = ptEl.GetString();
                     }
                 }
 
@@ -689,19 +692,20 @@ namespace ACS.Elsa.Activities
 
                 // CommId로 Vehicle을 식별하여 MQTT command 토픽으로 이동 명령 전송
                 // cmdId=commandId(=TC.JobId) 로 발행해야 AMR reply 수신 시 TC 조회(JobType fallback)가 가능
-                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType, commandId)
+                // amrSlot은 도메인 매핑이 없어 사양 default 1 사용
+                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType, commandId, portType)
                     .GetAwaiter().GetResult();
 
                 if (result)
                 {
                     logger.Info($"HandleCarrierTransferActivity: MQTT 이동 명령 전송 완료. " +
                         $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
-                        $"destNodeId={destNodeId}, port={port}, jobType={jobType}");
+                        $"destNodeId={destNodeId}, port={port}, jobType={jobType}, portType={portType}");
                 }
                 else
                 {
                     logger.Error($"HandleCarrierTransferActivity: MQTT 이동 명령 전송 실패. " +
-                        $"vehicleId={vehicleId}, commId={vehicle.CommId}, destNodeId={destNodeId}");
+                        $"vehicleId={vehicleId}, commId={vehicle.CommId}, destNodeId={destNodeId}, portType={portType}");
                 }
 
                 // RAIL-CARRIERTRANSFERREPLY를 Trans 프로세스로 회신

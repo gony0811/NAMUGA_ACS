@@ -400,7 +400,7 @@ namespace ACS.Elsa.Activities
     /// RAIL-CARRIERTRANSFER JSON 빌드 공유 헬퍼.
     /// Source 단계(UNLOAD)와 Dest 단계(LOAD) 모두에서 사용.
     /// useSource=true면 tc.Source, false면 tc.Dest를 기준으로
-    /// destPortId / destNodeId / portType(EQP/MAT)을 채운다.
+    /// destPortId / destNodeId / portType(LocationEx.Type 값)을 채운다.
     /// </summary>
     internal static class CarrierTransferJsonBuilder
     {
@@ -431,35 +431,21 @@ namespace ACS.Elsa.Activities
                     }
                 }
 
-                // nodeId 조회
+                // nodeId 및 portType (LocationEx.Type: EQP/BUFFER/INPUT/OUTPUT/CHARGE/VBUFFER) 조회
                 string nodeId = "";
+                string portType = "";
                 try
                 {
                     var location = resourceManager?.GetLocationByLocationId(portId);
                     if (location != null)
-                        nodeId = location.StationId ?? "";
-                }
-                catch (Exception ex)
-                {
-                    logger?.Error($"CarrierTransferJsonBuilder: location 조회 실패 portId={portId} - {ex.Message}");
-                }
-
-                // portType (EQP / MAT) 조회
-                string portType = "";
-                try
-                {
-                    if (!string.IsNullOrEmpty(unitName) && !string.IsNullOrEmpty(machineName))
                     {
-                        var unit = resourceManager?.GetUnitByName(unitName, machineName);
-                        if (unit is ACS.Core.Resource.Model.Factory.Unit.Port port)
-                        {
-                            portType = port.PortType ?? "";
-                        }
+                        nodeId = location.StationId ?? "";
+                        portType = location.Type ?? "";
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger?.Error($"CarrierTransferJsonBuilder: Port 조회 실패 machine={machineName}, unit={unitName} - {ex.Message}");
+                    logger?.Error($"CarrierTransferJsonBuilder: location 조회 실패 portId={portId} - {ex.Message}");
                 }
 
                 var message = new RailCarrierTransferMessage
@@ -885,14 +871,50 @@ namespace ACS.Elsa.Activities
                 int recovered = 0;
                 foreach (VehicleEx vehicle in allVehicles)
                 {
-                    if (!VehicleEx.PROCESSINGSTATE_RUN.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
-                        continue;
                     if (!VehicleEx.RUNSTATE_STOP.Equals(vehicle.RunState, StringComparison.OrdinalIgnoreCase))
                         continue;
                     // ALARM 상태에서는 이동 명령 재전송하지 않음
                     if (!VehicleEx.ALARMSTATE_NOALARM.Equals(vehicle.AlarmState, StringComparison.OrdinalIgnoreCase))
                         continue;
                     if (string.IsNullOrEmpty(vehicle.TransportCommandId))
+                        continue;
+
+                    // ─── CHARGEMOVE 재전송 분기 ───
+                    // ChargeJob 은 dispatch 시 ProcessingState 를 IDLE 그대로 두므로
+                    // 일반 RUN+STOP 필터에 안 잡힌다. 별도 분기로 처리.
+                    if (VehicleEx.PROCESSINGSTATE_IDLE.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
+                    {
+                        TransportCommandEx chargeTc = transferManager.GetTransportCommand(vehicle.TransportCommandId);
+                        if (chargeTc != null
+                            && TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(chargeTc.JobType, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(chargeTc.VehicleId, vehicle.VehicleId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var pathManager = accessor.Resolve<IPathManagerEx>();
+                            var destLoc = pathManager?.GetLocationByLocationId(chargeTc.Dest);
+                            string destNodeId = destLoc?.StationId;
+
+                            if (!string.IsNullOrEmpty(destNodeId)
+                                && !string.Equals(vehicle.CurrentNodeId, destNodeId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                string chargeJson = CarrierTransferJsonBuilder.Build(chargeTc, vehicle.VehicleId,
+                                    TransportCommandEx.JOBTYPE_CHARGEMOVE, useSource: false, resourceManager, logger);
+                                if (!string.IsNullOrEmpty(chargeJson))
+                                {
+                                    messageManager.SendCarrierTransferJson(chargeJson);
+                                    recovered++;
+                                    logger.Info($"RecoverStuckVehiclesActivity: CHARGEMOVE 재전송 vehicleId={vehicle.VehicleId}, " +
+                                                $"tc={chargeTc.JobId}, currentNode={vehicle.CurrentNodeId}, destNode={destNodeId}");
+                                }
+                                else
+                                {
+                                    logger.Error($"RecoverStuckVehiclesActivity: CHARGEMOVE JSON 빌드 실패 vehicleId={vehicle.VehicleId}, tc={chargeTc.JobId}");
+                                }
+                            }
+                        }
+                        continue;   // IDLE 분기 처리 후 일반 Job 매칭 단계 진입 방지
+                    }
+
+                    if (!VehicleEx.PROCESSINGSTATE_RUN.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     TransportCommandEx tc = transferManager.GetTransportCommand(vehicle.TransportCommandId);

@@ -65,7 +65,7 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("jobType")]
         public string JobType { get; set; }
 
-        /// <summary>포트 종류 (EQP / MAT)</summary>
+        /// <summary>포트 종류 (LocationEx.Type 값: EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER)</summary>
         [JsonPropertyName("portType")]
         public string PortType { get; set; }
 
