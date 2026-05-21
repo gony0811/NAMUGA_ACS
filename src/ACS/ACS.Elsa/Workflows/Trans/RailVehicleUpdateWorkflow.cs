@@ -16,6 +16,7 @@ using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
 using ACS.Communication.Mqtt.Model;
 using ACS.Core.Database.Model.Resource;
+using ACS.Core.Workflow;
 
 namespace ACS.Elsa.Workflows.Trans
 {
@@ -204,6 +205,11 @@ namespace ACS.Elsa.Workflows.Trans
                             vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_CHARGE;
                             logger.Info($"Vehicle ProcessingState → CHARGE (충전 노드 도착): vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}");
                         }
+
+                        // AcsDestNodeId(=source phase 목적지) 도착 시 RAIL-VEHICLEDESTARRIVED 디스패치.
+                        // acquire-complete 이전(STATE_ASSIGNED) 에만 발화하며, 이후 acquire-complete 가
+                        // AcsDestNodeId 를 dest 로 덮어쓰므로 dest 도착 시 자동으로 재발화하지 않는다.
+                        DispatchDestArrivedIfNeeded(accessor, data.CurrentNodeId, vehicle);
                     }
                 }
 
@@ -297,6 +303,45 @@ namespace ACS.Elsa.Workflows.Trans
             catch (Exception ex)
             {
                 logger.Warn($"RailVehicleUpdateActivity: UI forwarding 실패 - {ex.Message}");
+            }
+        }
+
+        // currentNodeId == vehicle.AcsDestNodeId 이고, TC가 source phase(STATE_ASSIGNED)이며 CHARGEMOVE가 아닐 때
+        // RAIL-VEHICLEDESTARRIVED 워크플로우를 dispatch 한다. dispatch 실패는 Update 본 흐름을 끊지 않는다.
+        private static void DispatchDestArrivedIfNeeded(
+            Bridge.AutofacContainerAccessor accessor, string currentNodeId, VehicleEx vehicle)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(vehicle?.AcsDestNodeId)) return;
+                if (string.IsNullOrEmpty(vehicle.TransportCommandId)) return;
+                if (!currentNodeId.Equals(vehicle.AcsDestNodeId, StringComparison.OrdinalIgnoreCase)) return;
+
+                var transferManager = accessor.Resolve<ITransferManagerEx>();
+                if (transferManager == null)
+                {
+                    logger.Warn("DispatchDestArrivedIfNeeded: ITransferManagerEx 해석 실패 — skip");
+                    return;
+                }
+
+                TransportCommandEx tc = transferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
+                if (tc == null) return;
+                if (TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase)) return;
+
+                var workflowManager = accessor.Resolve<IWorkflowManager>();
+                if (workflowManager == null)
+                {
+                    logger.Warn("DispatchDestArrivedIfNeeded: IWorkflowManager 해석 실패 — skip");
+                    return;
+                }
+
+                logger.Info($"DispatchDestArrivedIfNeeded: source 도착 검출 → RAIL-VEHICLEDESTARRIVED dispatch. " +
+                            $"vehicleId={vehicle.VehicleId}, tc={tc.JobId}, nodeId={currentNodeId}");
+                workflowManager.Execute("RAIL-VEHICLEDESTARRIVED", (object)vehicle.VehicleId);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("DispatchDestArrivedIfNeeded 오류", ex);
             }
         }
     }

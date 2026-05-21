@@ -1665,42 +1665,33 @@ namespace ACS.Manager.Message
             string destSubject = Configuration?["Acs:Host:DestSubject"] ?? "/HQ/MES01";
             string replySubject = Configuration?["Acs:Host:ReplySubject"] ?? "/HQ/ACS01";
 
-            var doc = new XmlDocument();
-            var decl = doc.CreateXmlDeclaration("1.0", "utf-8", null);
-            doc.AppendChild(decl);
-
-            var msg = doc.CreateElement("Msg");
-            doc.AppendChild(msg);
-
-            var cmdElem = doc.CreateElement("Command");
-            cmdElem.InnerText = "JOBREPORT";
-            msg.AppendChild(cmdElem);
-
-            var header = doc.CreateElement("Header");
-            msg.AppendChild(header);
-            var destElem = doc.CreateElement("DestSubject");
-            destElem.InnerText = destSubject;
-            header.AppendChild(destElem);
-            var replyElem = doc.CreateElement("ReplySubject");
-            replyElem.InnerText = replySubject;
-            header.AppendChild(replyElem);
-
-            var dataLayer = doc.CreateElement("DataLayer");
-            msg.AppendChild(dataLayer);
-            foreach (var (name, value) in new[]
+            // JSON payload — host 측 GenericWorkflowRabbitMQListener.OnJsonMessage 가 header.messageName 으로
+            // HostJobReportWorkflow 를 라우팅한다. MES 용 XML 은 워크플로우 내부에서 재구성.
+            string transactionId = Guid.NewGuid().ToString("N");
+            var payload = new
             {
-                ("AcsId", acsId), ("Type", reportType), ("AmrId", amrId ?? ""),
-                ("ActionType", actionType ?? ""), ("JobID", jobId),
-                ("MaterialType", materialType ?? ""), ("UserID", "")
-            })
-            {
-                var elem = doc.CreateElement(name);
-                elem.InnerText = value;
-                dataLayer.AppendChild(elem);
-            }
+                header = new
+                {
+                    messageName = "JOBREPORT",
+                    transactionId = transactionId,
+                    destSubject = destSubject,
+                    replySubject = replySubject
+                },
+                data = new
+                {
+                    AcsId = acsId,
+                    Type = reportType,
+                    AmrId = amrId ?? "",
+                    ActionType = actionType ?? "",
+                    JobID = jobId,
+                    MaterialType = materialType ?? "",
+                    UserID = ""
+                }
+            };
 
-            this.hostAgent.Send(doc, true, "TRSJOBREPORT");
-            logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}");
+            string json = JsonSerializer.Serialize(payload);
+            this.hostAgent.Send((object)json);
+            logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}, txn={transactionId}");
         }
 
         public void SendCarrierTransferJson(string jsonMessage)

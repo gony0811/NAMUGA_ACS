@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Xml;
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
+using ACS.Communication.Host.Models;
 using ACS.Core.Host;
 using ACS.Core.Logging;
 using ACS.Core.Base;
@@ -682,51 +684,70 @@ namespace ACS.Elsa.Activities
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// 워크플로우 Input(Arguments)에서 JOBREPORT XmlDocument를 추출하는 Activity.
+    /// 워크플로우 Input(Arguments)에서 JOBREPORT JSON 을 파싱해 JobReportData 로 추출하는 Activity.
+    /// 입력 형식: {"header":{"messageName":"JOBREPORT","transactionId":"..."}, "data":{...}}
     /// </summary>
-    [Activity("ACS.Host", "Extract JobReport XML",
-        "워크플로우 입력에서 JOBREPORT XmlDocument를 추출합니다.")]
+    [Activity("ACS.Host", "Extract JobReport JSON",
+        "워크플로우 입력에서 JOBREPORT JSON 을 파싱하여 JobReportData 로 추출합니다.")]
     public class ExtractJobReportFromInput : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
 
-        [Output(Description = "추출된 JOBREPORT XmlDocument")]
-        public Output<XmlDocument> OutputXml { get; set; }
+        [Output(Description = "추출된 JOBREPORT 데이터")]
+        public Output<JobReportData> OutputData { get; set; }
 
         protected override void Execute(ActivityExecutionContext context)
         {
-            XmlDocument result = null;
-
+            string json = null;
             var input = context.WorkflowExecutionContext.Input;
             if (input != null && input.TryGetValue("Arguments", out var args))
             {
                 if (args is object[] argsArray && argsArray.Length > 0)
-                {
-                    if (argsArray[0] is XmlDocument xmlDoc)
-                    {
-                        result = xmlDoc;
-                    }
-                    else if (argsArray[0] is string xmlString)
-                    {
-                        result = new XmlDocument();
-                        result.LoadXml(xmlString);
-                    }
-                }
-                else if (args is XmlDocument singleDoc)
-                {
-                    result = singleDoc;
-                }
+                    json = argsArray[0] as string;
+                else if (args is string s)
+                    json = s;
             }
 
-            if (result == null)
+            var data = new JobReportData();
+            if (string.IsNullOrEmpty(json))
             {
-                result = new XmlDocument();
-                result.LoadXml("<Msg><Command>JOBREPORT</Command><Header/><DataLayer/></Msg>");
-                logger.Warn("ExtractJobReportFromInput: No JOBREPORT XML found in input, using empty template");
+                logger.Warn("ExtractJobReportFromInput: No JOBREPORT JSON found in input, returning empty data");
+                context.Set(OutputData, data);
+                return;
             }
 
-            context.Set(OutputXml, result);
-            logger.Info("ExtractJobReportFromInput: JOBREPORT XML extracted from workflow input");
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Object)
+                {
+                    data.AcsId = ReadString(d, "AcsId");
+                    data.Type = ReadString(d, "Type");
+                    data.AmrId = ReadString(d, "AmrId");
+                    data.ActionType = ReadString(d, "ActionType");
+                    data.JobID = ReadString(d, "JobID");
+                    data.MaterialType = ReadString(d, "MaterialType");
+                    data.UserID = ReadString(d, "UserID");
+                    data.ErrorCode = ReadString(d, "ErrorCode");
+                    data.ErrorMsg = ReadString(d, "ErrorMsg");
+                }
+
+                context.Set(OutputData, data);
+                logger.Info($"ExtractJobReportFromInput: JOBREPORT parsed - JobID={data.JobID}, Type={data.Type}, AmrId={data.AmrId}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"ExtractJobReportFromInput: JSON parse 실패 - {ex.Message}", ex);
+                context.Set(OutputData, data);
+            }
+        }
+
+        private static string ReadString(JsonElement obj, string name)
+        {
+            if (obj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String)
+                return v.GetString() ?? "";
+            return "";
         }
     }
 
@@ -739,13 +760,13 @@ namespace ACS.Elsa.Activities
     ///   3. 데이터 일치 확인 (MaterialType↔Description, ActionType↔JobType) — 불일치 시 경고 로그
     /// </summary>
     [Activity("ACS.Host", "Validate Job Report",
-        "JOBREPORT 메시지를 DB의 TransportCommandEx와 대조 검증합니다.")]
+        "JOBREPORT 데이터를 DB의 TransportCommandEx와 대조 검증합니다.")]
     public class ValidateJobReportActivity : CodeActivity<bool>
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
 
-        [Input(Description = "JOBREPORT XmlDocument")]
-        public Input<XmlDocument> JobReportXml { get; set; }
+        [Input(Description = "JOBREPORT 데이터")]
+        public Input<JobReportData> JobReportData { get; set; }
 
         [Output(Description = "검증 실패 사유 (성공 시 빈 문자열)")]
         public Output<string> ValidationError { get; set; }
@@ -765,27 +786,26 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                var xml = JobReportXml?.Get(context);
-                if (xml == null)
+                var data = JobReportData?.Get(context);
+                if (data == null)
                 {
-                    logger.Error("ValidateJobReportActivity: JobReportXml is required");
+                    logger.Error("ValidateJobReportActivity: JobReportData is required");
                     context.Set(Result, false);
-                    context.Set(ValidationError, "JobReportXml is null");
+                    context.Set(ValidationError, "JobReportData is null");
                     return;
                 }
 
-                // XML에서 필드 추출
-                string jobId = ExtractValue(xml, "//DataLayer/JobID") ?? ExtractValue(xml, "//JobID");
-                string type = ExtractValue(xml, "//DataLayer/Type") ?? ExtractValue(xml, "//Type");
-                string materialType = ExtractValue(xml, "//DataLayer/MaterialType") ?? ExtractValue(xml, "//MaterialType");
-                string actionType = ExtractValue(xml, "//DataLayer/ActionType") ?? ExtractValue(xml, "//ActionType");
-                string amrId = ExtractValue(xml, "//DataLayer/AmrId") ?? ExtractValue(xml, "//AmrId");
+                string jobId = data.JobID;
+                string type = data.Type;
+                string materialType = data.MaterialType;
+                string actionType = data.ActionType;
+                string amrId = data.AmrId;
 
                 if (string.IsNullOrEmpty(jobId))
                 {
-                    logger.Error("ValidateJobReportActivity: JobID is missing from JOBREPORT XML");
+                    logger.Error("ValidateJobReportActivity: JobID is missing from JOBREPORT");
                     context.Set(Result, false);
-                    context.Set(ValidationError, "JobID is missing from JOBREPORT XML");
+                    context.Set(ValidationError, "JobID is missing from JOBREPORT");
                     return;
                 }
 
@@ -849,33 +869,21 @@ namespace ACS.Elsa.Activities
                 context.Set(ValidationError, ex.Message);
             }
         }
-
-        private static string ExtractValue(XmlDocument doc, string xpath)
-        {
-            try
-            {
-                var node = doc.SelectSingleNode(xpath);
-                return string.IsNullOrWhiteSpace(node?.InnerText) ? null : node.InnerText.Trim();
-            }
-            catch
-            {
-                return null;
-            }
-        }
     }
 
     /// <summary>
-    /// 검증된 JOBREPORT를 MES로 TCP 전달하는 Activity.
-    /// 기존 IHostMessageService.SendToHost()를 통해 SendHost:SendPort로 전송.
+    /// 검증된 JOBREPORT 를 MES TCP 로 전달하는 Activity.
+    /// JSON 데이터로부터 IHostMessageService.BuildJobReport 로 MES 용 XML 을 구성한 뒤
+    /// IHostMessageService.SendToHost 로 TCP 송신.
     /// </summary>
     [Activity("ACS.Host", "Forward Job Report to MES",
-        "검증된 JOBREPORT를 MES로 TCP 전달합니다.")]
+        "검증된 JOBREPORT 를 MES 로 TCP 전달합니다 (JSON → XML 변환 후 송신).")]
     public class ForwardJobReportToMesActivity : CodeActivity<bool>
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
 
-        [Input(Description = "전달할 JOBREPORT XmlDocument")]
-        public Input<XmlDocument> JobReportXml { get; set; }
+        [Input(Description = "전달할 JOBREPORT 데이터")]
+        public Input<JobReportData> JobReportData { get; set; }
 
         protected override void Execute(ActivityExecutionContext context)
         {
@@ -891,20 +899,30 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                var xml = JobReportXml?.Get(context);
-                if (xml == null)
+                var data = JobReportData?.Get(context);
+                if (data == null)
                 {
-                    logger.Error("ForwardJobReportToMesActivity: JobReportXml is null");
+                    logger.Error("ForwardJobReportToMesActivity: JobReportData is null");
                     context.Set(Result, false);
                     return;
                 }
 
+                // JSON 필드로 MES 용 JOBREPORT XML 구성 (destSubject/replySubject 는 빈값 시 config 기본값 적용)
+                var xml = hostMessageService.BuildJobReport(
+                    reportType: data.Type ?? "",
+                    jobId: data.JobID ?? "",
+                    amrId: data.AmrId ?? "",
+                    actionType: data.ActionType ?? "",
+                    materialType: data.MaterialType ?? "",
+                    acsId: data.AcsId ?? "",
+                    userId: data.UserID ?? "",
+                    errCode: data.ErrorCode ?? "",
+                    errMsg: data.ErrorMsg ?? "");
+
                 hostMessageService.SendToHost("JOBREPORT", xml);
                 context.Set(Result, true);
 
-                string jobId = xml.SelectSingleNode("//DataLayer/JobID")?.InnerText ?? "unknown";
-                string type = xml.SelectSingleNode("//DataLayer/Type")?.InnerText ?? "unknown";
-                logger.Info($"ForwardJobReportToMesActivity: JOBREPORT forwarded to MES - JobID={jobId}, Type={type}");
+                logger.Info($"ForwardJobReportToMesActivity: JOBREPORT forwarded to MES - JobID={data.JobID}, Type={data.Type}");
             }
             catch (Exception ex)
             {
@@ -929,8 +947,8 @@ namespace ACS.Elsa.Activities
     {
         private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
 
-        [Input(Description = "JOBREPORT XmlDocument")]
-        public Input<XmlDocument> JobReportXml { get; set; }
+        [Input(Description = "JOBREPORT 데이터")]
+        public Input<JobReportData> JobReportData { get; set; }
 
         protected override void Execute(ActivityExecutionContext context)
         {
@@ -946,17 +964,17 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                var xml = JobReportXml?.Get(context);
-                if (xml == null)
+                var data = JobReportData?.Get(context);
+                if (data == null)
                 {
-                    logger.Error("UpdateTransportCommandStateActivity: JobReportXml is null");
+                    logger.Error("UpdateTransportCommandStateActivity: JobReportData is null");
                     context.Set(Result, false);
                     return;
                 }
 
-                string jobId = ExtractValue(xml, "//DataLayer/JobID") ?? ExtractValue(xml, "//JobID");
-                string type = ExtractValue(xml, "//DataLayer/Type") ?? ExtractValue(xml, "//Type");
-                string amrId = ExtractValue(xml, "//DataLayer/AmrId") ?? ExtractValue(xml, "//AmrId");
+                string jobId = data.JobID;
+                string type = data.Type;
+                string amrId = data.AmrId;
 
                 if (string.IsNullOrEmpty(jobId))
                 {
@@ -1017,19 +1035,6 @@ namespace ACS.Elsa.Activities
             {
                 logger.Error($"UpdateTransportCommandStateActivity: {ex.Message}", ex);
                 context.Set(Result, false);
-            }
-        }
-
-        private static string ExtractValue(XmlDocument doc, string xpath)
-        {
-            try
-            {
-                var node = doc.SelectSingleNode(xpath);
-                return string.IsNullOrWhiteSpace(node?.InnerText) ? null : node.InnerText.Trim();
-            }
-            catch
-            {
-                return null;
             }
         }
     }

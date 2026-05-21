@@ -262,6 +262,25 @@ namespace ACS.Elsa.Activities
                 resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_ASSIGNED);
                 resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_RUN);
 
+                // AcsDestNodeId 를 source 의 StationId 로 세팅 — RailVehicleDestArrivedWorkflow 가
+                // source 도착을 검출하려면 할당 시점에 채워져 있어야 한다. acquire-complete 이후
+                // RailVehicleAcquireCompletedWorkflow.UpdateVehicleAcsDestNodeToDest 가 dest 로 덮어쓴다.
+                var cacheManager = accessor?.Resolve<ICacheManagerEx>();
+                if (cacheManager != null && !string.IsNullOrEmpty(tc.Source))
+                {
+                    LocationEx sourceLoc = cacheManager.GetLocationByLocationId(tc.Source);
+                    if (sourceLoc != null && !string.IsNullOrEmpty(sourceLoc.StationId))
+                    {
+                        resourceManager.UpdateVehicleAcsDestNodeId(vehicle, sourceLoc.StationId, "SCHEDULE-QUEUEJOB");
+                        vehicle.AcsDestNodeId = sourceLoc.StationId;
+                        logger.Info($"AssignVehicleToTransportCommandActivity: AcsDestNodeId={sourceLoc.StationId} (source={tc.Source})");
+                    }
+                    else
+                    {
+                        logger.Warn($"AssignVehicleToTransportCommandActivity: source Location/StationId 조회 실패 source={tc.Source}, tc={tc.JobId}");
+                    }
+                }
+
                 logger.Info($"AssignVehicleToTransportCommandActivity: TC {tc.JobId} → Vehicle {vehicle.VehicleId}");
                 context.Set(Success, true);
             }

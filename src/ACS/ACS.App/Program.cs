@@ -58,8 +58,11 @@ static class Program
         Console.WriteLine($"[ACS] Process: {processId} (PID: {Process.GetCurrentProcess().Id})");
 
         Log.Logger = new LoggerConfiguration()
-            .ReadFrom.
-            Configuration(configuration)
+            .ReadFrom.Configuration(configuration)
+            .WriteTo.File(
+                path: $"logs/{processId}-.log",
+                rollingInterval: RollingInterval.Day,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
         var processType = configuration["Acs:Process:Type"];

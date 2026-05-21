@@ -353,7 +353,20 @@ namespace ACS.Elsa.Workflows.Trans
 
                 rm.UpdateVehicleTransferState(v, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, MsgName);
                 return true;
+            } 
+            
+            if (TransportCommandEx.STATE_ARRIVED_SOURCE.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.Warn($"[Step8] TC 상태 보정: ARRIVED_SOURCE → TRANSFERRING_DEST tc={tc.JobId} (ACQUIRE 단계 누락 추정, DEPOSIT 시각으로 LoadedTime 보정)");
+
+                tc.State = TransportCommandEx.STATE_TRANSFERRING_DEST;
+                tc.LoadedTime = DateTime.Now;
+                tm.UpdateTransportCommand(tc);
+
+                rm.UpdateVehicleTransferState(v, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, MsgName);
+                return true;
             }
+
 
             // QUEUED regression 보정: Rollback이 진행 중인 작업을 잘못 되돌렸거나
             // EF silent drop 으로 TC.State 가 QUEUED 로 회귀하면서 VehicleId 까지 비워진 케이스.

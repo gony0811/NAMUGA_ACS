@@ -15,6 +15,7 @@ using ACS.Core.Path;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
+using ACS.Core.Transfer.Model;
 using ACS.Communication.Mqtt;
 using ACS.Communication.Mqtt.Model;
 using Microsoft.Extensions.Configuration;
@@ -808,19 +809,34 @@ namespace ACS.Elsa.Activities
                 }
 
                 // AMR reply 스펙(docs/mqtt_interface.md)에는 jobType이 없으므로 reply.JobType이 비어있으면
-                // cmdId(=TC JobId)로 TC를 조회해 JobType을 보완한다. reply가 JobType을 포함하는 경우(향후 호환)는 그대로 사용.
+                // cmdId(=TC JobId)로 TC를 조회해 TC.State(TransferringState) 기준으로 LOAD/UNLOAD 를 결정한다.
+                // tc.JobType 은 상위 분류(AUTOCALL/ACSCALL/CHARGEMOVE 등)라서 LOAD/UNLOAD phase 구분에 부적합 — 사용하지 않음.
                 string jobType = reply.JobType;
                 if (string.IsNullOrEmpty(jobType))
                 {
                     var transferManager = accessor.Resolve<ITransferManagerEx>();
                     var tc = transferManager?.GetTransportCommand(reply.CmdId);
-                    if (tc == null || string.IsNullOrEmpty(tc.JobType))
+                    if (tc == null)
                     {
                         logger.Warn($"HandleAmrReplyActivity: reply에 jobType이 없고 TC 조회 실패. 라우팅 불가. cmdId={reply.CmdId}, vehicleId={vehicleId}");
                         return;
                     }
-                    jobType = tc.JobType;
-                    logger.Info($"HandleAmrReplyActivity: TC 조회로 jobType 보완. cmdId={reply.CmdId}, jobType={jobType}");
+
+                    if (tc.State == TransportCommandEx.STATE_ASSIGNED
+                        || tc.State == TransportCommandEx.STATE_TRANSFERRING_SOURCE)
+                    {
+                        jobType = TransportCommandEx.JOBTYPE_UNLOAD;
+                    }
+                    else if (tc.State == TransportCommandEx.STATE_TRANSFERRING_DEST)
+                    {
+                        jobType = TransportCommandEx.JOBTYPE_LOAD;
+                    }
+                    else
+                    {
+                        logger.Warn($"HandleAmrReplyActivity: TC.State 매핑 실패. 라우팅 생략. cmdId={reply.CmdId}, vehicleId={vehicleId}, state={tc.State}");
+                        return;
+                    }
+                    logger.Info($"HandleAmrReplyActivity: TC.State 로 jobType 보완. cmdId={reply.CmdId}, state={tc.State}, jobType={jobType}");
                 }
 
                 string dbVehicleId = ResolveDbVehicleId(accessor, vehicleId);
