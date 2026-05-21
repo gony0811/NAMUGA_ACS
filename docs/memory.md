@@ -444,7 +444,31 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 ---
 
-## 14. 현재 상태 및 미완료 항목
+## 14. ChargeJob 완료 시 TC 정리 훅 추가
+
+**날짜:** 2026-05-21
+**작업:** `RailVehicleUpdateWorkflow.cs` 의 BatteryRate≥30 (CHARGE→IDLE) 블록을 확장하여 CHARGEMOVE TC 정리 누락 버그 수정.
+
+**문제:**
+- ChargeJob (JOBTYPE=CHARGEMOVE) 의 충전 완료 처리 시 `NA_T_TRANSPORTCMD` row 가 삭제되지 않고, `NA_R_VEHICLE.transportCommandId` 도 비워지지 않음.
+- 결과: 1회 충전 후 그 차량은 영원히 후속 Job 못 받음 (`FindSuitableVehicleActivity` 의 `GetTransportCommandByVehicleId != null` 체크에 걸림).
+- 레거시 `TransferServiceEx.DeleteChargeTransportCommandsByVehicle` (ACS.Service:491-513) 가 동일 로직 구현해 둔 채로 호출처 0건이었음.
+
+**변경:** `src/ACS/ACS.Elsa/Workflows/Trans/RailVehicleUpdateWorkflow.cs`
+- using 추가: `ACS.Core.History`, `ACS.Core.Transfer`, `ACS.Core.Transfer.Model`
+- BatteryRate≥30 분기 안에서 ProcessingState 전이 **전에** 다음 4단계 수행:
+  1. `IHistoryManagerEx.CreateTransportCommandHistory(tc, "", STATE_CHARGE_COMPLETED)` — `NA_H_TRANSPORTCMDHISTORY` 이관
+  2. `ITransferManagerEx.DeleteTransportCommand(tc)` — `NA_T_TRANSPORTCMD` 삭제
+  3. `IResourceManagerEx.UpdateVehicleTransportCommandId/UpdateVehicleAcsDestNodeId/UpdateVehicle(Path)` — Vehicle 측 FK + 잔여 필드 클리어
+  4. 기존 `ProcessingState CHARGE → IDLE` 전이
+
+**Why:** 사용자가 ChargeJob 동작 확인 중 발견. 충전 완료 후 차량이 후속 Job을 못 받는 잠재 deadlock 위험 제거.
+
+**검증:** `dotnet build ACS.Elsa.csproj` 성공 (0 오류, 기존 NU1603 경고만). 실제 시나리오 테스트는 AMR Simulator + DB 직접 조회로 (1) `NA_T_TRANSPORTCMD` CHARGEMOVE 사라짐, (2) `NA_H_TRANSPORTCMDHISTORY` 에 cause=`CHARGECOMPLETED` 이력 1행, (3) `NA_R_VEHICLE` TransportCommandId/Path/AcsDestNodeId 빈 문자열, ProcessingState=IDLE 확인 필요.
+
+---
+
+## 15. 현재 상태 및 미완료 항목
 
 **빌드 상태:** 성공 (경고만, 오류 0)
 
