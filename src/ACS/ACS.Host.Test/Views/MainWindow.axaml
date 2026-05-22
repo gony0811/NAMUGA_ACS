@@ -4,7 +4,7 @@
         x:Class="ACS.Host.Test.Views.MainWindow"
         x:CompileBindings="False"
         Title="ACS Communication Tester"
-        Width="900" Height="900"
+        Width="1400" Height="900"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -38,7 +38,9 @@
         <!-- Tab 1: MES Simulator (기존 기능) -->
         <!-- ============================================================ -->
         <TabItem Header="MES Simulator">
-            <Grid Name="MesGrid" DataContext="{Binding MesSimulator}" Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
+            <Grid DataContext="{Binding MesSimulator}" Margin="12" ColumnDefinitions="*,Auto,420">
+
+              <Grid Name="MesGrid" Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto">
 
                 <!-- Row 0: Connection Settings -->
                 <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
@@ -146,23 +148,30 @@
                     </Grid>
                 </HeaderedContentControl>
 
-                <!-- Row 4: Communication Log -->
-                <Border Grid.Row="4" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                            <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
-                        </StackPanel>
-                        <TextBox Name="MesLogTextBox"
-                                 Text="{Binding LogText}"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 FontFamily="Consolas, Menlo, monospace"
-                                 FontSize="11"
-                                 ScrollViewer.VerticalScrollBarVisibility="Visible"/>
-                    </DockPanel>
-                </Border>
+              </Grid>
+
+              <GridSplitter Grid.Column="1" Width="4" Background="#cfd8dc"
+                            ResizeDirection="Columns"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            Margin="6,0"/>
+
+              <!-- Communication Log (right column) -->
+              <Border Grid.Column="2" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10">
+                  <DockPanel>
+                      <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                          <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
+                      </StackPanel>
+                      <TextBox Name="MesLogTextBox"
+                               Text="{Binding LogText}"
+                               IsReadOnly="True"
+                               AcceptsReturn="True"
+                               TextWrapping="Wrap"
+                               FontFamily="Consolas, Menlo, monospace"
+                               FontSize="11"
+                               ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+                  </DockPanel>
+              </Border>
 
             </Grid>
         </TabItem>
@@ -171,7 +180,9 @@
         <!-- Tab 2: Host Test (ACS Simulator) -->
         <!-- ============================================================ -->
         <TabItem Header="Host Test (ACS Simulator)">
-            <Grid Name="HostGrid" DataContext="{Binding HostTest}" Margin="12" RowDefinitions="Auto,Auto,Auto,*">
+            <Grid DataContext="{Binding HostTest}" Margin="12" ColumnDefinitions="*,Auto,420">
+
+              <Grid Name="HostGrid" Grid.Column="0" RowDefinitions="Auto,Auto,Auto">
 
                 <!-- Row 0: Connection Settings -->
                 <HeaderedContentControl Grid.Row="0" Header="Connection Settings">
@@ -256,23 +267,30 @@
                     </Grid>
                 </HeaderedContentControl>
 
-                <!-- Row 3: Communication Log -->
-                <Border Grid.Row="3" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                            <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
-                        </StackPanel>
-                        <TextBox Name="HostTestLogTextBox"
-                                 Text="{Binding LogText}"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 FontFamily="Consolas, Menlo, monospace"
-                                 FontSize="11"
-                                 ScrollViewer.VerticalScrollBarVisibility="Visible"/>
-                    </DockPanel>
-                </Border>
+              </Grid>
+
+              <GridSplitter Grid.Column="1" Width="4" Background="#cfd8dc"
+                            ResizeDirection="Columns"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            Margin="6,0"/>
+
+              <!-- Communication Log (right column) -->
+              <Border Grid.Column="2" BorderBrush="#b0bec5" BorderThickness="1" CornerRadius="4" Padding="10">
+                  <DockPanel>
+                      <TextBlock DockPanel.Dock="Top" Text="Communication Log" FontWeight="Bold" FontSize="13" Margin="0,0,0,6" Foreground="#1a3a5c"/>
+                      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                          <Button Content="Clear" Command="{Binding ClearLogCommand}" Width="70" Height="28"/>
+                      </StackPanel>
+                      <TextBox Name="HostTestLogTextBox"
+                               Text="{Binding LogText}"
+                               IsReadOnly="True"
+                               AcceptsReturn="True"
+                               TextWrapping="Wrap"
+                               FontFamily="Consolas, Menlo, monospace"
+                               FontSize="11"
+                               ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+                  </DockPanel>
+              </Border>
 
             </Grid>
         </TabItem>

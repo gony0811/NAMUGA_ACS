@@ -762,6 +762,121 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
+    /// RAIL-ACTIONCMD JSON 을 수신하여 Vehicle 의 MQTT 브로커로 actionCmd 발행.
+    /// vehicleId → NA_R_VEHICLE(CommType, CommId) → MqttInterfaceManager.SendAction(nodeId, port, jobType, cmdId)
+    /// MQTT 페이로드: { "command": "actionCmd", "nodeId": "...", "port": "...", "jobType": "..." }
+    /// (docs/mqtt_interface.md §actionCmd 참조)
+    /// </summary>
+    [Activity("ACS.Mqtt", "Handle Action Cmd",
+        "RAIL-ACTIONCMD 수신 시 MQTT 로 Vehicle 에 actionCmd 전송")]
+    public class HandleActionCmdActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(HandleActionCmdActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var input = context.WorkflowExecutionContext.Input;
+                if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 1)
+                {
+                    logger.Error("HandleActionCmdActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                var jsonMessage = args[0] as string;
+                if (string.IsNullOrEmpty(jsonMessage))
+                {
+                    logger.Error("HandleActionCmdActivity: JSON 메시지가 null입니다.");
+                    return;
+                }
+
+                string vehicleId = null;
+                string nodeId = null;
+                string commandId = null;
+                string port = null;
+                string jobType = null;
+                string actionType = null;
+
+                using (var doc = JsonDocument.Parse(jsonMessage))
+                {
+                    if (doc.RootElement.TryGetProperty("data", out var dataEl))
+                    {
+                        if (dataEl.TryGetProperty("vehicleId", out var vid))
+                            vehicleId = vid.GetString();
+                        if (dataEl.TryGetProperty("nodeId", out var nid))
+                            nodeId = nid.GetString();
+                        if (dataEl.TryGetProperty("commandId", out var cid))
+                            commandId = cid.GetString();
+                        if (dataEl.TryGetProperty("port", out var portEl))
+                            port = portEl.GetString();
+                        if (dataEl.TryGetProperty("jobType", out var jtEl))
+                            jobType = jtEl.GetString();
+                        if (dataEl.TryGetProperty("actionType", out var atEl))
+                            actionType = atEl.GetString();
+                    }
+                }
+
+                if (string.IsNullOrEmpty(vehicleId) || string.IsNullOrEmpty(nodeId))
+                {
+                    logger.Error($"HandleActionCmdActivity: vehicleId 또는 nodeId가 없습니다. vehicleId={vehicleId}, nodeId={nodeId}");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("HandleActionCmdActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var resourceManager = accessor.Resolve<ACS.Core.Resource.IResourceManagerEx>();
+                var vehicle = resourceManager?.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error($"HandleActionCmdActivity: Vehicle을 찾을 수 없습니다. vehicleId={vehicleId}");
+                    return;
+                }
+
+                if (!"MQTT".Equals(vehicle.CommType, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"HandleActionCmdActivity: Vehicle CommType이 MQTT가 아닙니다. vehicleId={vehicleId}, commType={vehicle.CommType}");
+                    return;
+                }
+
+                var mqttManager = accessor.Resolve<MqttInterfaceManager>();
+                if (mqttManager == null)
+                {
+                    logger.Error("HandleActionCmdActivity: MqttInterfaceManager를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // jobType 이 비어있으면 MES 가 보낸 actionType 으로 폴백
+                string effectiveJobType = string.IsNullOrEmpty(jobType) ? (actionType ?? "") : jobType;
+
+                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId)
+                    .GetAwaiter().GetResult();
+
+                if (result)
+                {
+                    logger.Info($"HandleActionCmdActivity: MQTT actionCmd 전송 완료. " +
+                        $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
+                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, actionType={actionType}");
+                }
+                else
+                {
+                    logger.Error($"HandleActionCmdActivity: MQTT actionCmd 전송 실패. " +
+                        $"vehicleId={vehicleId}, commId={vehicle.CommId}, nodeId={nodeId}");
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Error("HandleActionCmdActivity 오류", e);
+            }
+        }
+    }
+
+    /// <summary>
     /// AMR reply(amr/{id}/reply) 메시지 수신 시 status=COMPLETED와 jobType에 따라
     /// Trans 프로세스로 RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는
     /// RAIL-VEHICLEDEPOSITCOMPLETED(LOAD) JSON을 전송한다.

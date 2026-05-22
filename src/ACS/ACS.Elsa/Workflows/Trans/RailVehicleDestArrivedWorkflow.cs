@@ -132,11 +132,11 @@ namespace ACS.Elsa.Workflows.Trans
                 }
 
                 string matchedSide = matchesSource ? "source" : "dest";
+                messageManager.SendJobReportToHost(
+                    "START", tc.JobId, vehicleId, tc.JobType ?? "", tc.Description ?? "");
 
                 messageManager.SendJobReportToHost(
-                    "ARRIVED",
-                    tc.JobId,
-                    vehicleId,
+                    "ARRIVED", tc.JobId, vehicleId,
                     tc.JobType ?? "",
                     tc.Description ?? "");
 

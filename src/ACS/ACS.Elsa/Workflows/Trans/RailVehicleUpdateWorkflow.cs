@@ -110,6 +110,9 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // RUN→STOP 전이 판정용. Step 2 가 vehicle.RunState 를 덮어쓰기 전 값.
+                string previousRunState = vehicle.RunState;
+
                 // 1. ConnectionState → CONNECT
                 if (!"CONNECT".Equals(vehicle.ConnectionState))
                 {
@@ -132,6 +135,9 @@ namespace ACS.Elsa.Workflows.Trans
                 {
                     string prev = vehicle.RunState;
                     resourceManager.UpdateVehicleRunState(vehicle, data.RunState);
+                    // UpdateVehicleRunState 는 DB 만 갱신하므로, 같은 활동 내 후속 분기(특히
+                    // DispatchDestArrivedIfNeeded 의 RunState 가드)가 새 값을 보도록 수동 sync.
+                    vehicle.RunState = data.RunState;
                     if (logger.IsDebugEnabled)
                         logger.Debug($"Vehicle RunState 업데이트: {prev} → {data.RunState}, vehicleId={data.VehicleId}");
                 }
@@ -179,6 +185,8 @@ namespace ACS.Elsa.Workflows.Trans
                 // 7. 노드 변경 시 CurrentNodeId 업데이트 (충전 노드 도착 시 ProcessingState → CHARGE)
                 //    같은 메시지 안에서 도착 + 충전 완료(BatteryRate≥30) 가 동시 성립하는 경우를 처리하기 위해
                 //    Step 8(CHARGE→IDLE + TC 정리) 보다 먼저 평가한다.
+                //    도착 dispatch 는 Step 8 이후로 분리되었다 (RunState=STOP 전이도 같이 트리거하기 위함).
+                bool nodeArrivedJustNow = false;
                 if (data.NodeChanged && !string.IsNullOrEmpty(data.CurrentNodeId))
                 {
                     var cacheManager = accessor.Resolve<ICacheManagerEx>();
@@ -191,6 +199,9 @@ namespace ACS.Elsa.Workflows.Trans
                     {
                         string previousNodeId = vehicle.CurrentNodeId;
                         resourceManager.UpdateVehicleLocation(vehicle, data.CurrentNodeId);
+                        // UpdateVehicleLocation 는 DB 만 갱신하므로, 같은 메시지 내 도착 판정이
+                        // 새 위치를 보도록 인메모리도 sync 한다.
+                        vehicle.CurrentNodeId = data.CurrentNodeId;
                         if (logger.IsDebugEnabled)
                             logger.Debug($"Vehicle 위치 업데이트: {previousNodeId} → {data.CurrentNodeId}, vehicleId={data.VehicleId}");
 
@@ -198,18 +209,34 @@ namespace ACS.Elsa.Workflows.Trans
                         if (NodeEx.TYPE_CHARGE.Equals(node.Type, StringComparison.OrdinalIgnoreCase) &&
                             !VehicleEx.PROCESSINGSTATE_CHARGE.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
                         {
-                            resourceManager.UpdateVehicleProcessingState(data.VehicleId,
-                                VehicleEx.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
-                            // UpdateVehicleProcessingState(vehicleId,...) 는 새 VehicleEx 를 fetch 해 DB 만 갱신하므로
-                            // 이 활동 안에서 이어지는 Step 8 조건 평가가 정확하도록 인메모리 객체도 동기화한다.
-                            vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_CHARGE;
-                            logger.Info($"Vehicle ProcessingState → CHARGE (충전 노드 도착): vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}");
+                            // 작업 TC 가드: 비-CHARGEMOVE TC 보유 중이면 충전 노드 경유여도 CHARGE 로 전이 금지.
+                            // CHARGE 로 덮어쓰면 Step 8 (BatteryRate≥30) 에서 ProcessingState 가 IDLE 로 떨어져
+                            // 진행 중 작업이 다른 차량과 중복 할당되는 버그가 발생하기 때문.
+                            var tmForGuard = accessor.Resolve<ITransferManagerEx>();
+                            TransportCommandEx activeTc = tmForGuard?.GetTransportCommandByVehicleId(vehicle.VehicleId);
+                            bool blockedByActiveJob =
+                                activeTc != null &&
+                                !TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(activeTc.JobType, StringComparison.OrdinalIgnoreCase);
+
+                            if (blockedByActiveJob)
+                            {
+                                logger.Warn($"충전 노드 경유했으나 비-CHARGEMOVE TC 보유 — CHARGE 전이 skip: " +
+                                            $"vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}, " +
+                                            $"tc={activeTc.JobId}, jobType={activeTc.JobType}, " +
+                                            $"processingState={vehicle.ProcessingState}");
+                            }
+                            else
+                            {
+                                resourceManager.UpdateVehicleProcessingState(data.VehicleId,
+                                    VehicleEx.PROCESSINGSTATE_CHARGE, "RAIL-VEHICLEUPDATE");
+                                // UpdateVehicleProcessingState(vehicleId,...) 는 새 VehicleEx 를 fetch 해 DB 만 갱신하므로
+                                // 이 활동 안에서 이어지는 Step 8 조건 평가가 정확하도록 인메모리 객체도 동기화한다.
+                                vehicle.ProcessingState = VehicleEx.PROCESSINGSTATE_CHARGE;
+                                logger.Info($"Vehicle ProcessingState → CHARGE (충전 노드 도착): vehicleId={data.VehicleId}, nodeId={data.CurrentNodeId}");
+                            }
                         }
 
-                        // AcsDestNodeId(=source phase 목적지) 도착 시 RAIL-VEHICLEDESTARRIVED 디스패치.
-                        // acquire-complete 이전(STATE_ASSIGNED) 에만 발화하며, 이후 acquire-complete 가
-                        // AcsDestNodeId 를 dest 로 덮어쓰므로 dest 도착 시 자동으로 재발화하지 않는다.
-                        DispatchDestArrivedIfNeeded(accessor, data.CurrentNodeId, vehicle);
+                        nodeArrivedJustNow = true;
                     }
                 }
 
@@ -270,6 +297,21 @@ namespace ACS.Elsa.Workflows.Trans
                     logger.Info($"Vehicle ProcessingState CHARGE → IDLE (BatteryRate={data.BatteryRate}% ≥ {BATTERY_CHARGE_RELEASE_RATE}%): vehicleId={data.VehicleId}");
                 }
 
+                // 8.5. RAIL-VEHICLEDESTARRIVED dispatch 평가.
+                //  AMR 텔레메트리에서 nodeChanged 와 RunState 전이는 보통 같은 메시지에 오지 않는다
+                //  (위치는 도착 직후, RunState=STOP 은 정지 확정 후 별도 메시지). 두 신호 중 어느 한쪽이
+                //  이번 메시지에 발생했고, 인메모리 상태가 도착 조건(currentNodeId==acsDestNodeId,
+                //  RunState!=RUN, TC 존재, JobType!=CHARGEMOVE)을 만족하면 dispatch 한다.
+                bool runStateStoppedNow =
+                    !string.IsNullOrEmpty(data.RunState) &&
+                    !data.RunState.Equals(previousRunState, StringComparison.OrdinalIgnoreCase) &&
+                    !VehicleEx.RUNSTATE_RUN.Equals(data.RunState, StringComparison.OrdinalIgnoreCase);
+
+                if (nodeArrivedJustNow || runStateStoppedNow)
+                {
+                    DispatchDestArrivedIfNeeded(accessor, vehicle.CurrentNodeId, vehicle);
+                }
+
                 // 9. EventTime 업데이트
                 resourceManager.UpdateVehicleEventTime(vehicle);
 
@@ -313,10 +355,14 @@ namespace ACS.Elsa.Workflows.Trans
         {
             try
             {
+                if (string.IsNullOrEmpty(currentNodeId)) return;
                 if (string.IsNullOrEmpty(vehicle?.AcsDestNodeId)) return;
                 if (string.IsNullOrEmpty(vehicle.TransportCommandId)) return;
                 if (!currentNodeId.Equals(vehicle.AcsDestNodeId, StringComparison.OrdinalIgnoreCase)) return;
 
+                // 목적지에 완전히 도착해서 정지한 상태에서만 발화하도록 RUN 상태는 제외한다. (충전 노드 도착 시 RUN+CHARGE → CHARGE 로 전이하므로, 충전 노드 도착에 대해서는 별도 조건 없이 발화한다.)
+                if (vehicle.RunState.Equals(VehicleEx.RUNSTATE_RUN)) return;
+                
                 var transferManager = accessor.Resolve<ITransferManagerEx>();
                 if (transferManager == null)
                 {

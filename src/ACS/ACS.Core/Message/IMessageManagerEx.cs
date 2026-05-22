@@ -277,6 +277,11 @@ namespace ACS.Core.Message
         /// RAIL-CARRIERTRANSFER JSON을 Vehicle CommType에 따라 올바른 EI destination으로 전송.
         /// </summary>
         void SendCarrierTransferJson(string jsonMessage, string vehicleId);
+
+        /// <summary>
+        /// RAIL-ACTIONCMD JSON을 vehicleId 의 EI destination(NA_C_MQTT → Application) 으로 전송.
+        /// </summary>
+        void SendActionCmdJson(string jsonMessage, string vehicleId);
     }
 
 }

@@ -1667,7 +1667,10 @@ namespace ACS.Manager.Message
 
             // JSON payload — host 측 GenericWorkflowRabbitMQListener.OnJsonMessage 가 header.messageName 으로
             // HostJobReportWorkflow 를 라우팅한다. MES 용 XML 은 워크플로우 내부에서 재구성.
+            // header.routedFrom: 발신 프로세스명. 라우팅 누수로 비-Host 프로세스가 워크플로우를 실행하게
+            // 됐을 때 ForwardJobReportToMesActivity 가 hostAgent 로 한 번 재발행하는데, 그때 루프 차단용.
             string transactionId = Guid.NewGuid().ToString("N");
+            string routedFrom = Configuration?["Acs:Process:Name"] ?? "";
             var payload = new
             {
                 header = new
@@ -1675,7 +1678,8 @@ namespace ACS.Manager.Message
                     messageName = "JOBREPORT",
                     transactionId = transactionId,
                     destSubject = destSubject,
-                    replySubject = replySubject
+                    replySubject = replySubject,
+                    routedFrom = routedFrom
                 },
                 data = new
                 {
@@ -1837,6 +1841,68 @@ namespace ACS.Manager.Message
 
             this.esAgent.Send((object)jsonMessage, destinationName, false, "");
             logger.Info($"SendCarrierTransferJson: sent to {destinationName}, vehicleId={vehicleId}");
+        }
+
+        public void SendActionCmdJson(string jsonMessage, string vehicleId)
+        {
+            if (this.esAgent == null)
+            {
+                logger.Error("SendActionCmdJson: esAgent is not wired");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(vehicleId))
+            {
+                logger.Error("SendActionCmdJson: vehicleId is null/empty");
+                return;
+            }
+
+            string destinationName = null;
+
+            try
+            {
+                VehicleEx vehicle = this.resourceManager.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error("SendActionCmdJson: vehicle not found - " + vehicleId);
+                    return;
+                }
+
+                MqttConfig mqttConfig = (MqttConfig)this.PersistentDao.FindByName(typeof(MqttConfig), vehicle.CommId, false);
+                if (mqttConfig == null)
+                {
+                    logger.Error("SendActionCmdJson: MqttConfig not found for CommId=" + vehicle.CommId);
+                    return;
+                }
+
+                ACS.Core.Application.Model.Application application =
+                    this.applicationManager.GetApplication(mqttConfig.ApplicationName);
+                if (application == null)
+                {
+                    logger.Error("SendActionCmdJson: Application not found - " + mqttConfig.ApplicationName);
+                    return;
+                }
+
+                destinationName = application.DestinationName.TrimEnd('/') + "/" + application.Name;
+            }
+            catch (Exception ex)
+            {
+                logger.Error("SendActionCmdJson: destination 조회 실패 - " + ex.Message, ex);
+            }
+
+            if (string.IsNullOrEmpty(destinationName))
+            {
+                logger.Error("SendActionCmdJson: destination을 찾을 수 없음, vehicleId=" + vehicleId);
+                return;
+            }
+
+            if (!destinationName.StartsWith("/"))
+            {
+                destinationName = "/" + destinationName;
+            }
+
+            this.esAgent.Send((object)jsonMessage, destinationName, false, "");
+            logger.Info($"SendActionCmdJson: sent to {destinationName}, vehicleId={vehicleId}");
         }
 
         public void SendVehicleMessageTCodePermission(String messageName, VehicleMessageEx vehicleMessage)

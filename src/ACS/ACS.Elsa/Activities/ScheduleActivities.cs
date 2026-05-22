@@ -935,6 +935,9 @@ namespace ACS.Elsa.Activities
 
                     if (!VehicleEx.PROCESSINGSTATE_RUN.Equals(vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase))
                         continue;
+                    
+                    if (vehicle.CurrentNodeId.Equals(vehicle.AcsDestNodeId, StringComparison.OrdinalIgnoreCase))
+                        continue;   // 이미 도착한 상태면 재전송하지 않음
 
                     TransportCommandEx tc = transferManager.GetTransportCommand(vehicle.TransportCommandId);
                     if (tc == null)

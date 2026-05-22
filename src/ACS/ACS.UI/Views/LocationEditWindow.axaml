@@ -40,6 +40,8 @@
                     <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TypeComboBox"
                               FontSize="11" Height="30" HorizontalAlignment="Stretch">
                         <ComboBoxItem Content="BUFFER" />
+                        <ComboBoxItem Content="IN_BUFFER" Tag="INPUT" />
+                        <ComboBoxItem Content="OUT_BUFFER" Tag="OUTPUT" />
                         <ComboBoxItem Content="CHARGE" />
                         <ComboBoxItem Content="VBUFFER" />
                         <ComboBoxItem Content="EQP" />

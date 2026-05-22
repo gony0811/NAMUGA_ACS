@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Xml;
+using Microsoft.Extensions.Configuration;
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
@@ -11,6 +12,7 @@ using ACS.Core.Host;
 using ACS.Core.Logging;
 using ACS.Core.Base;
 using ACS.Core.Cache;
+using ACS.Communication.Msb;
 using ACS.Core.Path;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource;
@@ -405,7 +407,7 @@ namespace ACS.Elsa.Activities
                 {
                     if (isLoad)
                     {
-                        var resolved = ResolveZoneMatchedBuffer(accessor, destLoc, destPort, StationExs.TYPE_ACQUIRE);
+                        var resolved = ResolveZoneMatchedBuffer(accessor, destLoc, destPort, LocationExs.LOCATION_TYPE_OUTPUT);
                         if (resolved == null)
                         {
                             logger.Warn($"CreateTransportCommandActivity: LOAD source auto-resolve failed - Dest={destLoc}");
@@ -424,8 +426,8 @@ namespace ACS.Elsa.Activities
                         sourceLoc = destLoc;
                         sourcePort = destPort;
 
-                        // 2) 동일 zone 의 DEPOSIT BUFFER 로 dest 자동 해석
-                        var resolved = ResolveZoneMatchedBuffer(accessor, sourceLoc, sourcePort, StationExs.TYPE_DEPOSITE);
+                        // 2) 동일 zone 의 INPUT Location 으로 dest 자동 해석
+                        var resolved = ResolveZoneMatchedBuffer(accessor, sourceLoc, sourcePort, LocationExs.LOCATION_TYPE_INPUT);
                         if (resolved == null)
                         {
                             logger.Warn($"CreateTransportCommandActivity: UNLOAD dest auto-resolve failed - Source={sourceLoc}:{sourcePort}");
@@ -558,15 +560,15 @@ namespace ACS.Elsa.Activities
             }
         }
 
-        // anchorLoc/anchorPort 의 zone 과 동일 zone 에 속한 BUFFER + 지정 stationType 후보의 LocationId 반환.
-        //   LOAD : anchor=Dest(EQP),   stationType=ACQUIRE → source 후보
-        //   UNLOAD: anchor=Source(EQP), stationType=DEPOSIT → dest 후보
+        // anchorLoc/anchorPort 의 zone 과 동일 zone 에 속한 LocationEx 중 Location.Type 이 지정값인 후보의 LocationId 반환.
+        //   LOAD : anchor=Dest(EQP),   locationType=OUTPUT → source 후보
+        //   UNLOAD: anchor=Source(EQP), locationType=INPUT  → dest 후보
         // 단계별 사유는 logger.Warn 으로만 출력 (MES NACK 는 호출부에서 단일 SOURCEMACHINENOTFOUND).
         // LocationId 오름차순 첫 번째 후보를 ':' 로 split 한 [0] 을 반환. 후보 없으면 null.
         private static string ResolveZoneMatchedBuffer(
-            AutofacContainerAccessor accessor, string anchorLoc, string anchorPort, string stationType)
+            AutofacContainerAccessor accessor, string anchorLoc, string anchorPort, string locationType)
         {
-            var tag = $"ResolveZoneMatchedBuffer({stationType})";
+            var tag = $"ResolveZoneMatchedBuffer({locationType})";
 
             if (string.IsNullOrWhiteSpace(anchorLoc))
             {
@@ -619,7 +621,7 @@ namespace ACS.Elsa.Activities
             }
             logger.Info($"{tag}: anchorZoneId={anchorZoneId} (from LinkId={anchorStation.LinkId})");
 
-            // 2. BUFFER + (stationType) + 동일 zone 인 LocationEx 후보 수집
+            // 2. Location.Type==locationType + 동일 zone 인 LocationEx 후보 수집
             var allLocations = resource.GetLocations();
             if (allLocations == null)
             {
@@ -627,19 +629,16 @@ namespace ACS.Elsa.Activities
                 return null;
             }
 
-            int bufferCount = 0, typeMatchCount = 0, zoneMatchCount = 0;
+            int typeMatchCount = 0, zoneMatchCount = 0;
             var candidates = new List<string>();
             foreach (LocationEx loc in allLocations)
             {
                 if (loc == null) continue;
-                if (!string.Equals(loc.Type, "BUFFER", StringComparison.OrdinalIgnoreCase)) continue;
-                bufferCount++;
+                if (!string.Equals(loc.Type, locationType, StringComparison.OrdinalIgnoreCase)) continue;
+                typeMatchCount++;
 
                 var st = cache.GetStationById(loc.StationId);
-                if (st == null) continue;
-                if (!string.Equals(st.Type, stationType, StringComparison.OrdinalIgnoreCase)) continue;
-                typeMatchCount++;
-                if (string.IsNullOrEmpty(st.LinkId)) continue;
+                if (st == null || string.IsNullOrEmpty(st.LinkId)) continue;
 
                 var lzList = resource.GetLinkZonesByLinkId(st.LinkId);
                 if (lzList == null) continue;
@@ -661,11 +660,11 @@ namespace ACS.Elsa.Activities
                 }
             }
 
-            logger.Info($"{tag}: scan result - BUFFER={bufferCount}, {stationType}={typeMatchCount}, zoneMatch={zoneMatchCount}, candidates={candidates.Count}");
+            logger.Info($"{tag}: scan result - {locationType}={typeMatchCount}, zoneMatch={zoneMatchCount}, candidates={candidates.Count}");
 
             if (candidates.Count == 0)
             {
-                logger.Warn($"{tag}: no candidate in zone='{anchorZoneId}' (BUFFER={bufferCount},{stationType}={typeMatchCount},zoneMatch={zoneMatchCount})");
+                logger.Warn($"{tag}: no candidate in zone='{anchorZoneId}' ({locationType}={typeMatchCount},zoneMatch={zoneMatchCount})");
                 return null;
             }
 
@@ -731,6 +730,12 @@ namespace ACS.Elsa.Activities
                     data.UserID = ReadString(d, "UserID");
                     data.ErrorCode = ReadString(d, "ErrorCode");
                     data.ErrorMsg = ReadString(d, "ErrorMsg");
+                }
+
+                // header.routedFrom — 비-Host 프로세스 fallback 재발행 시 루프 검출용
+                if (root.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object)
+                {
+                    data.RoutedFrom = ReadString(h, "routedFrom");
                 }
 
                 context.Set(OutputData, data);
@@ -890,15 +895,6 @@ namespace ACS.Elsa.Activities
             try
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
-                var hostMessageService = accessor?.Resolve<IHostMessageService>();
-
-                if (hostMessageService == null)
-                {
-                    logger.Error("ForwardJobReportToMesActivity: IHostMessageService not available");
-                    context.Set(Result, false);
-                    return;
-                }
-
                 var data = JobReportData?.Get(context);
                 if (data == null)
                 {
@@ -907,22 +903,81 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // JSON 필드로 MES 용 JOBREPORT XML 구성 (destSubject/replySubject 는 빈값 시 config 기본값 적용)
-                var xml = hostMessageService.BuildJobReport(
-                    reportType: data.Type ?? "",
-                    jobId: data.JobID ?? "",
-                    amrId: data.AmrId ?? "",
-                    actionType: data.ActionType ?? "",
-                    materialType: data.MaterialType ?? "",
-                    acsId: data.AcsId ?? "",
-                    userId: data.UserID ?? "",
-                    errCode: data.ErrorCode ?? "",
-                    errMsg: data.ErrorMsg ?? "");
+                var hostMessageService = accessor?.ResolveOptional<IHostMessageService>();
+                if (hostMessageService != null)
+                {
+                    // === Host 프로세스: 정상 경로 — MES TCP 송신 ===
+                    var xml = hostMessageService.BuildJobReport(
+                        reportType: data.Type ?? "",
+                        jobId: data.JobID ?? "",
+                        amrId: data.AmrId ?? "",
+                        actionType: data.ActionType ?? "",
+                        materialType: data.MaterialType ?? "",
+                        acsId: data.AcsId ?? "",
+                        userId: data.UserID ?? "",
+                        errCode: data.ErrorCode ?? "",
+                        errMsg: data.ErrorMsg ?? "");
 
-                hostMessageService.SendToHost("JOBREPORT", xml);
+                    hostMessageService.SendToHost("JOBREPORT", xml);
+                    context.Set(Result, true);
+                    logger.Info($"ForwardJobReportToMesActivity: JOBREPORT forwarded to MES - JobID={data.JobID}, Type={data.Type}");
+                    return;
+                }
+
+                // === 비-Host 프로세스 (예: Trans): 라우팅 누수로 잘못 도달한 메시지를 ===
+                // === host 큐로 재발행한다. 루프 방지를 위해 header.routedFrom 이 자기   ===
+                // === 자신과 같으면 (=이미 한 번 재발행한 메시지) 더 재발행하지 않는다.  ===
+                string currentProcess = "";
+                try { currentProcess = accessor?.Resolve<IConfiguration>()?["Acs:Process:Name"] ?? ""; }
+                catch { /* IConfiguration 미등록 — currentProcess 빈 문자열 유지 */ }
+
+                bool alreadyReRouted =
+                    !string.IsNullOrEmpty(data.RoutedFrom) &&
+                    !string.IsNullOrEmpty(currentProcess) &&
+                    data.RoutedFrom.Equals(currentProcess, StringComparison.OrdinalIgnoreCase);
+
+                IMessageAgent hostAgent = null;
+                try { hostAgent = accessor?.ResolveNamed<IMessageAgent>("HostAgentSender"); }
+                catch { /* 미등록 — 아래에서 null 처리 */ }
+
+                if (hostAgent == null || alreadyReRouted)
+                {
+                    logger.Error($"ForwardJobReportToMesActivity: IHostMessageService 미등록 — 재발행 불가. " +
+                                 $"hostAgent={hostAgent != null}, alreadyReRouted={alreadyReRouted}, " +
+                                 $"currentProcess={currentProcess}, routedFrom={data.RoutedFrom}, " +
+                                 $"JobID={data.JobID}, Type={data.Type}. 메시지 유실 — 라우팅 누수 (Trans 가 host 큐 메시지를 가로채는 빈-destination 리스너) 점검 필요.");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                // host 큐로 JSON 재발행 — routedFrom 을 현재 프로세스명으로 갱신해 다음 hop 에서 루프 차단.
+                string rerouted = JsonSerializer.Serialize(new
+                {
+                    header = new
+                    {
+                        messageName = "JOBREPORT",
+                        transactionId = Guid.NewGuid().ToString("N"),
+                        destSubject = "",
+                        replySubject = "",
+                        routedFrom = currentProcess
+                    },
+                    data = new
+                    {
+                        AcsId = data.AcsId ?? "",
+                        Type = data.Type ?? "",
+                        AmrId = data.AmrId ?? "",
+                        ActionType = data.ActionType ?? "",
+                        JobID = data.JobID ?? "",
+                        MaterialType = data.MaterialType ?? "",
+                        UserID = data.UserID ?? "",
+                        ErrorCode = data.ErrorCode ?? "",
+                        ErrorMsg = data.ErrorMsg ?? ""
+                    }
+                });
+                hostAgent.Send((object)rerouted);
                 context.Set(Result, true);
-
-                logger.Info($"ForwardJobReportToMesActivity: JOBREPORT forwarded to MES - JobID={data.JobID}, Type={data.Type}");
+                logger.Warn($"ForwardJobReportToMesActivity: 비-Host 프로세스({currentProcess})에서 실행됨 — JOBREPORT 를 host 큐로 재발행. " +
+                            $"JobID={data.JobID}, Type={data.Type}. 라우팅 누수 점검 필요.");
             }
             catch (Exception ex)
             {
@@ -1226,7 +1281,7 @@ namespace ACS.Elsa.Activities
                 {
                     Header = new ACS.Communication.Mqtt.Model.ActionCmdHeader
                     {
-                        MessageName = "ACTIONCMD",
+                        MessageName = "TRANS-ACTIONCMD",
                         TransactionId = Guid.NewGuid().ToString(),
                         Timestamp = DateTime.UtcNow,
                         Sender = "Host"

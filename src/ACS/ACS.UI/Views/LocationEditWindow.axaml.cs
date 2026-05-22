@@ -57,10 +57,14 @@ public partial class LocationEditWindow : Window
         var items = comboBox.Items;
         for (int i = 0; i < items.Count; i++)
         {
-            if (items[i] is ComboBoxItem item && item.Content?.ToString() == value)
+            if (items[i] is ComboBoxItem item)
             {
-                comboBox.SelectedIndex = i;
-                return;
+                var itemValue = item.Tag?.ToString() ?? item.Content?.ToString();
+                if (itemValue == value)
+                {
+                    comboBox.SelectedIndex = i;
+                    return;
+                }
             }
         }
         if (comboBox.SelectedIndex < 0 && items.Count > 0)
@@ -71,7 +75,8 @@ public partial class LocationEditWindow : Window
     {
         Location.LocationId = LocationIdTextBox.Text ?? "";
         Location.StationId = StationIdComboBox.SelectedItem?.ToString() ?? "";
-        Location.Type = (TypeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "BUFFER";
+        var selectedType = TypeComboBox.SelectedItem as ComboBoxItem;
+        Location.Type = selectedType?.Tag?.ToString() ?? selectedType?.Content?.ToString() ?? "BUFFER";
         Location.CarrierType = CarrierTypeTextBox.Text ?? "";
         Location.State = StateTextBox.Text ?? "";
         Location.Direction = (DirectionComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "LEFT";

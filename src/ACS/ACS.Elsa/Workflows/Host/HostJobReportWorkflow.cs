@@ -31,14 +31,10 @@ namespace ACS.Elsa.Workflows
         {
             builder.DefinitionId = "JOBREPORT";
             builder.Name = "JOBREPORT";
-            builder.Description = "Trans JOBREPORT JSON 수신 → DB 검증 → MES XML 전달 → TC 상태 업데이트";
+            builder.Description = "Trans JOBREPORT JSON 수신 → MES XML 전달 (DB 재검증 없음)";
 
             var jobReportData = new Variable<JobReportData> { Name = "JobReportData" };
-            var isValid = new Variable<bool> { Name = "IsValid" };
-            var validationError = new Variable<string> { Name = "ValidationError" };
             builder.WithVariable(jobReportData);
-            builder.WithVariable(isValid);
-            builder.WithVariable(validationError);
 
             builder.Root = new Sequence
             {
@@ -50,39 +46,15 @@ namespace ACS.Elsa.Workflows
                         OutputData = new(jobReportData)
                     },
 
-                    // Step 2: DB 검증 (JobID 로 TransportCommandEx 조회 + 정합성 확인)
-                    new ValidateJobReportActivity
+                    // Step 2: MES 로 JOBREPORT 전달 (JSON→XML 변환 내부 수행).
+                    // DB 재검증은 의도적으로 생략 — Trans 의 송신 자체가 신호이고,
+                    // COMPLETE/CANCEL 시점에는 TC 가 종료/삭제 상태라 검증이 정상 흐름을 차단함.
+                    new ForwardJobReportToMesActivity
                     {
-                        JobReportData = new(jobReportData),
-                        Result = new(isValid),
-                        ValidationError = new(validationError)
+                        JobReportData = new(jobReportData)
                     },
 
-                    // Step 3: 검증 결과에 따라 분기
-                    new If
-                    {
-                        Condition = new(ctx => isValid.Get(ctx)),
-                        Then = new Sequence
-                        {
-                            Activities =
-                            {
-                                // Step 3a: MES 로 JOBREPORT 전달 (JSON→XML 변환 내부 수행)
-                                new ForwardJobReportToMesActivity
-                                {
-                                    JobReportData = new(jobReportData)
-                                },
-
-                                new WriteLine("JOBREPORT workflow completed: validated and forwarded to MES")
-                            }
-                        },
-                        Else = new Sequence
-                        {
-                            Activities =
-                            {
-                                new WriteLine(ctx => $"JOBREPORT validation failed: {validationError.Get(ctx)}")
-                            }
-                        }
-                    }
+                    new WriteLine("JOBREPORT workflow completed: forwarded to MES")
                 }
             };
         }
