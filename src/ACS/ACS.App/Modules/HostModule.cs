@@ -89,20 +89,29 @@ namespace ACS.App.Modules
                 .PropertiesAutowired()
                 .OnActivated(e =>
                 {
+                    var log = Serilog.Log.ForContext("Logger", "ErrorLogger");
                     var config = e.Context.Resolve<IConfiguration>();
                     var tcpSection = config.GetSection("Host:Tcp");
-                    if (tcpSection.Exists())
+                    var gw = e.Instance;
+
+                    if (!tcpSection.Exists())
                     {
-                        var gw = e.Instance;
-                        if (int.TryParse(tcpSection["ListenPort"], out var listenPort))
-                            gw.ListenPort = listenPort;
-                        if (!string.IsNullOrEmpty(tcpSection["SendHost"]))
-                            gw.SendHost = tcpSection["SendHost"];
-                        if (int.TryParse(tcpSection["SendPort"], out var sendPort))
-                            gw.SendPort = sendPort;
-                        if (int.TryParse(tcpSection["ReconnectIntervalMs"], out var reconnect))
-                            gw.ReconnectIntervalMs = reconnect;
+                        log.Warning("[HostModule] 'Host:Tcp' section not found in IConfiguration — using HostTcpGateway defaults (Listen:{Listen}, Send:{Host}:{Port}). Check the appsettings.json that was actually loaded.",
+                            gw.ListenPort, gw.SendHost, gw.SendPort);
+                        return;
                     }
+
+                    if (int.TryParse(tcpSection["ListenPort"], out var listenPort))
+                        gw.ListenPort = listenPort;
+                    if (!string.IsNullOrEmpty(tcpSection["SendHost"]))
+                        gw.SendHost = tcpSection["SendHost"];
+                    if (int.TryParse(tcpSection["SendPort"], out var sendPort))
+                        gw.SendPort = sendPort;
+                    if (int.TryParse(tcpSection["ReconnectIntervalMs"], out var reconnect))
+                        gw.ReconnectIntervalMs = reconnect;
+
+                    log.Information("[HostModule] HostTcpGateway configured from Host:Tcp — Listen:{Listen}, Send:{Host}:{Port}, ReconnectMs:{Ms}",
+                        gw.ListenPort, gw.SendHost, gw.SendPort, gw.ReconnectIntervalMs);
                 });
 
             // Host 메시지 빌드/전송 서비스 (JOBREPORT 등 — ACS.Manager 없이 독립 동작)

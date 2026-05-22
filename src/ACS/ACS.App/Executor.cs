@@ -53,22 +53,48 @@ namespace ACS.App
 
         /// <summary>
         /// appsettings.json을 로드해 IConfiguration을 만든다.
-        /// dotnet 실행 시 exeDir이 SDK 경로를 가리키는 경우 CWD를 fallback으로 사용.
+        /// Program.Main과 동일하게 AppDomain.CurrentDomain.BaseDirectory(= ACS.App.dll 폴더)를
+        /// 우선 사용하여, dotnet 명령/윈도우 서비스 등으로 작업 디렉토리가 달라져도 같은 파일을 읽도록 한다.
         /// </summary>
         public static IConfiguration LoadConfiguration()
         {
-            string initialStartUpPath = Environment.CurrentDirectory;
-            string exe = Process.GetCurrentProcess().MainModule.FileName;
-            string exeDir = Path.GetDirectoryName(exe);
+            string basePath = ResolveBasePath();
 
-            string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
-                ? exeDir
-                : initialStartUpPath;
+            Log.ForContext("Logger", "ErrorLogger")
+                .Information("Configuration base path: {Path} (appsettings.json => {File})",
+                    basePath, Path.Combine(basePath, "appsettings.json"));
 
             return new ConfigurationBuilder()
                 .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile("appsettings.json", optional: false)
                 .Build();
+        }
+
+        /// <summary>
+        /// appsettings.json이 위치한 basePath를 결정한다.
+        /// 1순위: AppDomain.CurrentDomain.BaseDirectory (Program.Main과 동일)
+        /// 2순위: Process.MainModule 경로
+        /// 3순위: Environment.CurrentDirectory
+        /// </summary>
+        private static string ResolveBasePath()
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (!string.IsNullOrEmpty(baseDir) && File.Exists(Path.Combine(baseDir, "appsettings.json")))
+                return baseDir;
+
+            try
+            {
+                string exe = Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exe))
+                {
+                    string exeDir = Path.GetDirectoryName(exe);
+                    if (!string.IsNullOrEmpty(exeDir) && File.Exists(Path.Combine(exeDir, "appsettings.json")))
+                        return exeDir;
+                }
+            }
+            catch { }
+
+            return Environment.CurrentDirectory;
         }
 
         /// <summary>
@@ -85,16 +111,9 @@ namespace ACS.App
                 throw new ApplicationException("process id is null");
             }
 
-            string initialStartUpPath = Environment.CurrentDirectory;
-            string exe = Process.GetCurrentProcess().MainModule.FileName;
-            string exeDir = Path.GetDirectoryName(exe);
-            string basePath = File.Exists(Path.Combine(exeDir, "appsettings.json"))
-                ? exeDir
-                : initialStartUpPath;
-
             if (string.IsNullOrEmpty(StartUpPath))
             {
-                StartUpPath = basePath;
+                StartUpPath = ResolveBasePath();
             }
 
             this.HardwareType = configuration["Acs:Process:HardwareType"];
