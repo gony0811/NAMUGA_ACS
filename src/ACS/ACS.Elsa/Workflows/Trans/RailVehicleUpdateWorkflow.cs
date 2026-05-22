@@ -243,7 +243,7 @@ namespace ACS.Elsa.Workflows.Trans
                 // 8. ProcessingState: 충전 완료(CHARGE → IDLE) 전이만 책임진다.
                 //    RUN(Job 진행 중)은 절대 덮어쓰지 않아 Job 중복 할당을 방지하고,
                 //    CHARGE 진입은 Step 7(충전 노드 도착)에서 처리한다.
-                const int BATTERY_CHARGE_RELEASE_RATE = 30;
+                const int BATTERY_CHARGE_RELEASE_RATE = 15;
                 bool inCharge = VehicleEx.PROCESSINGSTATE_CHARGE.Equals(
                     vehicle.ProcessingState, StringComparison.OrdinalIgnoreCase);
                 if (inCharge && data.BatteryRate >= BATTERY_CHARGE_RELEASE_RATE)

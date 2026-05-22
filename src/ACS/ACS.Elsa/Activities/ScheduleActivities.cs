@@ -484,7 +484,7 @@ namespace ACS.Elsa.Activities
                         DestNodeId = nodeId,
                         Priority = tc.Priority.ToString(),
                         CarrierType = tc.CarrierId ?? "",
-                        Port = tc.PortId ?? "",
+                        Port = unitName ?? "",
                         JobType = string.IsNullOrEmpty(jobType) ? (tc.JobType ?? "") : jobType,
                         PortType = portType,
                         ResultCode = ""

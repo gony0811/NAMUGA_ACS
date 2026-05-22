@@ -101,33 +101,33 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
-                LocationEx arrivedLocation = resourceManager.GetLocationByStationId(vehicle.CurrentNodeId);
-                if (arrivedLocation == null)
-                {
-                    logger.Warn($"RailVehicleDestArrivedActivity: ARRIVED skip — reason=location-not-found, " +
-                                $"vehicleId={vehicleId}, currentNode={vehicle.CurrentNodeId}, " +
-                                $"tcSource={tc.Source}, tcDest={tc.Dest}");
-                    return;
-                }
+                // StationId 1개에 다수의 LocationId(:LEFT/:RIGHT 등) 가 매핑되므로
+                // tc.Source / tc.Dest 를 LocationId 키로 직접 조회한 뒤 그 StationId 가
+                // vehicle.CurrentNodeId 와 같은지로 도착 매칭을 판정한다.
+                LocationEx tcSourceLoc = !string.IsNullOrEmpty(tc.Source)
+                    ? resourceManager.GetLocationByLocationId(tc.Source) : null;
+                LocationEx tcDestLoc = !string.IsNullOrEmpty(tc.Dest)
+                    ? resourceManager.GetLocationByLocationId(tc.Dest) : null;
 
-                bool matchesSource = !string.IsNullOrEmpty(tc.Source)
-                    && string.Equals(arrivedLocation.LocationId, tc.Source, StringComparison.OrdinalIgnoreCase);
-                bool matchesDest = !string.IsNullOrEmpty(tc.Dest)
-                    && string.Equals(arrivedLocation.LocationId, tc.Dest, StringComparison.OrdinalIgnoreCase);
+                bool matchesSource = tcSourceLoc != null
+                    && string.Equals(tcSourceLoc.StationId, vehicle.CurrentNodeId, StringComparison.OrdinalIgnoreCase);
+                bool matchesDest = tcDestLoc != null
+                    && string.Equals(tcDestLoc.StationId, vehicle.CurrentNodeId, StringComparison.OrdinalIgnoreCase);
                 if (!matchesSource && !matchesDest)
                 {
                     logger.Info($"RailVehicleDestArrivedActivity: ARRIVED skip — reason=not-source-dest, " +
                                 $"vehicleId={vehicleId}, currentNode={vehicle.CurrentNodeId}, " +
-                                $"arrivedLocationId={arrivedLocation.LocationId}, arrivedType={arrivedLocation.Type}, " +
-                                $"tcSource={tc.Source}, tcDest={tc.Dest}");
+                                $"tcSource={tc.Source} (stationId={tcSourceLoc?.StationId}), " +
+                                $"tcDest={tc.Dest} (stationId={tcDestLoc?.StationId})");
                     return;
                 }
 
-                if (!LocationExs.LOCATION_TYPE_EQP.Equals(arrivedLocation.Type, StringComparison.OrdinalIgnoreCase))
+                LocationEx matchedLoc = matchesSource ? tcSourceLoc : tcDestLoc;
+                if (!LocationExs.LOCATION_TYPE_EQP.Equals(matchedLoc.Type, StringComparison.OrdinalIgnoreCase))
                 {
                     logger.Info($"RailVehicleDestArrivedActivity: ARRIVED skip — reason=not-eqp, " +
                                 $"vehicleId={vehicleId}, currentNode={vehicle.CurrentNodeId}, " +
-                                $"arrivedLocationId={arrivedLocation.LocationId}, arrivedType={arrivedLocation.Type}");
+                                $"matchedLocationId={matchedLoc.LocationId}, matchedType={matchedLoc.Type}");
                     return;
                 }
 
@@ -143,7 +143,7 @@ namespace ACS.Elsa.Workflows.Trans
                 logger.Info($"[RailVehicleDestArrived] JOBREPORT(ARRIVED) sent: " +
                             $"vehicleId={vehicleId}, tc={tc.JobId}, jobType={tc.JobType}, " +
                             $"currentNode={vehicle.CurrentNodeId}, acsDestNode={vehicle.AcsDestNodeId}, " +
-                            $"matched={matchedSide}, arrivedLocationId={arrivedLocation.LocationId}, locationType=EQP");
+                            $"matched={matchedSide}, matchedLocationId={matchedLoc.LocationId}, locationType=EQP");
             }
             catch (Exception e)
             {
