@@ -68,9 +68,11 @@ static class Program
         var processType = configuration["Acs:Process:Type"];
         try
         {
-            if (string.Equals(processType, "ui", StringComparison.OrdinalIgnoreCase))
+            // control 프로세스가 UI 백엔드(REST API + SignalR)를 겸하므로 웹 호스트로 기동한다.
+            // (기존 ui 프로세스는 폐지되어 control로 통합됨.)
+            if (string.Equals(processType, "control", StringComparison.OrdinalIgnoreCase))
             {
-                return RunUiHost(args);
+                return RunWebHost(args);
             }
             return RunConsoleHost();
         }
@@ -86,8 +88,8 @@ static class Program
     }
 
     /// <summary>
-    /// 비-UI 프로세스(host/trans/ei/daemon/control/query/report) 실행 경로.
-    /// 기존 Executor 콘솔 흐름 그대로 유지한다.
+    /// 콘솔 프로세스(host/trans/ei/daemon/query/report) 실행 경로.
+    /// 기존 Executor 콘솔 흐름 그대로 유지한다. (control은 웹 호스트로 분리됨.)
     /// </summary>
     private static int RunConsoleHost()
     {
@@ -132,11 +134,12 @@ static class Program
     }
 
     /// <summary>
-    /// UI 프로세스 실행 경로. ASP.NET Core(Kestrel) + SignalR + Autofac 통합.
-    /// REST 엔드포인트는 ACS.App.Web.Controllers의 컨트롤러로 노출되며,
-    /// 차량 POSE 텔레메트리는 VehicleHub를 통해 SignalR로 브로드캐스트된다.
+    /// 웹 백엔드(REST API + SignalR) 호스팅 실행 경로. ASP.NET Core(Kestrel) + Autofac 통합.
+    /// control 프로세스가 UI 백엔드를 겸하며, REST 엔드포인트는 ACS.App.Web.Controllers의
+    /// 컨트롤러로, 차량 POSE 텔레메트리는 VehicleHub를 통해 SignalR로 노출된다.
+    /// 프로세스별 서비스 등록은 Executor.RegisterModules가 process type(control)에 맞춰 수행한다.
     /// </summary>
-    private static int RunUiHost(string[] args)
+    private static int RunWebHost(string[] args)
     {
         var executor = new Executor();
         var configuration = Executor.LoadConfiguration();
@@ -182,7 +185,7 @@ static class Program
         builder.Services.AddSignalR();
 
         // Autofac을 ASP.NET Core DI에 통합
-        // (PoseTelemetrySubscriber는 UiModule에서 IHostedService로 등록되어 Generic Host가 자동 기동)
+        // (PoseTelemetrySubscriber/HostCommSubscriber는 ControlModule에서 IHostedService로 등록되어 Generic Host가 자동 기동)
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
         builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
         {
@@ -210,7 +213,7 @@ static class Program
             try { executor.Stop(); } catch { }
         });
 
-        Log.Information("[ACS] UI server started on {Ip}:{Port}. Press Ctrl+C to stop.", listenIp, listenPort);
+        Log.Information("[ACS] Web backend started on {Ip}:{Port}. Press Ctrl+C to stop.", listenIp, listenPort);
         app.Run();
         return 0;
     }

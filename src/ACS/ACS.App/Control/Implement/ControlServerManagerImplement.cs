@@ -27,6 +27,8 @@ namespace ACS.Control
     public class ControlServerManagerImplement : AbstractManager, IControlServerManager
     {
 
+        public static String SCRIPT_HS_START = "HS-START";
+        public static String SCRIPT_HS_KILL = "HS-KILL";
         public static String SCRIPT_TS_START = "TS-START";
         public static String SCRIPT_TS_KILL = "TS-KILL";
         public static String SCRIPT_ES_START = "ES-START";
@@ -193,24 +195,16 @@ namespace ACS.Control
 
         public bool ExecuteCoreDump(string applicationName, string applicationType)
         {
-            bool result = false;
+            String script = (String)this.Scripts[SCRIPT_COREDUMP];
 
-            String script = (String)this.Scripts["COREDUMP"];
-
-            //logger.info(script);
-
-            result = true;
-            if (result)
+            if (string.IsNullOrEmpty(script))
             {
-                List<string> lines = SystemUtility.PerformCommand(new String[] { script, applicationName }, 2);
-                //logger.info(lines);
-            }
-            else
-            {
-                //logger.error("failed to executeCoreDump");
+                logger.Error("COREDUMP script is not configured, can not execute core dump for " + applicationName);
+                return false;
             }
 
-            return result;
+            SystemUtility.PerformCommand(new String[] { script, applicationName }, 2);
+            return true;
         }
 
         public IApplicationManager GetApplicationManager()
@@ -738,53 +732,31 @@ namespace ACS.Control
                 return false;
             }
 
-            List<string> lines = null;
             try
             {
-                string os = Configuration["Acs:OperationSystem"];
-
-                if ((os != null) && (os.StartsWith("Windows")))
+                // 이미 실행 중이면 중복 기동을 막고 상태/heartbeat만 정리한다.
+                // (배포 시 apphost가 applicationName으로 rename되므로 ProcessName == applicationName 매칭)
+                string runningPid = SystemUtility.GetProcessId(applicationName);
+                if (!string.IsNullOrEmpty(runningPid))
                 {
-                    //logger.info("Window os case, execute by process builder.");
-                    lines = SystemUtility.PerformCommand(new string[] { script }, 2);            
-                }
-                else
-                {
-                    lines = SystemUtility.PerformCommand(new String[] { script }, 2);
-                    //logger.info(lines);
-                }
-                ScheduleHeartBeat(applicationName);
-
-                return true;
-            }
-            catch (PerformCommandException pce)
-            {
-                if (pce.ExitValue == 1)
-                {
-                    //logger.error("failed to perform command, arguments are not correct, " + pce.getMessage());
-                }
-                else if (pce.ExitValue == 2)
-                {
-                    //logger.error("failed to perform command, arguments are not correct, " + pce.getMessage());
-                }
-                else if (pce.ExitValue == 3)
-                {
-                    //logger.fine("failed to perform command, already running, " + pce.getMessage());
+                    logger.Info("application{" + applicationName + "} already running(pid=" + runningPid + "), skip start");
                     this.ApplicationManager.UpdateApplicationState(applicationName, "active");
                     ScheduleHeartBeat(applicationName);
+                    return true;
                 }
-                else if (pce.ExitValue == 4)
-                {
-                    //logger.fine("failed to perform command, already killed, " + pce.getMessage());
-                }
-                else
-                {
-                    //logger.error("exitValue{" + pce.getExitValue() + "}, " + pce.getMessage());
-                }
+
+                // 장기 실행 서버 프로세스를 독립(detached)으로 기동 — fire-and-forget.
+                SystemUtility.StartProcess(script);
+                // 신규 기동 시에도 상태를 active로 갱신해야 Kill(→inactive)→Start 이후 DB 상태가
+                // inactive로 남아 RescheduleHeartBeats 대상에서 제외되거나 UI 표시가 어긋나지 않는다.
+                // 첫 heartbeat(StartDelay 후)가 실제 응답으로 상태를 재확인한다.
+                this.ApplicationManager.UpdateApplicationState(applicationName, "active");
+                ScheduleHeartBeat(applicationName);
+                return true;
             }
             catch (Exception ie)
             {
-                //logger.error("failed to execute " + script + ", " + ie.getMessage());
+                logger.Error("failed to execute " + script + ", " + ie.Message);
             }
             return false;
         }
@@ -855,6 +827,10 @@ namespace ACS.Control
             else if (applicationType.Equals("daemon"))
             {
                 script = (string)this.Scripts[SCRIPT_DS_START];
+            }
+            else if (applicationType.Equals("host"))
+            {
+                script = (string)this.Scripts[SCRIPT_HS_START];
             }
             else if (applicationType.Equals("emulator"))
             {

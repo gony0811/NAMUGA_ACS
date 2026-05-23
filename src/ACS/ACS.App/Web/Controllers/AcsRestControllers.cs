@@ -8,6 +8,8 @@ using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
+using ACS.Control;
+using AppModel = ACS.Core.Application.Model;
 
 namespace ACS.App.Web.Controllers
 {
@@ -668,6 +670,84 @@ namespace ACS.App.Web.Controllers
                 }
             }
             return dtos;
+        }
+    }
+
+    /// <summary>
+    /// 애플리케이션(서버 프로세스) 조회 및 제어.
+    /// control 프로세스(CS01_P)에서만 동작 — IControlServerManager가 같은 하드웨어의 프로세스를
+    /// 기동/종료하며, 목록은 NA_X_APPLICATION(ApplicationManager)을 조회한다.
+    /// </summary>
+    [ApiController]
+    [Route("api/applications")]
+    public class ApplicationsController : ControllerBase
+    {
+        private readonly IControlServerManager _control;
+
+        public ApplicationsController(IControlServerManager control)
+        {
+            _control = control;
+        }
+
+        // GET /api/applications — NA_X_APPLICATION 전체 목록
+        [HttpGet]
+        public ActionResult<List<ApplicationDto>> Get()
+        {
+            var dtos = new List<ApplicationDto>();
+            IList applications = _control.ApplicationManager.GetApplications();
+            if (applications != null)
+            {
+                foreach (var item in applications)
+                {
+                    if (item is not AppModel.Application a) continue;
+                    dtos.Add(new ApplicationDto
+                    {
+                        Name = a.Name,
+                        Type = a.Type,
+                        State = a.State,
+                        RunningHardware = a.RunningHardware,
+                        StartTime = a.StartTime?.ToString("yyyy-MM-dd HH:mm:ss"),
+                        CheckTime = a.CheckTime?.ToString("yyyy-MM-dd HH:mm:ss"),
+                        Description = a.Description
+                    });
+                }
+            }
+            return dtos;
+        }
+
+        // POST /api/applications/{name}/start — inactive 프로세스 실행
+        [HttpPost("{name}/start")]
+        public ActionResult Start(string name)
+        {
+            var app = _control.ApplicationManager.GetApplication(name);
+            if (app == null)
+                return NotFound(new { error = "Application not found: " + name });
+            bool success = _control.Start(name, app.Type);
+            return Ok(new { success });
+        }
+
+        // POST /api/applications/{name}/stop — active 프로세스 정지 (taskkill /F)
+        [HttpPost("{name}/stop")]
+        public ActionResult Stop(string name)
+        {
+            var app = _control.ApplicationManager.GetApplication(name);
+            if (app == null)
+                return NotFound(new { error = "Application not found: " + name });
+            bool success = _control.Kill(name, app.Type);
+            return Ok(new { success });
+        }
+
+        // POST /api/applications/{name}/force-kill — hang 프로세스 강제종료 (COREDUMP 수집 후 종료)
+        [HttpPost("{name}/force-kill")]
+        public ActionResult ForceKill(string name)
+        {
+            var app = _control.ApplicationManager.GetApplication(name);
+            if (app == null)
+                return NotFound(new { error = "Application not found: " + name });
+            // COREDUMP 스크립트가 설정된 경우에만 덤프 수집(미설정 시 false 반환 후 그대로 종료)
+            _control.ExecuteCoreDump(name, app.Type);
+            bool success = _control.Kill(name, app.Type);
+            return Ok(new { success });
         }
     }
 }

@@ -1,6 +1,6 @@
 # ACS 배포 스크립트
 #
-# bin/Debug/net8.0 의 빌드 결과를 C:\acs\{ds,es,ts,ts02,ui,host}\net8.0 으로 복사.
+# bin/Debug/net8.0 의 빌드 결과를 C:\acs\{ds,es,ts,ts02,host}\net8.0 으로 복사.
 # 각 폴더의 appsettings.json 은 보존(덮어쓰지 않음).
 # rename 한 apphost(예: ES01_P.exe)는 별개 파일이라 그대로 유지됨.
 #
@@ -14,7 +14,7 @@
 param(
     [string]$Source  = "$PSScriptRoot\ACS.App\bin\Debug\net8.0",
     [string]$Root    = "C:\acs",
-    [string[]]$Targets = @('ds', 'es', 'ts', 'ts02', 'ui', 'host'),
+    [string[]]$Targets = @('ds', 'es', 'ts', 'ts02', 'host'),
     [switch]$NoPdb
 )
 

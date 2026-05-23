@@ -64,7 +64,10 @@ namespace ACS.Control.Scheduling
 
                             for(int i = 0; i < controlServerManager.HeartBeatRetryCount; i++)
                             {
-                                long retryTimeout = useSecondAsTimeUnit ? controlServerManager.HeartBeatRetryTimeout : controlServerManager.HeartBeatRetryTimeout / 1000L;
+                                // 초기 체크(timeout)와 동일한 단위 규칙을 따라야 함.
+                                // 이전 코드는 삼항 분기가 반대로 되어 ms 모드에서 10000/1000=10ms로
+                                // 모든 재시도가 즉시 타임아웃 → 정상 프로세스도 Kill+Start로 직행했음.
+                                long retryTimeout = useSecondAsTimeUnit ? controlServerManager.HeartBeatRetryTimeout / 1000L : controlServerManager.HeartBeatRetryTimeout;
                                 retryResult = CheckHeartBeat(controlServerManager, application, jsonMessage, retryTimeout);
 
                                 //Response X

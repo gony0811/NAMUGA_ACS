@@ -1,16 +1,26 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ACS.UI.Models;
+using ACS.UI.Services;
 
 namespace ACS.UI.ViewModels;
 
 /// <summary>
-/// Application Management 화면 ViewModel
-/// Primary/Secondary 서버의 프로세스 트리 + Properties 패널
+/// Application Management 화면 ViewModel.
+/// NA_X_APPLICATION을 조회해 Primary/Secondary 하드웨어별 트리에 Type 그룹으로 표시하고,
+/// 상태(active/inactive/hang)에 따라 정지/강제종료/실행을 수행한다.
 /// </summary>
 public partial class AppManagementViewModel : ObservableObject
 {
+    private readonly IAcsApiService? _apiService;
+    private DispatcherTimer? _autoRefreshTimer;
+
     [ObservableProperty]
     private ObservableCollection<ProcessNodeModel> _primaryProcesses = new();
 
@@ -26,9 +36,13 @@ public partial class AppManagementViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoRefreshEnabled;
 
-    public AppManagementViewModel()
+    [ObservableProperty]
+    private string _statusMessage = "";
+
+    public AppManagementViewModel(IAcsApiService? apiService = null)
     {
-        LoadSampleData();
+        _apiService = apiService;
+        _ = RefreshAsync();
     }
 
     partial void OnSelectedProcessChanged(ProcessNodeModel? value)
@@ -43,129 +57,127 @@ public partial class AppManagementViewModel : ObservableObject
         }
     }
 
+    /// <summary>NA_X_APPLICATION을 조회해 트리를 갱신한다.</summary>
     [RelayCommand]
-    private void Refresh()
+    private async Task RefreshAsync()
     {
-        // TODO: 실제 API 호출로 프로세스 목록 갱신
+        if (_apiService == null) return;
+
+        try
+        {
+            var apps = await _apiService.GetApplicationsAsync();
+
+            var primary = BuildTree(apps.Where(a => !IsSecondary(a.RunningHardware)));
+            var secondary = BuildTree(apps.Where(a => IsSecondary(a.RunningHardware)));
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                PrimaryProcesses = primary;
+                SecondaryProcesses = secondary;
+                StatusMessage = $"{apps.Count} application(s) — {DateTime.Now:HH:mm:ss}";
+            });
+        }
+        catch (Exception ex)
+        {
+            // 백엔드 미기동/엔드포인트 없음(404) 등 — UI 크래시 방지, 상태만 표시.
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                StatusMessage = "조회 실패: " + ex.Message;
+            });
+        }
     }
 
-    [RelayCommand]
-    private void Delete()
+    private static bool IsSecondary(string? hardware)
+        => !string.IsNullOrEmpty(hardware) &&
+           hardware.Contains("SECONDARY", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>애플리케이션 목록을 Type별 그룹 노드로 묶어 트리를 구성한다.</summary>
+    private static ObservableCollection<ProcessNodeModel> BuildTree(IEnumerable<ApplicationDto> apps)
     {
-        // TODO: 선택된 inactive 프로세스 삭제
+        var roots = new ObservableCollection<ProcessNodeModel>();
+
+        foreach (var group in apps.GroupBy(a => a.Type ?? "").OrderBy(g => g.Key))
+        {
+            var groupNode = new ProcessNodeModel
+            {
+                Name = string.IsNullOrEmpty(group.Key) ? "(none)" : group.Key.ToUpperInvariant(),
+                Type = group.Key,
+                IsApplication = false
+            };
+
+            foreach (var app in group.OrderBy(a => a.Name))
+            {
+                groupNode.Children.Add(new ProcessNodeModel
+                {
+                    Name = app.Name,
+                    Type = app.Type,
+                    State = app.State,
+                    IsApplication = true,
+                    Properties = new Dictionary<string, string>
+                    {
+                        ["NAME"] = app.Name ?? "",
+                        ["TYPE"] = app.Type ?? "",
+                        ["STATE"] = app.State ?? "",
+                        ["RUNNINGHARDWARE"] = app.RunningHardware ?? "",
+                        ["STARTTIME"] = app.StartTime ?? "",
+                        ["CHECKTIME"] = app.CheckTime ?? "",
+                        ["DESCRIPTION"] = app.Description ?? ""
+                    }
+                });
+            }
+
+            roots.Add(groupNode);
+        }
+
+        return roots;
+    }
+
+    /// <summary>inactive 프로세스 실행</summary>
+    [RelayCommand]
+    private async Task StartAsync(ProcessNodeModel? node)
+    {
+        if (_apiService == null || node is not { IsApplication: true }) return;
+        await _apiService.StartApplicationAsync(node.Name);
+        await RefreshAsync();
+    }
+
+    /// <summary>active 프로세스 정지</summary>
+    [RelayCommand]
+    private async Task StopAsync(ProcessNodeModel? node)
+    {
+        if (_apiService == null || node is not { IsApplication: true }) return;
+        await _apiService.StopApplicationAsync(node.Name);
+        await RefreshAsync();
+    }
+
+    /// <summary>hang 프로세스 강제종료(덤프 후 종료)</summary>
+    [RelayCommand]
+    private async Task ForceKillAsync(ProcessNodeModel? node)
+    {
+        if (_apiService == null || node is not { IsApplication: true }) return;
+        await _apiService.ForceKillApplicationAsync(node.Name);
+        await RefreshAsync();
     }
 
     [RelayCommand]
     private void ToggleAutoRefresh()
     {
         AutoRefreshEnabled = !AutoRefreshEnabled;
+
+        if (AutoRefreshEnabled)
+        {
+            _autoRefreshTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _autoRefreshTimer.Tick -= OnAutoRefreshTick;
+            _autoRefreshTimer.Tick += OnAutoRefreshTick;
+            _autoRefreshTimer.Start();
+        }
+        else
+        {
+            _autoRefreshTimer?.Stop();
+        }
     }
 
-    /// <summary>
-    /// 샘플 데이터 로드 (매뉴얼 기반)
-    /// </summary>
-    private void LoadSampleData()
-    {
-        // Primary 서버
-        var primaryCs = new ProcessNodeModel
-        {
-            Name = "CS01_P", Type = "CS", State = "CS_ACTIVE",
-            Properties = new Dictionary<string, string>
-            {
-                ["ID"] = "CS01_P", ["TYPE"] = "cs",
-                ["STARTTIME"] = "2017-04-29 14:02:27",
-                ["RUNNINGHARDWARE"] = "PRIMARY"
-            }
-        };
-
-        var trans = new ProcessNodeModel { Name = "TRANS", Type = "TRANS_TYPE", State = "CS_ACTIVE" };
-        for (int i = 1; i <= 7; i++)
-        {
-            trans.Children.Add(new ProcessNodeModel
-            {
-                Name = $"TS0{i}_P", Type = "ts", State = "STATE_ACTIVE",
-                Properties = new Dictionary<string, string>
-                {
-                    ["ID"] = $"TS0{i}_P", ["TYPE"] = "ts",
-                    ["STARTTIME"] = "2017-04-29 14:02:27",
-                    ["RUNNINGHARDWARE"] = "PRIMARY",
-                    ["APPLICATIONNAME"] = $"ACS/SDV/TS/TS0{i}_P",
-                    ["NAME"] = $"TS0{i}_P"
-                }
-            });
-        }
-
-        var ei = new ProcessNodeModel { Name = "EI", Type = "EI_TYPE", State = "CS_ACTIVE" };
-        for (int i = 1; i <= 7; i++)
-        {
-            var esNode = new ProcessNodeModel
-            {
-                Name = $"ES0{i}_P", Type = "es", State = i == 1 ? "STATE_INACTIVE" : "STATE_ACTIVE",
-                Properties = new Dictionary<string, string>
-                {
-                    ["ID"] = $"ES0{i}_P", ["TYPE"] = "es",
-                    ["STARTTIME"] = "2017-04-29 14:02:27",
-                    ["RUNNINGHARDWARE"] = "PRIMARY",
-                    ["APPLICATIONNAME"] = $"ACS/SDV/ES/ES0{i}_P",
-                    ["NAME"] = $"ES0{i}_P"
-                }
-            };
-            // EI 하위에 NIO 노드 추가
-            if (i <= 3)
-            {
-                for (int n = 1; n <= 3; n++)
-                {
-                    esNode.Children.Add(new ProcessNodeModel
-                    {
-                        Name = $"{100 + (i - 1) * 3 + n}",
-                        Type = "NIO", State = "NIO_CONNECTED",
-                        Properties = new Dictionary<string, string>
-                        {
-                            ["ID"] = $"{100 + (i - 1) * 3 + n}",
-                            ["TYPE"] = "NIO",
-                            ["STATE"] = "CONNECTED",
-                            ["MACHINENAME"] = "WIFI"
-                        }
-                    });
-                }
-            }
-            ei.Children.Add(esNode);
-        }
-
-        var daemon = new ProcessNodeModel { Name = "DAEMON", Type = "DAEMON_TYPE", State = "CS_ACTIVE" };
-        daemon.Children.Add(new ProcessNodeModel
-        {
-            Name = "DS01_P", Type = "daemon", State = "STATE_ACTIVE",
-            Properties = new Dictionary<string, string>
-            {
-                ["ID"] = "DS01_P", ["TYPE"] = "daemon",
-                ["STARTTIME"] = "2017-04-29 14:02:27",
-                ["RUNNINGHARDWARE"] = "PRIMARY"
-            }
-        });
-
-        primaryCs.Children.Add(trans);
-        primaryCs.Children.Add(ei);
-        primaryCs.Children.Add(daemon);
-        PrimaryProcesses.Add(primaryCs);
-
-        // Secondary 서버
-        var secondaryCs = new ProcessNodeModel
-        {
-            Name = "CS01_S", Type = "CS", State = "CS_STANDBY",
-            Properties = new Dictionary<string, string>
-            {
-                ["ID"] = "CS01_S", ["TYPE"] = "cs",
-                ["RUNNINGHARDWARE"] = "SECONDARY"
-            }
-        };
-
-        var sTrans = new ProcessNodeModel { Name = "TRANS", Type = "TRANS_TYPE", State = "CS_STANDBY" };
-        var sEi = new ProcessNodeModel { Name = "EI", Type = "EI_TYPE", State = "CS_STANDBY" };
-        secondaryCs.Children.Add(sTrans);
-        secondaryCs.Children.Add(sEi);
-        SecondaryProcesses.Add(secondaryCs);
-    }
+    private void OnAutoRefreshTick(object? sender, EventArgs e) => _ = RefreshAsync();
 }
 
 /// <summary>

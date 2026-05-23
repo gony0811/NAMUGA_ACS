@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
 # ACS 멀티 프로세스 빌드 & 실행 스크립트
-# 인자 없이 실행하면 전체, 인자로 프로세스 지정 가능
-#   ./run-all.sh                    → 전체 6개 프로세스 실행
+# 인자 없이 실행하면 활성 목록(ALL_PROCESSES), 인자로 프로세스 지정 가능
+#   ./run-all.sh                    → ALL_PROCESSES 실행
 #   ./run-all.sh TS01_P HS01_P      → 지정 프로세스만 실행
 # ============================================================
 
@@ -13,8 +13,8 @@ PUBLISH_DIR="$SCRIPT_DIR/publish"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
 
 # 전체 프로세스 목록 (기본값)
-# ALL_PROCESSES=("TS01_P" "ES01_P" "DS01_P" "CS01_P" "HS01_P" "UI01_P")
-ALL_PROCESSES=("TS01_P" "ES01_P" "UI01_P")
+# ALL_PROCESSES=("TS01_P" "ES01_P" "DS01_P" "CS01_P" "HS01_P")
+ALL_PROCESSES=("TS01_P" "ES01_P" "CS01_P")
 
 # 인자가 있으면 해당 프로세스만, 없으면 전체
 if [ $# -gt 0 ]; then
@@ -40,7 +40,6 @@ COLORS=(
     "\033[1;33m"  # 노랑 (DS01_P)
     "\033[1;32m"  # 초록 (CS01_P)
     "\033[1;34m"  # 파랑 (HS01_P)
-    "\033[1;31m"  # 빨강 (UI01_P)
 )
 RESET="\033[0m"
 
@@ -124,9 +123,8 @@ echo "  프로세스 목록:"
 echo "  TS01_P (trans)   - API: 5103"
 echo "  ES01_P (ei)      - API: 5104"
 echo "  DS01_P (daemon)  - API: 5105"
-echo "  CS01_P (control) - API: 5102"
+echo "  CS01_P (control) - API: 5100 (UI 백엔드 겸함)"
 echo "  HS01_P (host)    - API: 5101, TCP Listen: 3334, TCP Send: 3333"
-echo "  UI01_P (ui)      - API: 5100"
 echo ""
 echo "  실행 대상: ${PROCESSES[*]}"
 echo "  종료: Ctrl+C"

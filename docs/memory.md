@@ -594,3 +594,144 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 - [ ] 리본바 탭별 서브메뉴 구현 (User, Basic Control, History, Log, Layout, Preference — 현재 플레이스홀더)
 - [ ] Mini Map 구현 (SummaryView 하단 — 현재 플레이스홀더)
 - [ ] 변경사항 커밋
+
+---
+
+## 19. Rider 디버그 배포 실행 구성 추가
+
+**날짜:** 2026-05-23
+**작업:** `publish-deploy.ps1` 을 Debug 빌드로 실행해 `src/ACS/deploy/<SITE>/` 에 디버깅 가능한 실행파일을 생성하는 Rider Run/Debug 구성 추가.
+
+**변경:** `src/ACS/.run/Publish_Deploy__Debug_.run.xml` (신규)
+- 타입 `ShConfigurationType` (Shell Script), 이름 `Publish Deploy (Debug)`.
+- `SCRIPT_PATH=$PROJECT_DIR$/publish-deploy.ps1`, `SCRIPT_OPTIONS=-Configuration Debug`, 인터프리터 `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, 터미널 실행.
+- `$PROJECT_DIR$` = `src/ACS` (.idea 위치 기준). git 추적되는 공유 구성으로 팀과 공유됨.
+
+**Why:** 기존 workspace.xml 의 동일 스크립트 항목은 `default="true"` 템플릿이라 Run 드롭다운에 노출되지 않고 공유도 안 됨. 스크립트 기본값(Release) 대신 Debug 로 publish 하면 PDB 포함·최적화 없는 산출물이 배포되어 사이트 exe 에 디버거 attach 가능.
+
+**수정 (2026-05-23):** 인터프리터를 파일명 `powershell.exe` 만 지정하면 Rider 가 PATH 해석에 실패해 "오류: 인터프리터를 찾을 수 없습니다" 발생. `INTERPRETER_PATH` 를 절대 경로 `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` 로 변경하여 해결.
+
+---
+
+## 20. RecoverStuckVehiclesActivity 에 DISCONNECT 가드 추가
+
+**날짜:** 2026-05-23
+**작업:** `RecoverStuckVehiclesActivity` (`src/ACS/ACS.Elsa/Activities/ScheduleActivities.cs`) 의 RAIL-CARRIERTRANSFER 재전송 루프에 ConnectionState 가드 추가.
+
+**문제:** `AwakeCheckVehiclesJob` 이 10초마다 도는 `SCHEDULE-CHECKVEHICLES` 워크플로우에서, Step 2 `DisconnectVehiclesActivity` 는 stale vehicle 의 `ConnectionState` 만 DISCONNECT 로 바꾸고 ProcessingState/RunState/AlarmState 는 그대로 둠. 이어지는 Step 3 `RecoverStuckVehiclesActivity` 는 `ConnectionState` 를 전혀 검사하지 않아, 반송 중(RUN+STOP+NOALARM+TC 보유) 연결이 끊긴 vehicle 에 같은 사이클에서 곧바로 재전송하고 이후 10초마다 반복함. 송신 메서드 `SendCarrierTransferJson` (`MessageManagerExImplement.cs:1701`) 에도 connection 가드 없음. (ALARM 케이스는 `:896` 에서 이미 차단됨.)
+
+**변경:**
+- ALARM 가드(`:896`) 바로 다음에 `if (!VehicleEx.CONNECTIONSTATE_CONNECT.Equals(vehicle.ConnectionState, OrdinalIgnoreCase)) continue;` 한 줄 추가. 루프 상단이라 CHARGEMOVE(IDLE) 분기와 일반 RUN 분기를 모두 커버.
+- 동일 파일 XML doc "발동 조건" 목록에 `ConnectionState == CONNECT` 추가.
+- `ScheduleCheckvehiclesWorkflow.cs` 주석에 "ALARM/DISCONNECT 제외" 명시.
+
+**Why:** 사용자 질문 "vehicle 이 disconnect/alarm 일 때도 계속 재전송하는가" 확인 중, ALARM 만 가드되고 DISCONNECT 는 누락된 것을 발견. 연결 끊긴 vehicle 에 명령을 계속 푸시하는 것은 의도된 동작이 아니므로 ALARM 과 동일하게 차단. 관련: [[15. CHARGEMOVE 재전송 분기]].
+
+**검증:** `dotnet build ACS.Elsa.csproj` 성공 (0 오류, 기존 경고 7). 실제 시나리오: 반송 중 vehicle 의 EventTime 60초+ 미갱신 → DISCONNECT 유발 후 `ELSA_ACTIVITY` 로그에 해당 vehicleId `RAIL-CARRIERTRANSFER 재전송` 미발화 확인, CONNECT 복귀 후 정상 재전송·ALARM 회귀 체크 필요.
+
+---
+
+## 21. UI 백엔드를 control 프로세스로 통합 (UiModule 폐지)
+
+**날짜:** 2026-05-23
+**작업:** 기존 `ui` 프로세스(UI01_P)가 담당하던 UI 백엔드(REST API + SignalR) 호스팅을 `control` 프로세스(CS01_P)로 이전하고, `ui` 프로세스 타입을 폐지.
+
+**배경/동기:** UI에서 사용자가 trans/ei/daemon 등 서버를 kill/reload하려면 그 기능을 실제로 가진 것은 control 프로세스의 `IControlServerManager`(start/kill/heartbeat/reload). UI 백엔드와 control이 별도 프로세스라 RabbitMQ를 한 번 우회해야 했음. UI 백엔드를 control에 통합하면 in-process로 직접 접근 가능.
+
+**통합이 깔끔했던 이유 (탐색 결과):**
+- `PoseTelemetrySubscriber`/`HostCommSubscriber`(`ACS.App/Web/Realtime/`)는 `IConfiguration`에서 직접 RabbitMQ fanout에 자체 커넥션을 연다. `IHubContext`/`IConfiguration`/`ILogger`에만 의존 → 그대로 control로 이전 가능.
+- REST 컨트롤러(`Web/Controllers/AcsRestControllers.cs`)는 `IResourceManagerEx`/`ITransferManagerEx`만 주입받음 — ControlModule이 이미 둘 다 등록(`ResourceManagerExImplement`, `TransferManagerExsImplement` as `ITransferManagerEx`).
+- `ACS.App`은 이미 웹 SDK 사용(`WebApplication.CreateBuilder`) → csproj 변경 불필요.
+
+**변경:**
+- `Modules/ControlModule.cs`: `ICacheManagerEx`(CacheManagerExImplement) 등록 추가, `PoseTelemetrySubscriber`/`HostCommSubscriber`를 `As<IHostedService>`로 등록 추가.
+- `Program.cs`: `Main` 분기 `ui` → `control`; `RunUiHost` → `RunWebHost`로 일반화(내부 로직 동일). 콘솔 호스트는 host/trans/ei/daemon/query/report용으로 유지.
+- `Executor.cs` `RegisterProcessModule`: `case "ui"` 제거.
+- `Modules/UiModule.cs` 삭제.
+- `deploy/CS01_P/appsettings.json`: `Acs:Api:ListenPort` 5102 → 5100 (데스크탑 클라이언트 `ACS.UI/appsettings.json`이 `127.0.0.1:5100`을 보므로 클라이언트 무변경).
+- `deploy/UI01_P/appsettings.json` 삭제(프로세스 폐지). UI01_P 배포 폴더의 빌드 산출물은 gitignore 대상.
+- 문서: `ACS.App.claude.md` 모듈/HTTP API/실행 호스트 섹션 갱신.
+
+**Why:** [[18. 현재 상태 및 미완료 항목]] — control이 서버 관리 주체이므로 UI 백엔드도 control이 겸하는 것이 자연스러움. RabbitMQ 분기(`MsbRabbitMQModule`의 control: CsListener/ApplicationControlAgentListener/CsSenderToServer/CsSenderToUi/HeartBeatRpcSender)는 무변경 — 구독자가 자체 커넥션을 쓰므로 영향 없음.
+
+**미완료(범위 외):** UI가 서버를 직접 kill/reload하는 신규 REST/SignalR 엔드포인트(예: `/api/servers`)는 미구현. 이제 control 프로세스 안에서 `IControlServerManager`에 직접 접근 가능하므로 다음 단계로 추가 예정(RabbitMQ 우회 UiCommandJob 대신 in-process 직접 호출로 단순화 가능).
+
+**검증:** `dotnet build ACS.App.csproj` 성공 (0 오류, 기존 경고 17). 런타임 검증 필요: control 기동 시 Kestrel 5100 수신, `/api/vehicles`·`/api/commands` 응답, `/hubs/vehicle`·`/hubs/hostcomm` 연결, ACS.UI 데스크탑 클라이언트 표시, heartbeat 잡 및 TS/ES/DS start/kill 회귀(웹 호스트 전환 후 `ControlServerManager` 활성화 여부가 핵심 회귀 포인트).
+
+**후속(publish/deploy 정리):** ui 프로세스 폐지에 맞춰 산출물·스크립트의 UI01_P/`ui` 흔적 제거.
+- `git rm -r src/ACS/publish/UI01_P/` (git 추적 publish 산출물 454개 제거 — `publish/` 트리는 전체 git 추적). 물리 `deploy/UI01_P/`·`publish/UI01_P/` 폴더도 삭제(`publish-deploy.ps1`이 `deploy/*/`를 자동 열거하므로 잔여 폴더 제거 필요).
+- `run-all.sh`: 활성 목록 `UI01_P` → `CS01_P` 대체(control이 5100에서 UI 백엔드 겸함), 전체 목록·COLORS 주석·실행 안내 echo에서 UI01_P 제거.
+- `deploy.ps1`: `$Targets`에서 `'ui'` 제거(이 스크립트엔 control 타겟 없음).
+- `publish-deploy.ps1`/`.run/Publish_Deploy__Debug_.run.xml`은 사이트 하드코딩 없어 무변경. `.idea` workspace.xml은 git 미추적·참조 없음.
+
+---
+
+## 22. ControlModule Scripts 프로세스 기동 정상화
+
+**날짜:** 2026-05-23
+**작업:** control 프로세스가 다른 프로세스(TS/ES/DS/HS)를 START/재기동하는 경로의 결함 수정.
+
+**배경/동기:** `ControlModule`이 설정한 `Scripts` Hashtable은 `Control()`(CONTROL-START 메시지) 또는 `HeartBeatJob`(다운 감지 자동 재기동) → `ControlServerManagerImplement.Start()` → `GetStartScript()` → `SystemUtility.PerformCommand()`로 사용됨. 사용자 질문("Scripts 실행이 구현돼 있나") 확인 중 3개 결함 발견.
+
+**문제:**
+1. `SystemUtility.PerformCommand`가 `WaitForExit()` 없이 `process.ExitCode`를 즉시 읽음 → 미종료 프로세스 접근 시 `InvalidOperationException` → `PerformCommandException`으로 래핑 → `Start()`가 false 반환하고 `ScheduleHeartBeat()`를 건너뜀. 즉 서버가 떠도 control이 실패로 간주하고 감시를 안 검(START의 fire-and-forget 의미가 깨짐).
+2. `Scripts["HS-START"]`가 `TS01_P.exe`를 가리키는 복붙 오류 + `GetStartScript()`에 `"host"` 분기 누락 → DB에서 active(PRIMARY)인 host(HS01_P)를 HeartBeatJob이 재기동 불가.
+3. `ExecuteCoreDump`가 미설정 `Scripts["COREDUMP"]`(null)를 그대로 `PerformCommand`에 전달. (MS/RS/QS = emulator/report/query는 배포·DB에 없어 START 빈문자열 안전처리로 충분 — 추가 작업 불요.)
+
+**변경:**
+- `ACS.App/appsettings.json`: `Acs:Control:Scripts` 섹션 신설(TS/ES/DS/HS-START 경로). 하드코딩 → 설정 이동으로 환경별 경로 조정 가능.
+- `ACS.App/Modules/ControlModule.cs`: 하드코딩 Hashtable → `mgr.Configuration.GetSection("Acs:Control:Scripts").GetChildren()`로 로드.
+- `ACS.App/Control/Implement/ControlServerManagerImplement.cs`: `SCRIPT_HS_START`/`SCRIPT_HS_KILL` 상수 추가, `GetStartScript()`에 `"host"` 분기 추가, `Start()`를 재작성(`SystemUtility.GetProcessId`로 이미-실행 가드 후 `SystemUtility.StartProcess`로 detached 기동 → ScheduleHeartBeat; OS 분기 죽은코드 제거), `ExecuteCoreDump()` null 가드 추가.
+- `ACS.Core/Utility/SystemUtility.cs`: `StartProcess(filePath)` 신규(UseShellExecute=true, fire-and-forget). `PerformCommand` 수정 — null/빈인자 가드, `cmd.exe`+CreateNoWindow, 출력 ReadToEnd 후 WaitForExit→ExitCode, 캡처 출력 반환, ExitCode!=0이면 3-인자 생성자(exitValue 포함)로 예외 던져 Start/Kill의 exit-code 3/4 분기 동작.
+
+**Why:** START는 장기 실행 서버 기동이므로 종료를 기다리면 안 됨(detached). 단명령(taskkill/coredump/getprocessid/systemcheck)은 종료·종료코드·출력이 필요하므로 PerformCommand는 그쪽 전용으로 정상화하고 START는 별도 메서드로 분리. host 재기동은 HS-START가 이미 의도에 있었으므로 분기 추가. Kill/GetProcessId는 `UseSystemKill`/`UseSystemGetProcessId`=true라 system 경로 유지(스크립트 미사용)로 영향 없음. 관련: [[21. UI 백엔드를 control 프로세스로 통합]].
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류, 기존 경고 98). 런타임 검증 필요: control 기동 후 Scripts 4종 로드, CONTROL-START 또는 HeartBeatJob 다운 감지 시 TS/ES/DS/HS 실제 기동 + ScheduleHeartBeat 등록, HS01_P 종료 후 host 재기동, COREDUMP 미설정 시 예외 없이 false 처리.
+
+---
+
+## 23. control 웹호스트 기동 DI 오류 수정 (ElsaModule이 기본 IServiceProvider 덮어씀)
+
+**날짜:** 2026-05-24
+**작업:** CS01_P(control) 웹 호스트 기동 시 `WebApplicationBuilder.Build()`에서 발생하던 Autofac DI 크래시 수정.
+
+**증상:** `Autofac ... activating KestrelServerImpl -> λ:System.Diagnostics.DiagnosticSource ---> No service for type 'System.Diagnostics.DiagnosticListener' has been registered.` (`Program.cs:195`).
+
+**근본 원인:** `ACS.Elsa.ElsaModule`이 Elsa 3를 자체 `ServiceCollection`→`BuildServiceProvider()`로 만든 **격리** `IServiceProvider`를 `.As<IServiceProvider>()`로 Autofac **기본** `IServiceProvider`로 등록(+scope factory도 `.As<IServiceScopeFactory>()`로 기본 등록). 웹 호스트에서는 `AutofacServiceProviderFactory.CreateBuilder`가 `Populate()`로 호스트 프레임워크 서비스(DiagnosticListener)와 기본 IServiceProvider(AutofacServiceProvider)를 먼저 등록하는데, 그 뒤 ElsaModule이 기본 IServiceProvider를 Elsa 격리 provider로 덮어씀(Autofac last-wins). 이후 Kestrel resolve 시 `DiagnosticSource` 팩토리 `sp => sp.GetRequiredService<DiagnosticListener>()`의 `sp`가 Elsa 격리 provider로 잡혀 DiagnosticListener를 못 찾음. 콘솔 프로세스(host/trans/ei/daemon)는 `Executor.Start()`의 plain Autofac 컨테이너 + Kestrel 없음이라 덮어쓰기가 무해해 지금까지 정상이었음(ElsaModule은 5개 모듈 전부 로드).
+
+**안전성:** `IServiceProvider`/`IServiceScopeFactory`를 주입/resolve하는 곳은 ACS 소스 전체에서 `ElsaWorkflowManagerBridge`(`_scopeFactory.CreateScope()`로 Elsa scoped `IWorkflowRunner` 해석) 단 하나뿐 → Elsa provider/scope factory를 named로만 등록하고 bridge에 named scope factory를 명시 주입하면 양쪽 안전.
+
+**변경 (ElsaModule.cs 한 파일):**
+- 격리 provider 등록에서 `.As<IServiceProvider>()` 제거, `.Named<IServiceProvider>("ElsaServiceProvider")`만 유지.
+- scope factory를 `.As<IServiceScopeFactory>()` → `.Named<IServiceScopeFactory>("ElsaScopeFactory")`.
+- bridge 등록에 `ResolvedParameter`로 생성자 `IServiceScopeFactory scopeFactory`에 `"ElsaScopeFactory"` 주입. bridge 생성자 시그니처는 무변경.
+- `using Autofac.Core;` 추가(`ResolvedParameter`).
+
+**Why:** Elsa가 자체 격리 provider를 쓰는 구조([[21. UI 백엔드를 control 프로세스로 통합]]로 control이 웹 호스트가 되면서 드러남)에서, 격리 provider를 컨테이너 기본 서비스로 노출하면 호스트 프레임워크(Kestrel/MVC/SignalR)의 DI가 깨진다. named 전용 등록으로 호스트 기본 DI와 Elsa DI를 분리. Elsa→Autofac 접근은 기존대로 `AutofacContainerAccessor`(Elsa ServiceCollection에 등록, Executor가 Container 설정) 사용 — 무변경.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임 검증 필요: CS01_P 기동 시 Build() 통과 + "Web backend started ...:5100", 콘솔 프로세스에서 Elsa 워크플로우(bridge ElsaCommands 라우팅) 정상 실행. **주의:** 실행 exe는 `D:\ACS\deploy\CS01_P\`에서 로드되므로 빌드 산출물(특히 ACS.Elsa.dll) 재배포 후 재실행할 것.
+
+---
+
+## 24. control heartbeat 재기동 무한루프 수정 (정상 active 프로세스가 종료→재실행 반복)
+
+**날짜:** 2026-05-24
+**작업:** control(CS01_P)이 워커(TS/ES/DS/HS)를 heartbeat로 감시하던 중, 상태가 active인 정상 프로세스인데도 "Kill→Start"를 무한 반복하던 문제 수정. 독립적인 4개 결함이 겹쳐 있었고 각각 단독으로도 루프 유발.
+
+**근본 원인 4가지:**
+1. **재시도 타임아웃 단위 반전** (`HeartBeatJob.cs:67`): 초기 체크(:47)는 ms 모드에서 5000ms인데, 재시도는 삼항 분기가 반대라 `HeartBeatRetryTimeout/1000 = 10000/1000 = 10ms`. RabbitMQ 왕복이 10ms 안에 불가 → 모든 재시도 즉시 실패 → ProcessHang case 2(Kill+Start) 직행, 재시도 회복 불가.
+2. **공유 RPC 클라이언트 동시성 결함**: `GenericRabbitMQSender`(RPC_CLIENT, 싱글톤 `ISynchronousMessageAgent`)가 단일 채널(IModel)·고정 correlationId·단일 respQueue를 공유. `AbstractJob`에 `[DisallowConcurrentExecution]` 없음 + Quartz `threadCount=5`(`SchedulingModule.cs:34`) → 동일 StartDelay(10s)+Interval(20s)로 스케줄된 4개 heartbeat 잡이 거의 동시 발화하여 thread-unsafe한 채널을 동시 publish → 응답 혼선·유실 → 정상 프로세스도 타임아웃.
+3. **host 타입 ControlAgent 리스너 미등록** (`MsbRabbitMQModule.RegisterHostMsb`): trans/ei/daemon과 달리 `RegisterControlAgentListener` 호출 없음 → HS01_P가 CONTROL-HEARTBEAT에 응답 불가 → 매 주기 Kill+Start.
+4. **Start() 신규 기동 시 상태 active 미갱신** (`ControlServerManagerImplement.cs:748-751`): 이미-실행 분기(:743)만 active 설정 → Kill(→inactive)→Start 후 DB가 inactive로 남아 Reschedule 제외/UI 표시 불일치.
+
+> 큐 이름은 정상 일치(`ChannelDestination.Init`이 양쪽 `/VM/DEMO/CONTROL/AGENT/{app}`로 정규화), 워커 리스너는 RPCSERVER라 `OnRequest.finally`에서 응답 echo → 단일·직렬이면 정상. 즉 동시성/타임아웃이 핵심.
+
+**변경:**
+- `ACS.App/Control/Scheduling/HeartBeatJob.cs`: 재시도 타임아웃 삼항을 초기 체크와 동일 규칙으로 교정(ms 모드 10000ms).
+- `ACS.Communication/Msb/RabbitMQ/GenericRabbitMQSender.cs`: `_rpcLock` 추가, `Request(string,string,long,...)`를 lock으로 직렬화하고 publish 전 respQueue의 stale 응답을 drain(`while(TryTake(out _,0)){}`). control의 유일한 RPC_CLIENT가 HeartBeatRpcSender라 영향 범위는 heartbeat 한정.
+- `ACS.App/Modules/MsbRabbitMQModule.cs`: `Load` host 케이스가 server 브로커 자격증명도 `RegisterHostMsb`에 전달하도록 시그니처 확장. `RegisterHostMsb`에서 `(server.domainvalue)/CONTROL/AGENT/@{application}` destination으로 `RegisterControlAgentListener`를 server 브로커로 등록(HostModule이 `IApplicationControlManager` 등록 → OnlyIf 가드 통과).
+- `ACS.App/Control/Implement/ControlServerManagerImplement.cs`: `Start()` 신규 기동 분기에서 `StartProcess` 직후 `UpdateApplicationState(name,"active")` 추가.
+
+**Why:** 사용자 요구는 "재기동이 제대로 동작"이지 비활성화가 아니므로 `HeartBeatFailWhenProcessHang/Down=2` 정책은 유지. 동시성은 사용자 결정에 따라 RPC 멀티플렉싱 재설계 대신 lock 직렬화 채택(20s 주기/4프로세스라 타이밍 여유 충분, 변경 최소·저위험). 기동 유예는 재스케줄 시 적용되는 StartDelay(10s)+타임아웃 정상화로 충분하여 별도 grace 미추가. 관련: [[22. control Scripts 실행 구현]](Start/host 분기·UseSystemKill 맥락 공유).
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류, 기존 경고 72). 런타임 검증 필요: control+워커 기동 후 `HEARTBEATFAIL_PROCESSHANG/DOWN` 로그가 반복되지 않고 4개 워커가 active 안정 유지, 특히 HS01_P가 더는 주기적으로 죽지 않을 것, `RPC timeout` 로그 소멸. 워커 강제 종료 시 1주기 내 재기동되어 active 복귀(재기동 시나리오 정상). **주의:** 실행 exe는 `D:\ACS\deploy\*`에서 로드되므로 빌드 산출물 재배포 후 재실행할 것.

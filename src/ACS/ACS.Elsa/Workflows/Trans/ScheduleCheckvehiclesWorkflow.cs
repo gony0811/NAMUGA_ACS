@@ -15,6 +15,7 @@ namespace ACS.Elsa.Workflows.Trans
     /// DISCONNECT 상태로 변경. PARK/CHARGE 상태의 Vehicle은 제외.
     /// 추가로 ProcessingState=RUN + RunState=STOP 으로 정지한 vehicle 에는
     /// 할당된 TC 와 정합 검증 후 RAIL-CARRIERTRANSFER 를 재전송한다.
+    /// (단, ALARM/DISCONNECT 상태 vehicle 은 재전송 대상에서 제외)
     ///
     /// 워크플로우 구조:
     ///   1. CheckVehiclesEventTime → staleVehicles, staleCount

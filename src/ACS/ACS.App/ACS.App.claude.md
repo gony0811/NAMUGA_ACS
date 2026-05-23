@@ -24,10 +24,18 @@ dotnet run --project ACS.App/ACS.App.csproj
 - `trans` → TransModule
 - `ei` → EiModule
 - `daemon` → DaemonModule
-- `control` → ControlModule
+- `control` → ControlModule (UI 백엔드(REST API + SignalR) 호스팅 겸함)
 - `host` → HostModule
-- `ui` → UiModule (읽기 전용 매니저 + HttpCommServer)
 - `query`, `report` → TransModule
+
+> `ui` 프로세스 타입은 폐지됨. UI 백엔드는 `control` 프로세스가 겸한다(아래 "실행 호스트" 참조).
+> 이전 UiModule이 등록하던 CacheManager·실시간 구독자(PoseTelemetrySubscriber, HostCommSubscriber)는 ControlModule로 이전됨.
+
+## 실행 호스트 (`Program.cs`)
+
+프로세스 타입에 따라 두 가지 호스트로 분기:
+- `control` → 웹 호스트(`RunWebHost`): ASP.NET Core(Kestrel) + SignalR + Autofac. REST/SignalR 백엔드를 호스팅하며 동시에 control 본연의 서버 관리(start/kill/heartbeat) 기능을 수행한다.
+- 그 외(host/trans/ei/daemon/query/report) → 콘솔 호스트(`RunConsoleHost`).
 
 사이트(`Acs:Site:Name`)에 따라 추가 모듈:
 - `NAMUGA` → NamugaSiteModule
@@ -57,6 +65,6 @@ PostgreSQL via EF Core. 키 파일:
 
 ## HTTP API
 
-`ui` 프로세스 타입으로 실행 시 포트 5100에서 REST API 제공:
-- GET /api/vehicles, /api/nodes, /api/links, /api/commands
-- 핸들러: `ACS.Communication/Http/Handlers/ApiRequestHandler.cs`
+`control` 프로세스 타입으로 실행 시 포트 5100(`Acs:Api:ListenPort`)에서 REST API + SignalR 제공:
+- REST: GET /api/vehicles, /api/nodes, /api/links, /api/commands 등 — `Web/Controllers/AcsRestControllers.cs`
+- SignalR: `/hubs/vehicle`(POSE 텔레메트리), `/hubs/hostcomm`(Host TCP 통신 로그) — `Web/Hubs/`, `Web/Realtime/`

@@ -1,5 +1,6 @@
 using System;
 using Autofac;
+using Autofac.Core;
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Runtime;
@@ -50,9 +51,12 @@ namespace ACS.Elsa
             // 2. Build the ServiceProvider from Elsa's IServiceCollection
             var serviceProvider = services.BuildServiceProvider();
 
-            // 3. Register Elsa services into Autofac by resolving from the ServiceProvider
+            // 3. Elsa의 격리된 IServiceProvider는 "named"로만 등록한다.
+            //    주의: .As<IServiceProvider>()로 기본 등록하면 control(웹 호스트)에서
+            //    Kestrel의 DiagnosticSource 팩토리(sp => sp.GetRequiredService<DiagnosticListener>())가
+            //    이 격리 provider를 기본 IServiceProvider로 잡아 DiagnosticListener 해석에 실패한다
+            //    (격리 provider에는 호스트 프레임워크 서비스가 없음). 콘솔 프로세스는 Kestrel이 없어 무관.
             builder.RegisterInstance(serviceProvider)
-                .As<IServiceProvider>()
                 .Named<IServiceProvider>("ElsaServiceProvider")
                 .SingleInstance();
 
@@ -61,10 +65,10 @@ namespace ACS.Elsa
                 .AsSelf()
                 .SingleInstance();
 
-            // IServiceScopeFactory는 root provider의 SingleInstance 서비스이므로 안전.
-            // Bridge가 매 워크플로우 호출마다 새 scope를 만들어 IWorkflowRunner(scoped)를 해석한다.
+            // Elsa scope factory도 "named"로만 등록 — 호스트의 기본 IServiceScopeFactory를 덮어쓰지 않는다.
+            // Bridge가 매 워크플로우 호출마다 이 scope factory로 새 scope를 만들어 IWorkflowRunner(scoped)를 해석한다.
             builder.Register(c => serviceProvider.GetRequiredService<IServiceScopeFactory>())
-                .As<IServiceScopeFactory>()
+                .Named<IServiceScopeFactory>("ElsaScopeFactory")
                 .SingleInstance();
 
             // 4. Legacy WorkflowManagerImpl (still needed for non-Elsa commands)
@@ -81,9 +85,13 @@ namespace ACS.Elsa
 
             // 6. ElsaWorkflowManagerBridge as IWorkflowManager
             //    Routes to Elsa or legacy based on elsa-migration.json
+            //    생성자의 IServiceScopeFactory에는 위에서 named로 등록한 Elsa scope factory를 명시 주입.
             builder.RegisterType<ElsaWorkflowManagerBridge>()
                 .Named<IWorkflowManager>("elsaWorkflowManager")
                 .As<IWorkflowManager>()
+                .WithParameter(new ResolvedParameter(
+                    (pi, ctx) => pi.ParameterType == typeof(IServiceScopeFactory),
+                    (pi, ctx) => ctx.ResolveNamed<IServiceScopeFactory>("ElsaScopeFactory")))
                 .SingleInstance();
 
             logger.Info("ElsaModule loaded: Elsa Workflows 3 integrated with hybrid bridge.");

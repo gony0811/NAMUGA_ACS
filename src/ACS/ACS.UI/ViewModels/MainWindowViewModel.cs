@@ -105,7 +105,7 @@ public partial class MainWindowViewModel : ObservableObject
         _summaryViewModel = new SummaryViewModel();
         _dataViewViewModel = new DataViewViewModel();
         _applicationViewModel = new ApplicationViewModel();
-        _appManagementViewModel = new AppManagementViewModel();
+        _appManagementViewModel = new AppManagementViewModel(_apiService);
         _nioViewModel = new NioViewModel();
         _hostCommunicationViewModel = new HostCommunicationViewModel(_apiService);
         _nodeViewModel = new NodeViewModel(_apiService) { MapViewModel = _mapViewModel };
@@ -162,6 +162,8 @@ public partial class MainWindowViewModel : ObservableObject
         window.Show();
 
         // 뷰별 초기 데이터 로드
+        if (viewName == "AppManagement")
+            AppManagementViewModel.RefreshCommand.Execute(null);
         if (viewName == "Node")
             _ = NodeViewModel.LoadNodesAsync();
         if (viewName == "Station")

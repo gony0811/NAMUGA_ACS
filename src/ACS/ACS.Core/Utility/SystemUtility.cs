@@ -42,9 +42,41 @@ namespace ACS.Utility
             }
         }
 
+        /// <summary>
+        /// 장기 실행 서버 프로세스(.exe)를 독립(detached)으로 기동한다. fire-and-forget —
+        /// 종료를 기다리지 않고 ExitCode도 확인하지 않는다. (START 전용)
+        /// </summary>
+        public static void StartProcess(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+            {
+                throw new ArgumentException("filePath is empty", nameof(filePath));
+            }
+
+            ProcessStartInfo procStartInfo = new ProcessStartInfo
+            {
+                FileName = filePath,
+                UseShellExecute = true,   // 호출자와 분리된 독립 프로세스로 기동
+                WorkingDirectory = Path.GetDirectoryName(filePath) ?? string.Empty
+            };
+
+            Process.Start(procStartInfo);
+        }
+
+        /// <summary>
+        /// cmd.exe를 통해 단명령(taskkill, coredump, getprocessid 등)을 실행하고 종료까지 대기한다.
+        /// 표준출력을 캡처해 최대 max줄까지 반환하며, 종료코드가 0이 아니면 예외를 던진다.
+        /// 장기 실행 서버 기동에는 <see cref="StartProcess"/>를 사용할 것.
+        /// </summary>
         public static List<string> PerformCommand(string[] commandAttributes, int max)
         {
             List<string> lines = new List<string>();
+
+            if (commandAttributes == null || commandAttributes.Length == 0 || string.IsNullOrEmpty(commandAttributes[0]))
+            {
+                throw new PerformCommandException("command is empty", commandAttributes);
+            }
+
             Process process = null;
             ProcessStartInfo procStartInfo = null;
             StringBuilder sb = new StringBuilder();
@@ -56,41 +88,49 @@ namespace ACS.Utility
                     sb.Append(" ");
                 }
 
-                //sb.Append(commandAttributes[0] + " ");
-
                 procStartInfo = new ProcessStartInfo();
-                procStartInfo.FileName = @"cmd ";
-                procStartInfo.CreateNoWindow = false;
+                procStartInfo.FileName = "cmd.exe";
+                procStartInfo.CreateNoWindow = true;
                 procStartInfo.UseShellExecute = false;
                 procStartInfo.RedirectStandardInput = true;
                 procStartInfo.RedirectStandardOutput = true;
                 procStartInfo.RedirectStandardError = true;
 
                 process = new Process();
-                process.StartInfo = procStartInfo;            
+                process.StartInfo = procStartInfo;
                 process.Start();
 
-                process.StandardInput.Write(sb.ToString() + Environment.NewLine);
+                process.StandardInput.WriteLine(sb.ToString());
                 process.StandardInput.Close();
-                //string line = process.StandardOutput.ReadLine();
 
-                //while (!(string.IsNullOrEmpty(line)) && (lines.Count < max))
-                //{
-                //    line = line.ToLower().Trim();
-                //    lines.Add(line);
-                //    line = process.StandardOutput.ReadLine();
-                //}                 
+                // WaitForExit 전에 출력을 먼저 읽어 파이프 버퍼 데드락을 방지.
+                string stdout = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
 
-                if(process.ExitCode != 0)
+                foreach (string raw in stdout.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (max >= 0 && lines.Count >= max)
+                    {
+                        break;
+                    }
+                    lines.Add(raw.Trim().ToLower());
+                }
+
+                if (process.ExitCode != 0)
                 {
                     throw new PerformCommandException(
-                        "Command line returned OS error code '" + sb.ToString() + process.ExitCode, commandAttributes);
+                        "Command line returned OS error code '" + sb.ToString() + "' " + process.ExitCode,
+                        process.ExitCode, commandAttributes);
                 }
+            }
+            catch (PerformCommandException)
+            {
+                throw;
             }
             catch (Exception e)
             {
                 throw new PerformCommandException(
-                    "Command line throw and Unknown Exception '" + e.Message + "' for command " + sb.ToString(), commandAttributes);
+                    "Command line threw an Unknown Exception '" + e.Message + "' for command " + sb.ToString(), commandAttributes);
             }
             finally
             {

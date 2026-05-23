@@ -70,7 +70,8 @@ namespace ACS.App.Modules
                         hostConnectUrl, hostUserName, hostPassword, hostStationMode, xpathOfMessageName);
                     break;
                 case "host":
-                    RegisterHostMsb(builder, dest, hostConnectUrl, hostUserName, hostPassword, hostStationMode, xpathOfMessageName);
+                    RegisterHostMsb(builder, dest, hostConnectUrl, hostUserName, hostPassword, hostStationMode,
+                        serverConnectUrl, serverUserName, serverPassword, serverStationMode, xpathOfMessageName);
                     break;
                 case "ei":
                     RegisterEiMsb(builder, dest, serverConnectUrl, serverUserName, serverPassword, serverStationMode, xpathOfMessageName);
@@ -86,6 +87,7 @@ namespace ACS.App.Modules
 
         private void RegisterHostMsb(ContainerBuilder builder, NameValueCollection dest,
             string hostUrl, string hostUser, string hostPass, string hostStation,
+            string serverUrl, string serverUser, string serverPass, string serverStation,
             string xpathOfMessageName)
         {
             // Host XPath: /Msg/Command
@@ -106,6 +108,15 @@ namespace ACS.App.Modules
             // Sender: TS로 메시지 전송
             RegisterSender(builder, "HostAgentSender", "HOSTSENDER", senderDest, "UNICAST",
                 hostUrl, hostUser, hostPass, hostStation);
+
+            // ApplicationControlAgentListener — control 프로세스의 CONTROL-HEARTBEAT 응답용.
+            // 이전에는 host 타입에 미등록이라 heartbeat에 응답하지 못해 매 주기 Kill+Start 됐음.
+            // control은 server 브로커로 heartbeat를 발행하므로 server 브로커 자격증명으로 연결한다.
+            // destination은 control 측 GetDestinationName과 동일하게 도메인 값으로 직접 구성.
+            var appControlDest = CreateApplicationNameChannelDestination(
+                (dest["server.domainvalue"] ?? "VM/DEMO") + "/CONTROL/AGENT/@{application}");
+            RegisterControlAgentListener(builder, appControlDest,
+                serverUrl, serverUser, serverPass, serverStation);
         }
 
         private void RegisterTransMsb(ContainerBuilder builder, NameValueCollection dest,

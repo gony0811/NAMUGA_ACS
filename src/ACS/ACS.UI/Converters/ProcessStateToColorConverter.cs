@@ -29,6 +29,13 @@ public class ProcessStateToColorConverter : IValueConverter
             "STATE_HANG" => Brushes.Red,
             "STATE_STANDBY" => Brushes.Gold,
 
+            // NA_X_APPLICATION 원본 상태값 (active/inactive/hang/stanby)
+            "ACTIVE" => Brushes.LimeGreen,
+            "INACTIVE" => Brushes.Gray,
+            "HANG" => Brushes.Red,
+            "STANBY" => Brushes.Gold,
+            "STANDBY" => Brushes.Gold,
+
             // NIO 상태
             "NIO_CONNECTED" => Brushes.DodgerBlue,
             "NIO_DISCONNECTED" => Brushes.DarkGray,

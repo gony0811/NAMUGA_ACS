@@ -19,6 +19,10 @@ namespace ACS.Communication.Msb.RabbitMQ
         private EventingBasicConsumer consumer;
         private BlockingCollection<string> respQueue = new BlockingCollection<string>();
         private IBasicProperties props;
+        // RPC_CLIENT는 단일 채널(IModel)·고정 correlationId·단일 respQueue를 공유한다.
+        // 여러 heartbeat 잡이 동시에 Request를 호출하면 채널이 thread-safe하지 않아
+        // 메시지/응답이 유실·혼선된다. 한 번에 하나의 요청만 처리하도록 직렬화한다.
+        private readonly object _rpcLock = new object();
         public ChannelDestination DefaultDestination { get; set; }
 
         public override void Init()
@@ -421,25 +425,33 @@ namespace ACS.Communication.Msb.RabbitMQ
 
         public string Request(string message, string dest, long timeout, bool useCommunicationMessageNameForLogging, string communicationMessageName)
         {
-            try
+            // 공유 RPC 채널을 한 번에 하나의 요청만 사용하도록 직렬화.
+            lock (_rpcLock)
             {
-                var body = Encoding.UTF8.GetBytes(message);
-                Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
+                try
+                {
+                    // 직전 요청이 타임아웃된 뒤 늦게 도착한 응답(stale)이 respQueue에 남아 있으면
+                    // 이번 요청이 잘못된 응답을 가져갈 수 있으므로 publish 전에 모두 비운다.
+                    while (respQueue.TryTake(out _, 0)) { }
 
-                if (respQueue.TryTake(out string replyMessage, (int)timeout))
-                {
-                    return replyMessage;
+                    var body = Encoding.UTF8.GetBytes(message);
+                    Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
+
+                    if (respQueue.TryTake(out string replyMessage, (int)timeout))
+                    {
+                        return replyMessage;
+                    }
+                    else
+                    {
+                        logger.Error($"RPC timeout ({timeout}ms), dest={dest}");
+                        return null;
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    logger.Error($"RPC timeout ({timeout}ms), dest={dest}");
+                    logger.Error($"RPC request failed, dest={dest}: {e.Message}", e);
                     return null;
                 }
-            }
-            catch (Exception e)
-            {
-                logger.Error($"RPC request failed, dest={dest}: {e.Message}", e);
-                return null;
             }
         }
 

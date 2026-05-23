@@ -30,9 +30,12 @@
                            Foreground="{StaticResource AcsTextPrimaryBrush}"
                            VerticalAlignment="Center" Margin="4,0,12,0" />
 
-                <Button Content="🗑 Delete" Command="{Binding DeleteCommand}" />
                 <Button Content="🔄 Refresh" Command="{Binding RefreshCommand}" />
                 <Button Content="⟳ Auto Refresh" Command="{Binding ToggleAutoRefreshCommand}" />
+
+                <TextBlock Text="{Binding StatusMessage}"
+                           FontSize="11" Foreground="{StaticResource AcsTextSecondaryBrush}"
+                           VerticalAlignment="Center" Margin="12,0,0,0" />
 
             </StackPanel>
         </Border>
@@ -57,10 +60,33 @@
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Ellipse Width="10" Height="10"
+                                    <StackPanel.Styles>
+                                        <Style Selector="Button">
+                                            <Setter Property="Padding" Value="6,1" />
+                                            <Setter Property="FontSize" Value="10" />
+                                            <Setter Property="MinWidth" Value="0" />
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </Style>
+                                    </StackPanel.Styles>
+                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center"
                                              Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
                                     <TextBlock Text="{Binding Name}" FontSize="12"
                                                VerticalAlignment="Center" />
+                                    <Button Content="실행"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanStart}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StartCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="정지"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanStop}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StopCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="강제종료"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanForceKill}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).ForceKillCommand}"
+                                            CommandParameter="{Binding}" />
                                 </StackPanel>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
@@ -85,10 +111,33 @@
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Ellipse Width="10" Height="10"
+                                    <StackPanel.Styles>
+                                        <Style Selector="Button">
+                                            <Setter Property="Padding" Value="6,1" />
+                                            <Setter Property="FontSize" Value="10" />
+                                            <Setter Property="MinWidth" Value="0" />
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </Style>
+                                    </StackPanel.Styles>
+                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center"
                                              Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
                                     <TextBlock Text="{Binding Name}" FontSize="12"
                                                VerticalAlignment="Center" />
+                                    <Button Content="실행"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanStart}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StartCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="정지"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanStop}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StopCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="강제종료"
+                                            IsVisible="{Binding IsApplication}"
+                                            IsEnabled="{Binding CanForceKill}"
+                                            Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).ForceKillCommand}"
+                                            CommandParameter="{Binding}" />
                                 </StackPanel>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>

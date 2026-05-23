@@ -854,6 +854,7 @@ namespace ACS.Elsa.Activities
     ///   - vehicle.ProcessingState == RUN
     ///   - vehicle.RunState == STOP
     ///   - vehicle.AlarmState == NOALARM   (ALARM 중인 vehicle 은 이동 명령 보내지 않음)
+    ///   - vehicle.ConnectionState == CONNECT  (DISCONNECT vehicle 은 이동 명령 보내지 않음)
     ///   - !string.IsNullOrEmpty(vehicle.TransportCommandId)
     ///   - tc = GetTransportCommand(vehicle.TransportCommandId) 가 존재
     ///   - tc.VehicleId == vehicle.VehicleId
@@ -894,6 +895,9 @@ namespace ACS.Elsa.Activities
                         continue;
                     // ALARM 상태에서는 이동 명령 재전송하지 않음
                     if (!VehicleEx.ALARMSTATE_NOALARM.Equals(vehicle.AlarmState, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    // DISCONNECT 차량에는 재전송하지 않음 (연결 끊긴 vehicle 에 명령 보내지 않음)
+                    if (!VehicleEx.CONNECTIONSTATE_CONNECT.Equals(vehicle.ConnectionState, StringComparison.OrdinalIgnoreCase))
                         continue;
                     if (string.IsNullOrEmpty(vehicle.TransportCommandId))
                         continue;

@@ -30,6 +30,34 @@ public class AcsApiService : IAcsApiService
                ?? new List<VehicleDto>();
     }
 
+    public async Task<List<ApplicationDto>> GetApplicationsAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<List<ApplicationDto>>("/api/applications", _jsonOptions)
+               ?? new List<ApplicationDto>();
+    }
+
+    public async Task<bool> StartApplicationAsync(string name)
+        => await PostNoBodyAsync($"/api/applications/{name}/start");
+
+    public async Task<bool> StopApplicationAsync(string name)
+        => await PostNoBodyAsync($"/api/applications/{name}/stop");
+
+    public async Task<bool> ForceKillApplicationAsync(string name)
+        => await PostNoBodyAsync($"/api/applications/{name}/force-kill");
+
+    private async Task<bool> PostNoBodyAsync(string url)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync(url, null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<List<NodeDto>> GetNodesAsync()
     {
         return await _httpClient.GetFromJsonAsync<List<NodeDto>>("/api/nodes", _jsonOptions)

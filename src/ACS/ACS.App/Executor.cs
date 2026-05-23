@@ -290,9 +290,7 @@ namespace ACS.App
                 case "host":
                     builder.RegisterModule<HostModule>();
                     break;
-                case "ui":
-                    builder.RegisterModule<UiModule>();
-                    break;
+                // ui 프로세스 폐지: UI 백엔드(REST/SignalR)는 control 프로세스가 겸한다.
                 default:
                     throw new ApplicationException($"Unknown process type: {processType}");
             }

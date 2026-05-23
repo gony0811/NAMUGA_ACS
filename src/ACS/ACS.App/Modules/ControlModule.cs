@@ -1,6 +1,8 @@
 using System;
 using System.Reflection;
 using Autofac;
+using Microsoft.Extensions.Hosting;
+using ACS.App.Web.Realtime;
 using ACS.Core.Base;
 using ACS.Core.Application;
 using ACS.Core.Resource;
@@ -8,6 +10,7 @@ using ACS.Core.Material;
 using ACS.Core.Transfer;
 using ACS.Core.History;
 using ACS.Core.Message;
+using ACS.Core.Cache;
 using ACS.Core.Alarm;
 using ACS.Control;
 
@@ -16,6 +19,11 @@ namespace ACS.App.Modules
     /// <summary>
     /// control 프로세스 전용 서비스 등록.
     /// config/{SITE}/Startup/acs/control/control-manager.xml을 대체.
+    ///
+    /// control 프로세스가 UI 백엔드(REST API + SignalR)도 겸하므로,
+    /// 기존 UiModule이 등록하던 CacheManager와 실시간 구독자(PoseTelemetrySubscriber,
+    /// HostCommSubscriber)를 함께 등록한다. REST 컨트롤러가 요구하는 IResourceManagerEx/
+    /// ITransferManagerEx는 본 모듈이 이미 등록한다. (REST/SignalR 호스팅은 Program.cs의 웹 호스트가 담당.)
     /// </summary>
     public class ControlModule : Autofac.Module
     {
@@ -104,8 +112,8 @@ namespace ACS.App.Modules
                     mgr.HeartBeatRetryTimeout = 10000;
                     mgr.SimpleHeartBeatInterval = 5000;
                     mgr.SimpleHeartBeatStartDelay = 2000;
-                    mgr.HeartBeatFailWhenProcessDown = 1;
-                    mgr.HeartBeatFailWhenProcessHang = 1;
+                    mgr.HeartBeatFailWhenProcessDown = 2;
+                    mgr.HeartBeatFailWhenProcessHang = 2;
                     // UI intervals
                     mgr.UiCommandInterval = 1;
                     mgr.UiTransportInterval = 1;
@@ -115,12 +123,15 @@ namespace ACS.App.Modules
                     // System settings
                     mgr.UseSystemKill = true;
                     mgr.UseSystemGetProcessId = true;
-                    mgr.Scripts = new System.Collections.Hashtable
-                    {
-                        ["TS-START"] = @"D:\ACS\TS01_P\TS01_P.exe",
-                        ["ES-START"] = @"D:\ACS\ES01_P\ES01_P.exe",
-                        ["DS-START"] = @"D:\ACS\DS01_P\DS01_P.exe"
-                    };
+                    // 스크립트 경로는 appsettings.json의 Acs:Control:Scripts 섹션에서 로드.
+                    // (예: "TS-START": "D:\\ACS\\deploy\\TS01_P\\TS01_P.exe")
+                    // 키는 ControlServerManagerImplement.SCRIPT_*_START 상수와 일치해야 함.
+                    var scripts = new System.Collections.Hashtable();
+                    var scriptsSection = mgr.Configuration?.GetSection("Acs:Control:Scripts");
+                    if (scriptsSection != null)
+                        foreach (var child in scriptsSection.GetChildren())
+                            scripts[child.Key] = child.Value;
+                    mgr.Scripts = scripts;
                 });
 
             // MessageManager
@@ -139,6 +150,27 @@ namespace ACS.App.Modules
                     .As<IAlarmManagerEx>()
                     .SingleInstance()
                     .PropertiesAutowired();
+
+            // CacheManager — UI 백엔드 매니저들의 PropertiesAutowired 주입 대상.
+            var cacheMgrType = Type.GetType("ACS.Manager.CacheManagerExImplement, ACS.Manager");
+            if (cacheMgrType != null)
+                builder.RegisterType(cacheMgrType)
+                    .As<ICacheManagerEx>()
+                    .SingleInstance()
+                    .PropertiesAutowired();
+
+            // UI 백엔드 실시간 구독자 (기존 UiModule에서 이전).
+            // 자체 RabbitMQ fanout 커넥션을 열어 SignalR로 브로드캐스트하며, 웹 호스트의
+            // Generic Host가 IHostedService로 자동 기동한다.
+            // Trans → UI(RabbitMQ fanout) → SignalR(VehicleHub) POSE 브로드캐스트.
+            builder.RegisterType<PoseTelemetrySubscriber>()
+                .As<IHostedService>()
+                .SingleInstance();
+
+            // Host(MES) TCP 통신 로그(/UI/HOSTCOMM fanout) → SignalR HostCommHub 브로드캐스트.
+            builder.RegisterType<HostCommSubscriber>()
+                .As<IHostedService>()
+                .SingleInstance();
 
             // Elsa Workflows 3 — hybrid bridge (Elsa + legacy WorkflowManagerImpl)
             // Elsa Workflows 3
