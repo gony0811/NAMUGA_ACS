@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(dotnet build *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "PowerShell(Write-Output \"--- where.exe claude ---\"; where.exe claude 2>&1; Write-Output \"--- npm prefix ---\"; npm config get prefix 2>&1; Write-Output \"--- check common paths ---\"; @\\(\"$env:APPDATA\\\\npm\\\\claude.cmd\", \"$env:LOCALAPPDATA\\\\AnthropicClaude\\\\claude.exe\", \"$env:USERPROFILE\\\\.claude\\\\local\\\\claude.exe\"\\) | ForEach-Object { if \\(Test-Path $_\\) { Write-Output \"FOUND: $_\" } else { Write-Output \"missing: $_\" } })",
+      "PowerShell(Write-Output \"--- winget available? ---\"; \\(Get-Command winget -ErrorAction SilentlyContinue\\).Source; Write-Output \"--- node already installed? ---\"; \\(Get-Command node -ErrorAction SilentlyContinue\\).Source; Write-Output \"--- npm already installed? ---\"; \\(Get-Command npm -ErrorAction SilentlyContinue\\).Source)",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements)",
+      "PowerShell($env:PATH = [Environment]::GetEnvironmentVariable\\('PATH','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('PATH','User'\\); Write-Output \"--- node version ---\"; node --version; Write-Output \"--- npm version ---\"; npm --version)"
     ]
   }
 }

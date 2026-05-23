@@ -454,8 +454,9 @@ public class MapCanvas : Control
             double fontSize = Math.Clamp(9.0 / _zoom, 0.3, 500);           // 라벨 폰트 크기
             double linkWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);         // 링크 선 굵기
 
-            // Draw links
-            DrawLinks(context, links, nodePositions, linkWidth);
+            // Draw links (Option 탭의 ShowLinks 토글로 제어)
+            if (_viewModel.ShowLinks)
+                DrawLinks(context, links, nodePositions, linkWidth);
 
             // Draw nodes (사각형 + 내부 방향 화살표)
             DrawNodes(context, nodes, nodePositions, outgoingLinks, incomingLinks, nodeSize, fontSize);
@@ -630,22 +631,28 @@ public class MapCanvas : Control
         _baseScale = Math.Min(scaleX, scaleY);
 
         _offsetX = Padding - minX * _baseScale + (availableW - rangeX * _baseScale) / 2;
-        _offsetY = Padding - minY * _baseScale + (availableH - rangeY * _baseScale) / 2;
+        // Y축 반전: 월드 +Y는 위쪽(화면 -Y)이므로 maxY가 화면 상단에 위치
+        _offsetY = Padding + maxY * _baseScale + (availableH - rangeY * _baseScale) / 2;
     }
 
     /// <summary>
-    /// 노드가 없을 때 기본 transform 설정 (1px = 0.1m = 10px/m, 원점 중앙)
+    /// 노드가 없을 때 기본 transform 설정 (1px = 0.1m = 10px/m, 원점은 좌측 하단)
     /// </summary>
     private void CalculateDefaultTransform()
     {
         _baseScale = 10; // 10px per meter → 1px = 0.1m
-        _offsetX = Bounds.Width / 2;
-        _offsetY = Bounds.Height / 2;
+        _offsetX = Padding;
+        _offsetY = Bounds.Height - Padding;
     }
 
+    /// <summary>
+    /// 월드 좌표 → 화면 좌표 변환.
+    /// 월드 좌표계: 우측 +X, 좌측 -X, 위 +Y, 아래 -Y (좌측 하단 기준).
+    /// Avalonia 화면 Y축은 아래로 증가하므로 Y는 반전.
+    /// </summary>
     private Point TransformPoint(double x, double y)
     {
-        return new Point(x * _baseScale + _offsetX, y * _baseScale + _offsetY);
+        return new Point(x * _baseScale + _offsetX, -y * _baseScale + _offsetY);
     }
 
     /// <summary>
@@ -726,9 +733,9 @@ public class MapCanvas : Control
         // pan과 zoom 역변환
         double x = (rx - _pan.X) / _zoom;
         double y = (ry - _pan.Y) / _zoom;
-        // offset과 scale 역변환
+        // offset과 scale 역변환 (Y축은 반전: 월드 +Y는 위쪽)
         double worldX = (x - _offsetX) / _baseScale;
-        double worldY = (y - _offsetY) / _baseScale;
+        double worldY = (_offsetY - y) / _baseScale;
         return (Math.Round(worldX, 3), Math.Round(worldY, 3));
     }
 
@@ -1042,11 +1049,12 @@ public class MapCanvas : Control
             context.DrawEllipse(brush, outlinePen, pos, radius, radius);
 
             // 헤딩 표시: 월드 프레임 (cos θ, sin θ) 방향, 길이는 radius와 함께 줌 보정됨
+            // 월드 +Y는 위쪽이므로 화면 Y는 반전 (- sin θ)
             if (vehicle.PoseAngle.HasValue)
             {
                 double a = vehicle.PoseAngle.Value;
                 double headingLen = radius * 1.6;
-                var tip = new Point(pos.X + Math.Cos(a) * headingLen, pos.Y + Math.Sin(a) * headingLen);
+                var tip = new Point(pos.X + Math.Cos(a) * headingLen, pos.Y - Math.Sin(a) * headingLen);
                 context.DrawLine(new Pen(Brushes.White, penWidth * 1.5), pos, tip);
             }
 

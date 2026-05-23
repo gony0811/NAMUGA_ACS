@@ -120,10 +120,32 @@
             </Grid>
         </Border>
 
-        <!-- Main Area: Summary(고정) + Document Dock -->
+        <!-- Main Area: 우측 탭 패널(Summary/Option) + Map -->
         <Grid Grid.Row="3" ColumnDefinitions="250,Auto,*">
-            <views:SummaryView Grid.Column="0"
-                               DataContext="{Binding SummaryViewModel}" />
+            <TabControl Grid.Column="0"
+                        Background="{StaticResource AcsSurfacePanelBrush}"
+                        Padding="0"
+                        BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,1,0">
+                <TabControl.Styles>
+                    <Style Selector="TabItem">
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="MinHeight" Value="32" />
+                        <Setter Property="Padding" Value="14,4" />
+                        <Setter Property="Foreground" Value="{StaticResource AcsTextSecondaryBrush}" />
+                    </Style>
+                    <Style Selector="TabItem:selected">
+                        <Setter Property="Foreground" Value="{StaticResource AcsLightBlueBrush}" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                    </Style>
+                </TabControl.Styles>
+                <TabItem Header="Summary">
+                    <views:SummaryView DataContext="{Binding SummaryViewModel}" />
+                </TabItem>
+                <TabItem Header="Option">
+                    <views:OptionView DataContext="{Binding MapViewModel}" />
+                </TabItem>
+            </TabControl>
             <GridSplitter Grid.Column="1" Width="3"
                           Background="{StaticResource AcsBorderStrongBrush}" />
             <views:MapView Grid.Column="2"

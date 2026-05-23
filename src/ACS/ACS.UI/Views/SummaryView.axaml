@@ -2,11 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
              x:Class="ACS.UI.Views.SummaryView"
-             x:DataType="vm:SummaryViewModel"
-             Width="250">
+             x:DataType="vm:SummaryViewModel">
 
     <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
-            BorderThickness="0,0,1,0">
+            BorderThickness="0">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="0">
 

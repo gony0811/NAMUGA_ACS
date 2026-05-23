@@ -20,6 +20,10 @@ public partial class MapViewModel : ObservableObject
 
     public event Action DataChanged;
 
+    // ── 표시 옵션 (Option 탭) ──
+    [ObservableProperty] private bool _showLinks = true;
+    partial void OnShowLinksChanged(bool value) => DataChanged?.Invoke();
+
     // ── Node 배치 모드 ──
     [ObservableProperty] private bool _isNodePlacementMode;
     public List<(double X, double Y)> PendingPlacementNodes { get; } = new();
