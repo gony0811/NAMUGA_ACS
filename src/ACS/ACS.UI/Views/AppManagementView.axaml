@@ -145,8 +145,8 @@
                 </Grid>
             </Border>
 
-            <!-- Properties 패널 -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+            <!-- Properties + Heartbeat 설정 패널 -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,Auto">
                 <Border Grid.Row="0" Background="{StaticResource AcsHeaderBrush}" Padding="8,4">
                     <TextBlock Text="Properties" Foreground="White"
                                FontSize="12" FontWeight="SemiBold" />
@@ -170,6 +170,94 @@
                                             Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <!-- Heartbeat 설정 헤더 -->
+                <Border Grid.Row="2" Background="{StaticResource AcsHeaderBrush}" Padding="8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Heartbeat 설정" Foreground="White"
+                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding HbStatusMessage}" Foreground="#DDFFFFFF"
+                                   FontSize="10" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Heartbeat 설정 폼 -->
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" MaxHeight="320"
+                              Background="{StaticResource AcsSurfaceCardBrush}">
+                    <StackPanel Margin="10,8" Spacing="6">
+                        <StackPanel.Styles>
+                            <Style Selector="TextBlock.lbl">
+                                <Setter Property="FontSize" Value="11" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                            <Style Selector="NumericUpDown">
+                                <Setter Property="FontSize" Value="11" />
+                                <Setter Property="Height" Value="28" />
+                                <Setter Property="Minimum" Value="0" />
+                            </Style>
+                            <Style Selector="ComboBox">
+                                <Setter Property="FontSize" Value="11" />
+                                <Setter Property="Height" Value="28" />
+                                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            </Style>
+                        </StackPanel.Styles>
+
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="Heartbeat 사용" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding HbUseHeartBeat}"
+                                          OnContent="ON" OffContent="OFF" HorizontalAlignment="Left" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="주기 Interval (ms)" />
+                            <NumericUpDown Grid.Column="1" Increment="1000" Value="{Binding HbInterval}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="시작 지연 (ms)" />
+                            <NumericUpDown Grid.Column="1" Increment="1000" Value="{Binding HbStartDelay}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="기동 유예 (ms)" />
+                            <NumericUpDown Grid.Column="1" Increment="5000" Value="{Binding HbStartupGrace}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="응답 타임아웃 (ms)" />
+                            <NumericUpDown Grid.Column="1" Increment="1000" Value="{Binding HbTimeout}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="재시도 횟수" />
+                            <NumericUpDown Grid.Column="1" Increment="1" Maximum="20" Value="{Binding HbRetryCount}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="재시도 타임아웃 (ms)" />
+                            <NumericUpDown Grid.Column="1" Increment="1000" Value="{Binding HbRetryTimeout}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="ProcessDown 시 동작" />
+                            <ComboBox Grid.Column="1" SelectedIndex="{Binding HbFailWhenProcessDown}">
+                                <ComboBoxItem Content="없음" />
+                                <ComboBoxItem Content="상태표시만(inactive)" />
+                                <ComboBoxItem Content="재시작" />
+                            </ComboBox>
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Classes="lbl" Text="ProcessHang 시 동작" />
+                            <ComboBox Grid.Column="1" SelectedIndex="{Binding HbFailWhenProcessHang}">
+                                <ComboBoxItem Content="없음" />
+                                <ComboBoxItem Content="상태표시만(hang)" />
+                                <ComboBoxItem Content="Kill 후 재시작" />
+                            </ComboBox>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                            <Button Content="💾 저장" Command="{Binding SaveHeartbeatSettingsCommand}"
+                                    FontSize="11" Padding="10,4" />
+                            <Button Content="🔄 불러오기" Command="{Binding LoadHeartbeatSettingsCommand}"
+                                    FontSize="11" Padding="10,4" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
 
         </Grid>

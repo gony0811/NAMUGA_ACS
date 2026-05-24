@@ -110,6 +110,12 @@ namespace ACS.App.Modules
                     mgr.HeartBeatTimeout = 5000;
                     mgr.HeartBeatRetryCount = 3;
                     mgr.HeartBeatRetryTimeout = 10000;
+                    // 기동 유예(ms): 워커가 control-agent 리스너를 띄우기까지(~30s 관측)의 시간을 감안.
+                    // 너무 짧으면 부팅 중 워커를 hang으로 오판해 Kill→Start 루프 발생. 환경별 조정은
+                    // appsettings의 Acs:Control:HeartBeatStartupGraceMs로 override 가능(기본 60000).
+                    mgr.HeartBeatStartupGrace =
+                        long.TryParse(mgr.Configuration?["Acs:Control:HeartBeatStartupGraceMs"], out var graceMs)
+                            ? graceMs : 60000;
                     mgr.SimpleHeartBeatInterval = 5000;
                     mgr.SimpleHeartBeatStartDelay = 2000;
                     mgr.HeartBeatFailWhenProcessDown = 2;

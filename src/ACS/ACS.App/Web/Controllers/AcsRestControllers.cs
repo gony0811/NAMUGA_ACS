@@ -750,4 +750,85 @@ namespace ACS.App.Web.Controllers
             return Ok(new { success });
         }
     }
+
+    /// <summary>
+    /// control 프로세스 heartbeat 설정 조회/변경. 변경 시 live 객체에 즉시 적용하고
+    /// NA_X_OPTION(8001~8009)에 영구 저장한다. (control 프로세스에서만 동작.)
+    /// </summary>
+    [ApiController]
+    [Route("api/heartbeat-settings")]
+    public class HeartbeatSettingsController : ControllerBase
+    {
+        private readonly IControlServerManager _control;
+
+        public HeartbeatSettingsController(IControlServerManager control)
+        {
+            _control = control;
+        }
+
+        // GET /api/heartbeat-settings — 현재 live 설정값
+        [HttpGet]
+        public ActionResult<HeartbeatSettingsDto> Get()
+        {
+            return new HeartbeatSettingsDto
+            {
+                UseHeartBeat = _control.UseHeartBeat,
+                HeartBeatInterval = _control.HeartBeatInterval,
+                HeartBeatStartDelay = _control.HeartBeatStartDelay,
+                HeartBeatStartupGrace = _control.HeartBeatStartupGrace,
+                HeartBeatTimeout = _control.HeartBeatTimeout,
+                HeartBeatRetryCount = _control.HeartBeatRetryCount,
+                HeartBeatRetryTimeout = _control.HeartBeatRetryTimeout,
+                HeartBeatFailWhenProcessDown = _control.HeartBeatFailWhenProcessDown,
+                HeartBeatFailWhenProcessHang = _control.HeartBeatFailWhenProcessHang
+            };
+        }
+
+        // PUT /api/heartbeat-settings — 설정 변경 → live 적용 + 필요한 경우 재스케줄 + DB 영구 저장
+        [HttpPut]
+        public ActionResult Update([FromBody] HeartbeatSettingsDto dto)
+        {
+            if (dto == null)
+                return BadRequest(new { error = "요청 본문이 필요합니다." });
+            if (dto.HeartBeatInterval <= 0 || dto.HeartBeatStartDelay < 0 || dto.HeartBeatStartupGrace < 0
+                || dto.HeartBeatTimeout < 0 || dto.HeartBeatRetryTimeout < 0 || dto.HeartBeatRetryCount < 0)
+                return BadRequest(new { error = "값은 음수일 수 없으며 Interval은 0보다 커야 합니다." });
+            if (dto.HeartBeatTimeout >= dto.HeartBeatInterval)
+                return BadRequest(new { error = "HeartBeatTimeout은 HeartBeatInterval보다 작아야 합니다." });
+            if (dto.HeartBeatFailWhenProcessDown < 0 || dto.HeartBeatFailWhenProcessDown > 2
+                || dto.HeartBeatFailWhenProcessHang < 0 || dto.HeartBeatFailWhenProcessHang > 2)
+                return BadRequest(new { error = "ProcessDown/Hang 동작 옵션은 0/1/2만 허용됩니다." });
+
+            bool wasUsing = _control.UseHeartBeat;
+            long oldInterval = _control.HeartBeatInterval;
+            long oldStartDelay = _control.HeartBeatStartDelay;
+
+            // live 적용 (Timeout/RetryCount/RetryTimeout/StartupGrace/FailDown/FailHang는 매 주기 즉시 반영)
+            _control.UseHeartBeat = dto.UseHeartBeat;
+            _control.HeartBeatInterval = dto.HeartBeatInterval;
+            _control.HeartBeatStartDelay = dto.HeartBeatStartDelay;
+            _control.HeartBeatStartupGrace = dto.HeartBeatStartupGrace;
+            _control.HeartBeatTimeout = dto.HeartBeatTimeout;
+            _control.HeartBeatRetryCount = dto.HeartBeatRetryCount;
+            _control.HeartBeatRetryTimeout = dto.HeartBeatRetryTimeout;
+            _control.HeartBeatFailWhenProcessDown = dto.HeartBeatFailWhenProcessDown;
+            _control.HeartBeatFailWhenProcessHang = dto.HeartBeatFailWhenProcessHang;
+
+            // 스케줄 반영: Interval/StartDelay는 트리거에 baked-in이라 전체 재스케줄 필요.
+            if (!dto.UseHeartBeat)
+            {
+                if (wasUsing) _control.UnscheduleHeartBeats();
+            }
+            else if (!wasUsing || oldInterval != dto.HeartBeatInterval || oldStartDelay != dto.HeartBeatStartDelay)
+            {
+                // off→on 전환, 또는 주기/시작지연 변경 → 전체 트리거를 현재값으로 재생성
+                _control.ScheduleHeartBeats();
+            }
+
+            // 영구 저장 (NA_X_OPTION upsert)
+            _control.SaveHeartBeatOptions();
+
+            return Ok(new { success = true });
+        }
+    }
 }

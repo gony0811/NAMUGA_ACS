@@ -39,4 +39,6 @@ public interface IAcsApiService
     Task<List<LinkZoneDto>> GetLinkZonesByLinkIdAsync(string linkId);
     Task<bool> CreateLinkZoneAsync(LinkZoneDto linkZone);
     Task<bool> DeleteLinkZoneAsync(string linkZoneId);
+    Task<HeartbeatSettingsDto?> GetHeartbeatSettingsAsync();
+    Task<bool> UpdateHeartbeatSettingsAsync(HeartbeatSettingsDto settings);
 }

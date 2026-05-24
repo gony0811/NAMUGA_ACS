@@ -48,6 +48,17 @@ namespace ACS.Control
         public static String OS_TYPE_LINUX = "Linux";
         public static String OS_TYPE_UNIX = "Unix";
 
+        // heartbeat 설정 영구 저장용 NA_X_OPTION Id 대역 (8001~8009). trans 비즈니스 옵션(1xxx~7xxx)과 분리.
+        public static readonly String OPT_HB_USE = "8001";
+        public static readonly String OPT_HB_INTERVAL = "8002";
+        public static readonly String OPT_HB_STARTDELAY = "8003";
+        public static readonly String OPT_HB_STARTUPGRACE = "8004";
+        public static readonly String OPT_HB_TIMEOUT = "8005";
+        public static readonly String OPT_HB_RETRYCOUNT = "8006";
+        public static readonly String OPT_HB_RETRYTIMEOUT = "8007";
+        public static readonly String OPT_HB_FAILDOWN = "8008";
+        public static readonly String OPT_HB_FAILHANG = "8009";
+
         public IConfiguration Configuration { get; set; }
         public IDictionary Scripts { get; set; }
         [Obsolete("startup.xml 제거됨 — Scripts 딕셔너리와 ApplicationManager로 대체")]
@@ -62,6 +73,10 @@ namespace ACS.Control
         public IWorkflowManager WorkflowManager { get; set; }
         public long HeartBeatInterval { get; set; }
         public long HeartBeatStartDelay { get; set; }
+        // 신규 기동 직후 워커가 자신의 control-agent 리스너를 띄우기까지 걸리는 시간(Elsa/DI/마이그레이션
+        // 등으로 ~30s 관측)을 감안한 기동 유예. Start() 직후 첫 heartbeat를 이 시간만큼 미뤄,
+        // 부팅 중인 워커를 hang으로 오판해 Kill→Start 루프에 빠지는 것을 방지한다.
+        public long HeartBeatStartupGrace { get; set; }
         public long HeartBeatTimeout { get; set; }
         public bool UseHeartBeat { get; set; }
         public bool UseUiTransport { get; set; }
@@ -103,6 +118,7 @@ namespace ACS.Control
 
             HeartBeatInterval = 20000L;
             HeartBeatStartDelay = 10000L;
+            HeartBeatStartupGrace = 60000L;
             UseHeartBeat = true;
             UseUiTransport = true;
             UseUiApplicationManager = true;
@@ -132,6 +148,103 @@ namespace ACS.Control
             //200622 Change NIO Logic About ES.exe does not restart
             UiCommandJobType = typeof(UiCommandJob);
             //
+        }
+
+        // NA_X_OPTION(8001~8009)에서 heartbeat 설정을 읽어 live 속성에 적용.
+        // 행이 없으면 현재 속성값(=ControlModule 기본값)으로 시드한다(최초 1회).
+        // control 초기화 시 ScheduleHeartBeats() 직전에 호출.
+        public void LoadHeartBeatOptions()
+        {
+            if (this.ApplicationManager == null)
+            {
+                logger.Warn("LoadHeartBeatOptions: ApplicationManager is null, skip");
+                return;
+            }
+
+            UseHeartBeat = LoadBoolOption(OPT_HB_USE, "HB_USE", UseHeartBeat);
+            HeartBeatInterval = LoadLongOption(OPT_HB_INTERVAL, "HB_INTERVAL", HeartBeatInterval);
+            HeartBeatStartDelay = LoadLongOption(OPT_HB_STARTDELAY, "HB_STARTDELAY", HeartBeatStartDelay);
+            HeartBeatStartupGrace = LoadLongOption(OPT_HB_STARTUPGRACE, "HB_STARTUPGRACE", HeartBeatStartupGrace);
+            HeartBeatTimeout = LoadLongOption(OPT_HB_TIMEOUT, "HB_TIMEOUT", HeartBeatTimeout);
+            HeartBeatRetryCount = (int)LoadLongOption(OPT_HB_RETRYCOUNT, "HB_RETRYCOUNT", HeartBeatRetryCount);
+            HeartBeatRetryTimeout = LoadLongOption(OPT_HB_RETRYTIMEOUT, "HB_RETRYTIMEOUT", HeartBeatRetryTimeout);
+            HeartBeatFailWhenProcessDown = (int)LoadLongOption(OPT_HB_FAILDOWN, "HB_FAIL_DOWN", HeartBeatFailWhenProcessDown);
+            HeartBeatFailWhenProcessHang = (int)LoadLongOption(OPT_HB_FAILHANG, "HB_FAIL_HANG", HeartBeatFailWhenProcessHang);
+
+            logger.Info($"LoadHeartBeatOptions applied: use={UseHeartBeat}, interval={HeartBeatInterval}, startDelay={HeartBeatStartDelay}, " +
+                        $"grace={HeartBeatStartupGrace}, timeout={HeartBeatTimeout}, retryCount={HeartBeatRetryCount}, " +
+                        $"retryTimeout={HeartBeatRetryTimeout}, failDown={HeartBeatFailWhenProcessDown}, failHang={HeartBeatFailWhenProcessHang}");
+        }
+
+        // 현재 live 속성값을 NA_X_OPTION에 영구 저장(upsert). REST로 설정 변경 후 호출.
+        public void SaveHeartBeatOptions()
+        {
+            if (this.ApplicationManager == null)
+            {
+                logger.Warn("SaveHeartBeatOptions: ApplicationManager is null, skip");
+                return;
+            }
+
+            SaveHeartBeatOption(OPT_HB_USE, "HB_USE", UseHeartBeat ? "1" : "0");
+            SaveHeartBeatOption(OPT_HB_INTERVAL, "HB_INTERVAL", HeartBeatInterval.ToString());
+            SaveHeartBeatOption(OPT_HB_STARTDELAY, "HB_STARTDELAY", HeartBeatStartDelay.ToString());
+            SaveHeartBeatOption(OPT_HB_STARTUPGRACE, "HB_STARTUPGRACE", HeartBeatStartupGrace.ToString());
+            SaveHeartBeatOption(OPT_HB_TIMEOUT, "HB_TIMEOUT", HeartBeatTimeout.ToString());
+            SaveHeartBeatOption(OPT_HB_RETRYCOUNT, "HB_RETRYCOUNT", HeartBeatRetryCount.ToString());
+            SaveHeartBeatOption(OPT_HB_RETRYTIMEOUT, "HB_RETRYTIMEOUT", HeartBeatRetryTimeout.ToString());
+            SaveHeartBeatOption(OPT_HB_FAILDOWN, "HB_FAIL_DOWN", HeartBeatFailWhenProcessDown.ToString());
+            SaveHeartBeatOption(OPT_HB_FAILHANG, "HB_FAIL_HANG", HeartBeatFailWhenProcessHang.ToString());
+        }
+
+        private long LoadLongOption(string id, string nameDesc, long current)
+        {
+            try
+            {
+                var opt = this.ApplicationManager.GetOption(id);
+                if (opt == null)
+                {
+                    SaveHeartBeatOption(id, nameDesc, current.ToString());
+                    return current;
+                }
+                return long.TryParse(opt.Value, out var v) ? v : current;
+            }
+            catch (Exception e)
+            {
+                logger.Error($"LoadLongOption {id} failed: {e.Message}", e);
+                return current;
+            }
+        }
+
+        private bool LoadBoolOption(string id, string nameDesc, bool current)
+        {
+            try
+            {
+                var opt = this.ApplicationManager.GetOption(id);
+                if (opt == null)
+                {
+                    SaveHeartBeatOption(id, nameDesc, current ? "1" : "0");
+                    return current;
+                }
+                return opt.Value == "1" || string.Equals(opt.Value, "true", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception e)
+            {
+                logger.Error($"LoadBoolOption {id} failed: {e.Message}", e);
+                return current;
+            }
+        }
+
+        private void SaveHeartBeatOption(string id, string nameDesc, string value)
+        {
+            var option = new Option
+            {
+                Id = id,
+                Name = id,
+                NameDescription = nameDesc,
+                Value = value,
+                Used = "T"
+            };
+            this.ApplicationManager.SaveOption(option);
         }
 
 
@@ -471,6 +584,13 @@ namespace ACS.Control
 
         public bool ScheduleHeartBeat(string applicationName)
         {
+            return ScheduleHeartBeat(applicationName, this.HeartBeatStartDelay);
+        }
+
+        // 첫 heartbeat 발화까지의 지연(startDelay)을 명시적으로 지정하는 오버로드.
+        // Start() 직후에는 HeartBeatStartupGrace를 넘겨 부팅 중 오판(Kill→Start 루프)을 막는다.
+        public bool ScheduleHeartBeat(string applicationName, long startDelay)
+        {
             try
             {
                 if(this.UseHeartBeat)
@@ -484,7 +604,7 @@ namespace ACS.Control
 
                     IJobDetail jobDetail = CreateHeartBeatJobDetail(applicationName);
 
-                    ITrigger simpleTrigger = CreateHeartBeatTrigger(applicationName, jobDetail);
+                    ITrigger simpleTrigger = CreateHeartBeatTrigger(applicationName, jobDetail, startDelay);
 
                     //logger.info("heartBeat{" + applicationName + "} will be scheduled");
 
@@ -500,7 +620,7 @@ namespace ACS.Control
             catch (Exception e)
             {
                 // logger.error("failed to parse when create trigger", e);
-                
+
             }
 
             return false;
@@ -508,17 +628,22 @@ namespace ACS.Control
 
         protected ITrigger CreateHeartBeatTrigger(string applicationName, IJobDetail jobDetail)
         {
+            return CreateHeartBeatTrigger(applicationName, jobDetail, this.HeartBeatStartDelay);
+        }
+
+        protected ITrigger CreateHeartBeatTrigger(string applicationName, IJobDetail jobDetail, long startDelayValue)
+        {
             TimeSpan startDelay;
             TimeSpan repeatInterval;
 
             if(this.UseSecondAsTimeUnit)
             {
-                startDelay = TimeSpan.FromSeconds(this.HeartBeatStartDelay);
+                startDelay = TimeSpan.FromSeconds(startDelayValue);
                 repeatInterval = TimeSpan.FromSeconds(this.HeartBeatInterval);
             }
             else
             {
-                startDelay = TimeSpan.FromMilliseconds(this.HeartBeatStartDelay);
+                startDelay = TimeSpan.FromMilliseconds(startDelayValue);
                 repeatInterval = TimeSpan.FromMilliseconds(this.HeartBeatInterval);
             }
 
@@ -741,7 +866,8 @@ namespace ACS.Control
                 {
                     logger.Info("application{" + applicationName + "} already running(pid=" + runningPid + "), skip start");
                     this.ApplicationManager.UpdateApplicationState(applicationName, "active");
-                    ScheduleHeartBeat(applicationName);
+                    // 기동 유예 적용: 막 (재)기동된 프로세스일 수 있으므로 리스너가 준비될 시간을 준다.
+                    ScheduleHeartBeat(applicationName, this.HeartBeatStartupGrace);
                     return true;
                 }
 
@@ -749,9 +875,11 @@ namespace ACS.Control
                 SystemUtility.StartProcess(script);
                 // 신규 기동 시에도 상태를 active로 갱신해야 Kill(→inactive)→Start 이후 DB 상태가
                 // inactive로 남아 RescheduleHeartBeats 대상에서 제외되거나 UI 표시가 어긋나지 않는다.
-                // 첫 heartbeat(StartDelay 후)가 실제 응답으로 상태를 재확인한다.
                 this.ApplicationManager.UpdateApplicationState(applicationName, "active");
-                ScheduleHeartBeat(applicationName);
+                // 기동 유예: 워커가 Elsa/DI/마이그레이션 후 control-agent 리스너를 띄우기까지 ~30s가
+                // 걸리므로, 첫 heartbeat를 HeartBeatStartupGrace만큼 미뤄 부팅 중 hang 오판으로
+                // Kill→Start가 반복되는 루프를 방지한다.
+                ScheduleHeartBeat(applicationName, this.HeartBeatStartupGrace);
                 return true;
             }
             catch (Exception ie)

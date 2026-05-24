@@ -78,15 +78,19 @@ namespace ACS.Communication.Msb.RabbitMQ
                             {
                                 var body = ea.Body.ToArray();
                                 var response = Encoding.UTF8.GetString(body);
-                                if (ea.BasicProperties.CorrelationId == correlationId)
+                                bool match = ea.BasicProperties.CorrelationId == correlationId;
+                                if (logger.IsDebugEnabled)
+                                    logger.Debug($"[HB-DIAG] reply recv corrId={ea.BasicProperties.CorrelationId} expect={correlationId} match={match}");
+                                if (match)
                                 {
                                     respQueue.Add(response);
                                 }
                             };
 
                             Session.BasicConsume(consumer: consumer, queue: QueueName, autoAck: true);
+                            logger.Info($"[HB-DIAG] RPC_CLIENT replyQueue={QueueName} corrId={correlationId}");
                         }
-                        break;              
+                        break;
                 }
 
             }
@@ -434,6 +438,8 @@ namespace ACS.Communication.Msb.RabbitMQ
                     // 이번 요청이 잘못된 응답을 가져갈 수 있으므로 publish 전에 모두 비운다.
                     while (respQueue.TryTake(out _, 0)) { }
 
+                    if (logger.IsDebugEnabled)
+                        logger.Debug($"[HB-DIAG] request publish dest={dest} replyTo={props?.ReplyTo} corrId={props?.CorrelationId}");
                     var body = Encoding.UTF8.GetBytes(message);
                     Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
 

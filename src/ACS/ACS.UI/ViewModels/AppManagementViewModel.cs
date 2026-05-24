@@ -39,10 +39,24 @@ public partial class AppManagementViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = "";
 
+    // ── Heartbeat 설정 (control 프로세스, /api/heartbeat-settings) ──
+    // FailWhenProcessDown/Hang은 ComboBox SelectedIndex(0=없음, 1=상태표시만, 2=재시작)로 바인딩.
+    [ObservableProperty] private bool _hbUseHeartBeat = true;
+    [ObservableProperty] private long _hbInterval = 20000;
+    [ObservableProperty] private long _hbStartDelay = 10000;
+    [ObservableProperty] private long _hbStartupGrace = 60000;
+    [ObservableProperty] private long _hbTimeout = 5000;
+    [ObservableProperty] private int _hbRetryCount = 3;
+    [ObservableProperty] private long _hbRetryTimeout = 10000;
+    [ObservableProperty] private int _hbFailWhenProcessDown = 2;
+    [ObservableProperty] private int _hbFailWhenProcessHang = 2;
+    [ObservableProperty] private string _hbStatusMessage = "";
+
     public AppManagementViewModel(IAcsApiService? apiService = null)
     {
         _apiService = apiService;
         _ = RefreshAsync();
+        _ = LoadHeartbeatSettingsAsync();
     }
 
     partial void OnSelectedProcessChanged(ProcessNodeModel? value)
@@ -157,6 +171,69 @@ public partial class AppManagementViewModel : ObservableObject
         if (_apiService == null || node is not { IsApplication: true }) return;
         await _apiService.ForceKillApplicationAsync(node.Name);
         await RefreshAsync();
+    }
+
+    /// <summary>control의 현재 heartbeat 설정을 불러온다. (auto-refresh와 분리 — 편집 중 덮어쓰기 방지)</summary>
+    [RelayCommand]
+    private async Task LoadHeartbeatSettingsAsync()
+    {
+        if (_apiService == null) return;
+        try
+        {
+            var s = await _apiService.GetHeartbeatSettingsAsync();
+            if (s == null)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => HbStatusMessage = "heartbeat 설정 조회 실패(백엔드 미기동?)");
+                return;
+            }
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                HbUseHeartBeat = s.UseHeartBeat;
+                HbInterval = s.HeartBeatInterval;
+                HbStartDelay = s.HeartBeatStartDelay;
+                HbStartupGrace = s.HeartBeatStartupGrace;
+                HbTimeout = s.HeartBeatTimeout;
+                HbRetryCount = s.HeartBeatRetryCount;
+                HbRetryTimeout = s.HeartBeatRetryTimeout;
+                HbFailWhenProcessDown = s.HeartBeatFailWhenProcessDown;
+                HbFailWhenProcessHang = s.HeartBeatFailWhenProcessHang;
+                HbStatusMessage = $"불러옴 — {DateTime.Now:HH:mm:ss}";
+            });
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => HbStatusMessage = "조회 실패: " + ex.Message);
+        }
+    }
+
+    /// <summary>편집한 heartbeat 설정을 control에 적용+영구 저장한다.</summary>
+    [RelayCommand]
+    private async Task SaveHeartbeatSettingsAsync()
+    {
+        if (_apiService == null) return;
+        var dto = new HeartbeatSettingsDto
+        {
+            UseHeartBeat = HbUseHeartBeat,
+            HeartBeatInterval = HbInterval,
+            HeartBeatStartDelay = HbStartDelay,
+            HeartBeatStartupGrace = HbStartupGrace,
+            HeartBeatTimeout = HbTimeout,
+            HeartBeatRetryCount = HbRetryCount,
+            HeartBeatRetryTimeout = HbRetryTimeout,
+            HeartBeatFailWhenProcessDown = HbFailWhenProcessDown,
+            HeartBeatFailWhenProcessHang = HbFailWhenProcessHang
+        };
+        try
+        {
+            bool ok = await _apiService.UpdateHeartbeatSettingsAsync(dto);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                HbStatusMessage = ok ? $"저장됨 — {DateTime.Now:HH:mm:ss}" : "저장 실패(값 검증 또는 서버 오류)");
+            if (ok) await LoadHeartbeatSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => HbStatusMessage = "저장 실패: " + ex.Message);
+        }
     }
 
     [RelayCommand]

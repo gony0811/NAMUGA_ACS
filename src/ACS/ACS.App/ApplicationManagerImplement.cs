@@ -1142,9 +1142,15 @@ namespace ACS.App
             return option;
         }
 
-        private Option GetOption(string optionId)
+        public Option GetOption(string optionId)
         {
             return (Option)this.PersistentDao.FindByName(typeof(Option), optionId, false);
+        }
+
+        // 옵션 upsert (없으면 insert, 있으면 update). heartbeat 설정 등 런타임 편집 가능한 옵션 저장에 사용.
+        public void SaveOption(Option option)
+        {
+            this.PersistentDao.SaveOrUpdate(option);
         }
 
         private Option GetOptionByName(string name)

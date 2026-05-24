@@ -22,6 +22,7 @@ namespace ACS.Control
         IHistoryManagerEx HistoryManager { get; set; }
         long HeartBeatInterval { get; set; }
         long HeartBeatStartDelay { get; set; }
+        long HeartBeatStartupGrace { get; set; }
         long HeartBeatTimeout { get; set; }
         bool UseHeartBeat { get; set; }
         long SimpleHeartBeatInterval { get; set; }
@@ -52,6 +53,9 @@ namespace ACS.Control
         bool ExecuteCoreDump(ControlMessage paramControlMessage);
 
         bool ExecuteCoreDump(String paramString1, String paramString2);
+
+        void LoadHeartBeatOptions();
+        void SaveHeartBeatOptions();
 
         void ScheduleHeartBeats();
         void ScheduleUiTransport();

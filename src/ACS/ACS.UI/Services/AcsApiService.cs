@@ -58,6 +58,33 @@ public class AcsApiService : IAcsApiService
         }
     }
 
+    public async Task<HeartbeatSettingsDto?> GetHeartbeatSettingsAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<HeartbeatSettingsDto>("/api/heartbeat-settings", _jsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> UpdateHeartbeatSettingsAsync(HeartbeatSettingsDto settings)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(settings);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PutAsync("/api/heartbeat-settings", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<List<NodeDto>> GetNodesAsync()
     {
         return await _httpClient.GetFromJsonAsync<List<NodeDto>>("/api/nodes", _jsonOptions)

@@ -153,5 +153,9 @@ namespace ACS.Core.Application
         Option CreateDefaultOptionUseBidirectionalNode();
 
         void CreateOption(Option option);
+
+        Option GetOption(string optionId);
+
+        void SaveOption(Option option);
     }
 }

@@ -410,6 +410,9 @@ namespace ACS.App
                 return;
             }
 
+            // NA_X_OPTION에 저장된 heartbeat 설정을 ControlModule 기본값 위에 덮어쓴다(영구 저장값 반영).
+            _controlServerManager.LoadHeartBeatOptions();
+
             if (_controlServerManager.HeartBeatTimeout >= _controlServerManager.HeartBeatInterval)
             {
                 throw new IncorrectValueException(

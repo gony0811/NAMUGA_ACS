@@ -172,6 +172,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                             Session.BasicConsume(queue: Destination.Name, autoAck: false, consumer: consumer);
 
                             consumer.Received += OnRequest;
+                            logger.Info($"[HB-DIAG] RPC_SERVER listening queue={Destination.Name}");
                         }
                         break;
                     case CASTOPTION_RPC_CLIENT:
@@ -215,6 +216,9 @@ namespace ACS.Communication.Msb.RabbitMQ
             replyProps.CorrelationId = props.CorrelationId;
 
             var message = Encoding.UTF8.GetString(body);
+
+            if (logger.IsDebugEnabled)
+                logger.Debug($"[HB-DIAG] OnRequest recv dest={Destination.Name} replyTo={props?.ReplyTo} corrId={props?.CorrelationId} len={body.Length}");
 
             try
             {
@@ -291,9 +295,27 @@ namespace ACS.Communication.Msb.RabbitMQ
             }
             finally
             {
-                var responseBytes = Encoding.UTF8.GetBytes(message);
-                session.BasicPublish(exchange: "", routingKey: props.ReplyTo,
-                  basicProperties: replyProps, body: responseBytes);
+                try
+                {
+                    if (string.IsNullOrEmpty(props.ReplyTo))
+                    {
+                        // ReplyTo가 없으면 응답을 보낼 곳이 없다. publish(routingKey=null) 시 예외로
+                        // BasicAck까지 건너뛰는 것을 막기 위해 명시적으로 건너뛰고 진단 로그만 남긴다.
+                        logger.Error($"[HB-DIAG] reply skipped: ReplyTo null/empty (corrId={props.CorrelationId}, dest={Destination.Name})");
+                    }
+                    else
+                    {
+                        var responseBytes = Encoding.UTF8.GetBytes(message);
+                        session.BasicPublish(exchange: "", routingKey: props.ReplyTo,
+                          basicProperties: replyProps, body: responseBytes);
+                        if (logger.IsDebugEnabled)
+                            logger.Debug($"[HB-DIAG] reply published routingKey={props.ReplyTo} corrId={replyProps.CorrelationId}");
+                    }
+                }
+                catch (Exception pubEx)
+                {
+                    logger.Error($"[HB-DIAG] reply publish failed routingKey={props.ReplyTo}: {pubEx.Message}", pubEx);
+                }
                 session.BasicAck(deliveryTag: ea.DeliveryTag,
                   multiple: false);
             }

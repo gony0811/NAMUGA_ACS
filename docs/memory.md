@@ -735,3 +735,52 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **Why:** 사용자 요구는 "재기동이 제대로 동작"이지 비활성화가 아니므로 `HeartBeatFailWhenProcessHang/Down=2` 정책은 유지. 동시성은 사용자 결정에 따라 RPC 멀티플렉싱 재설계 대신 lock 직렬화 채택(20s 주기/4프로세스라 타이밍 여유 충분, 변경 최소·저위험). 기동 유예는 재스케줄 시 적용되는 StartDelay(10s)+타임아웃 정상화로 충분하여 별도 grace 미추가. 관련: [[22. control Scripts 실행 구현]](Start/host 분기·UseSystemKill 맥락 공유).
 
 **검증:** `dotnet build ACS.sln` 성공(0 오류, 기존 경고 72). 런타임 검증 필요: control+워커 기동 후 `HEARTBEATFAIL_PROCESSHANG/DOWN` 로그가 반복되지 않고 4개 워커가 active 안정 유지, 특히 HS01_P가 더는 주기적으로 죽지 않을 것, `RPC timeout` 로그 소멸. 워커 강제 종료 시 1주기 내 재기동되어 active 복귀(재기동 시나리오 정상). **주의:** 실행 exe는 `D:\ACS\deploy\*`에서 로드되므로 빌드 산출물 재배포 후 재실행할 것.
+
+---
+
+## 25. heartbeat 루프 진짜 원인 = 워커 리스너 기동 지연 (진단 로그로 확정) + 기동 유예 수정
+
+**날짜:** 2026-05-24
+**작업:** [[24. control heartbeat 재기동 무한루프 수정]]의 4개 수정 후에도 4개 워커 전부 100% RPC 타임아웃이 지속되어, 양쪽에 `[HB-DIAG]` 진단 로그를 심어 단절 지점을 확정하고 진짜 원인을 수정.
+
+**진단 결과(런타임 로그):** RPC 응답 메커니즘 자체는 **정상**이었다. 워커의 control-agent 리스너가 뜬 뒤에는 모든 heartbeat가 ~40ms에 왕복 성공(`reply recv match=True`). 문제는 **타이밍**:
+- 워커 프로세스 시작(14:26:19) 후 `RPC_SERVER listening queue=/VM/DEMO/CONTROL/AGENT/TS01_P` 로그가 **~29초 뒤(14:26:48)** 에야 출력. 워커 부팅이 Elsa 워크플로우 등록(~20s) + DB 마이그레이션 + 다른 리스너들 → control-agent 리스너는 `StartMsb` 순회의 거의 마지막에 기동되기 때문.
+- 이 ~30초 부팅 창 동안 control의 heartbeat는 타임아웃(프로세스는 존재하나 리스너 미소비) → HeartBeatJob의 hang 경로 → 재시도 실패 → `Kill+Start`로 **부팅 중인 워커를 죽임** → 재시작 → 또 30초 부팅 → 또 죽임 → 앱들이 돌아가며 재기동되는 루프.
+- 리스너가 무사히 뜨면 그 이후로는 완전히 안정(로그상 14:26:48 이후 타임아웃 없음). 즉 **부팅 창에서의 오판(hang)** 이 루프의 직접 원인.
+
+**부수 관측:** 워커 control-agent 큐(`durable=false, exclusive=false, autoDelete=false`)가 워커 재시작·control 재시작을 넘어 **잔존**하며, 리스너 미소비 동안 heartbeat가 쌓였다가 리스너 기동 시 한꺼번에 drain됨(이전 control 인스턴스의 corrId/replyTo로 온 stale 메시지 포함 → 죽은 reply 큐로 응답되어 버려짐). 기동 유예 적용 시 부팅 창에 heartbeat를 발행하지 않으므로 누적이 최소화되어 무해. (향후 개선: 큐를 autoDelete/exclusive로 두거나 메시지 TTL 부여.)
+
+**변경:**
+- `ACS.App/Control/Implement/ControlServerManagerImplement.cs`: `HeartBeatStartupGrace`(기본 60000ms) 추가. `ScheduleHeartBeat(app, startDelay)` 및 `CreateHeartBeatTrigger(app, jobDetail, startDelayValue)` 오버로드 추가(기존 무인자는 `HeartBeatStartDelay`로 위임). `Start()`의 양쪽 분기(이미-실행/신규-기동)가 첫 heartbeat를 `HeartBeatStartupGrace`만큼 지연 스케줄 → 부팅 중 hang 오판 방지.
+- `ACS.App/Modules/ControlModule.cs`: `mgr.HeartBeatStartupGrace`를 `Acs:Control:HeartBeatStartupGraceMs`(없으면 60000)로 설정 — 환경별 부팅 시간에 맞춰 appsettings로 조정 가능.
+- 진단 로그: `[HB-DIAG]` 추가. 기동 1회성(`RPC_CLIENT replyQueue=`, `RPC_SERVER listening queue=`)은 Info, 매 주기(request/reply/OnRequest)는 Debug로, 응답 실패(`reply skipped: ReplyTo null`, `reply publish failed`)는 Error로. 워커 OnRequest finally에 ReplyTo null-guard 추가(누락 시 publish 건너뛰고 BasicAck는 수행).
+
+**Why:** 재시도 타임아웃·동시성·host 리스너·상태 갱신(#24)은 모두 유효한 개선이지만 **루프의 진짜 원인은 아니었다**. 진짜 원인은 "워커가 리스너를 띄우기 전에 control이 hang으로 오판해 죽이는 경쟁(race)". 사용자가 1차 때 "기존 StartDelay(10s) 유지"를 택했으나, 진단으로 실제 부팅 시간이 ~30s임이 측정되어 전용 기동 유예(60s)가 필요해졌다. Start() 경로에 유예를 적용하면 control이 워커를 재기동하는 주 경로가 모두 커버되어 루프가 끊긴다.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). **런타임 검증 완료(2026-05-24 14:41 로그)**: control 기동 후 워커 부팅 ~33s(TS01_P 14:41:59 시작 → `RPC_SERVER listening` 14:42:32) 동안 초기 `RPC timeout`이 몇 번 떴으나 **`HEARTBEATFAIL_*`/Kill→Start 루프 전혀 없이**, Start()의 60s 유예 경과 후 첫 heartbeat(14:42:53)부터 `reply recv match=True`로 전환. 이후 4개 워커(TS/ES/DS/HS) 모두 ~20s 주기로 안정적으로 응답하며 재기동 없이 정상 운영(transfer/schedule 워크플로우 동작 확인). 부팅이 60s를 넘는 환경이면 `Acs:Control:HeartBeatStartupGraceMs` 상향. (운영 시 control Serilog MinimumLevel을 Information으로 두면 매 주기 `[HB-DIAG]` Debug 로그는 자동 침묵, 기동 1회성 Info만 노출.)
+
+---
+
+## 26. heartbeat 설정 UI 편집 기능 (Application 화면 + REST + NA_X_OPTION 영구 저장)
+
+**날짜:** 2026-05-24
+**작업:** [[25. heartbeat 루프 진짜 원인]]의 heartbeat 옵션들을 ControlModule 하드코딩이 아니라 UI에서 조회/변경/영구 저장하도록 구현. 결정: DB 영구 저장(NA_X_OPTION) + Application 관리 화면 배치 + ProcessDown/Hang 3단계 드롭다운.
+
+**노출 설정(9개, live 객체 `ControlServerManagerImplement`):** UseHeartBeat(on/off), HeartBeatInterval, HeartBeatStartDelay, HeartBeatStartupGrace, HeartBeatTimeout, HeartBeatRetryTimeout(ms), HeartBeatRetryCount(회), HeartBeatFailWhenProcessDown/Hang(0=없음/1=상태표시만/2=재시작).
+
+**런타임 적용 규칙:** Timeout/RetryCount/RetryTimeout/StartupGrace/Fail* 는 HeartBeatJob이 매 주기 live로 읽어 즉시 반영. Interval/StartDelay는 Quartz 트리거에 baked-in이라 변경 시 `ScheduleHeartBeats()`로 전체 트리거 재생성해야 적용(주의: `RescheduleHeartBeats()`는 누락분만 추가하므로 기존 트리거 주기를 못 바꿈). UseHeartBeat off→`UnscheduleHeartBeats()`, off→on→`ScheduleHeartBeats()`.
+
+**변경:**
+- `ACS.Core/Control/IControlServerManager.cs`: `HeartBeatStartupGrace` + `LoadHeartBeatOptions()`/`SaveHeartBeatOptions()` 선언.
+- `ACS.Core/Application/IApplicationManager.cs` + `ACS.App/ApplicationManagerImplement.cs`: `GetOption(id)` public화, `SaveOption(option)`(=`PersistentDao.SaveOrUpdate`, upsert) 추가.
+- `ACS.App/Control/Implement/ControlServerManagerImplement.cs`: OPT_HB_* 상수(8001~8009), `LoadHeartBeatOptions()`(행 없으면 현재값 시드, 있으면 적용)·`SaveHeartBeatOptions()`(live값 9개 upsert)·Load/Save 헬퍼.
+- `ACS.App/ApplicationInitializer.cs`: control 분기 `ScheduleHeartBeat()`에서 `ScheduleHeartBeats()` 직전 `LoadHeartBeatOptions()` 호출.
+- `ACS.App/Web/Controllers/AcsRestControllers.cs`: `HeartbeatSettingsController`(`api/heartbeat-settings`) GET(live값)/PUT(검증→live 적용→(un)schedule/재스케줄→`SaveHeartBeatOptions()`).
+- DTO `HeartbeatSettingsDto`: `ACS.Communication/Http/Models/` + `ACS.UI/Models/` 동일 사본.
+- `ACS.UI/Services/{IAcsApiService,AcsApiService}.cs`: `GetHeartbeatSettingsAsync`/`UpdateHeartbeatSettingsAsync`.
+- `ACS.UI/ViewModels/AppManagementViewModel.cs`: Hb* ObservableProperty 9개(3단계=int SelectedIndex), `LoadHeartbeatSettingsAsync`(ctor 1회 — auto-refresh와 분리해 편집 중 덮어쓰기 방지)·`SaveHeartbeatSettingsAsync` 커맨드.
+- `ACS.UI/Views/AppManagementView.axaml`: Properties 컬럼을 `Auto,*,Auto,Auto`로 분할, 하단 "Heartbeat 설정" 섹션(ToggleSwitch/NumericUpDown/3단계 ComboBox/저장·불러오기 버튼).
+
+**Why:** 운영/튜닝 중 재빌드·재배포 없이 heartbeat 동작 조정. 영구 저장은 기존 NA_X_OPTION 인프라 재사용(Id 8001~8009, trans 1xxx~7xxx과 대역 분리). 기존 패턴(ApplicationsController·AcsApiService·BayEditWindow 입력 그리드) mirror.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임 검증 필요(`D:\ACS\deploy\CS01_P`에 ACS.App/ACS.Communication/ACS.Core dll, UI 실행 위치에 UI 산출물 재배포 후): Application 화면 "Heartbeat 설정"에 현재값 로드 → 변경·저장 시 즉시 반영 + DB 8001~8009 생성/갱신 → control 재시작 후 유지. NumericUpDown(decimal?)↔long/int 바인딩 빌드 0 오류.
