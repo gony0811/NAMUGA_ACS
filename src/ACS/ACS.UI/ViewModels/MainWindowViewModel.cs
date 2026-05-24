@@ -157,13 +157,18 @@ public partial class MainWindowViewModel : ObservableObject
             Height = 600,
             WindowStartupLocation = WindowStartupLocation.CenterScreen
         };
-        window.Closed += (_, _) => _popupWindows.Remove(viewName);
+        window.Closed += (_, _) =>
+        {
+            _popupWindows.Remove(viewName);
+            if (viewName == "AppManagement")
+                AppManagementViewModel.AutoRefreshEnabled = false;   // 창 닫으면 폴링 중지
+        };
         _popupWindows[viewName] = window;
         window.Show();
 
         // 뷰별 초기 데이터 로드
         if (viewName == "AppManagement")
-            AppManagementViewModel.RefreshCommand.Execute(null);
+            AppManagementViewModel.AutoRefreshEnabled = true;   // 기본 ON: 즉시 갱신 + 5초 폴링
         if (viewName == "Node")
             _ = NodeViewModel.LoadNodesAsync();
         if (viewName == "Station")

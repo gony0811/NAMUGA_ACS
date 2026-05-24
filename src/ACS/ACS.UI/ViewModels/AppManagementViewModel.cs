@@ -236,17 +236,16 @@ public partial class AppManagementViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private void ToggleAutoRefresh()
+    /// <summary>AutoRefreshEnabled 토글에 반응 — 켜면 5초 폴링 시작 + 즉시 1회 갱신, 끄면 중지.</summary>
+    partial void OnAutoRefreshEnabledChanged(bool value)
     {
-        AutoRefreshEnabled = !AutoRefreshEnabled;
-
-        if (AutoRefreshEnabled)
+        if (value)
         {
             _autoRefreshTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             _autoRefreshTimer.Tick -= OnAutoRefreshTick;
             _autoRefreshTimer.Tick += OnAutoRefreshTick;
             _autoRefreshTimer.Start();
+            _ = RefreshAsync();   // 즉시 1회 갱신
         }
         else
         {

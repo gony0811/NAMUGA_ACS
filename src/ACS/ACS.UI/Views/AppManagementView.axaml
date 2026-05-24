@@ -23,6 +23,11 @@
                         <Setter Property="FontSize" Value="11" />
                         <Setter Property="VerticalAlignment" Value="Center" />
                     </Style>
+                    <Style Selector="ToggleButton">
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
                 </StackPanel.Styles>
 
                 <TextBlock Text="Application Management"
@@ -31,7 +36,7 @@
                            VerticalAlignment="Center" Margin="4,0,12,0" />
 
                 <Button Content="🔄 Refresh" Command="{Binding RefreshCommand}" />
-                <Button Content="⟳ Auto Refresh" Command="{Binding ToggleAutoRefreshCommand}" />
+                <ToggleButton Content="⟳ Auto Refresh" IsChecked="{Binding AutoRefreshEnabled}" />
 
                 <TextBlock Text="{Binding StatusMessage}"
                            FontSize="11" Foreground="{StaticResource AcsTextSecondaryBrush}"
@@ -56,6 +61,11 @@
                               ItemsSource="{Binding PrimaryProcesses}"
                               SelectedItem="{Binding SelectedProcess}"
                               Background="{StaticResource AcsSurfaceCardBrush}" Padding="4">
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.Styles>
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
@@ -69,6 +79,7 @@
                                         </Style>
                                     </StackPanel.Styles>
                                     <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                             IsVisible="{Binding IsApplication}"
                                              Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
                                     <TextBlock Text="{Binding Name}" FontSize="12"
                                                VerticalAlignment="Center" />
@@ -107,6 +118,11 @@
                               ItemsSource="{Binding SecondaryProcesses}"
                               SelectedItem="{Binding SelectedProcess}"
                               Background="{StaticResource AcsSurfaceCardBrush}" Padding="4">
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.Styles>
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}"
                                               x:DataType="models:ProcessNodeModel">
@@ -120,6 +136,7 @@
                                         </Style>
                                     </StackPanel.Styles>
                                     <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                             IsVisible="{Binding IsApplication}"
                                              Fill="{Binding State, Converter={StaticResource ProcessStateToColor}}" />
                                     <TextBlock Text="{Binding Name}" FontSize="12"
                                                VerticalAlignment="Center" />

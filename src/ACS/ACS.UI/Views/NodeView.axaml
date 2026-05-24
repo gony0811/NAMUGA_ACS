@@ -26,32 +26,22 @@
                 </StackPanel>
 
                 <!-- 오른쪽: 툴바 버튼 -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2"
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4"
                             VerticalAlignment="Center" Margin="0,0,4,0">
                     <StackPanel.Styles>
                         <Style Selector="Button">
-                            <Setter Property="Width" Value="28" />
-                            <Setter Property="Height" Value="28" />
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="FontSize" Value="13" />
+                            <Setter Property="Padding" Value="12,5" />
+                            <Setter Property="FontSize" Value="12" />
                             <Setter Property="HorizontalContentAlignment" Value="Center" />
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="+" ToolTip.Tip="Add Node" Command="{Binding AddNodeCommand}"
-                            FontWeight="Bold" />
-                    <Button Content="&#x1F4CD;" ToolTip.Tip="Map에서 선택" Command="{Binding SelectFromMapCommand}" />
-                    <Button Content="-" ToolTip.Tip="Delete Node" Command="{Binding DeleteNodeCommand}"
-                            FontWeight="Bold" />
-                    <Button Content="&#x270F;" ToolTip.Tip="Modify Node" Command="{Binding EditNodeCommand}" />
+                    <Button Content="Add" ToolTip.Tip="Add Node" Command="{Binding AddNodeCommand}" />
+                    <Button Content="Map" ToolTip.Tip="Map에서 선택" Command="{Binding SelectFromMapCommand}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete Node" Command="{Binding DeleteNodeCommand}" />
+                    <Button Content="Edit" ToolTip.Tip="Modify Node" Command="{Binding EditNodeCommand}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
-                    <Button Content="&#x1F4CB;" ToolTip.Tip="Copy" />
-                    <Button Content="&#x1F4CA;" ToolTip.Tip="Export" />
-                    <Button Content="&#x25AE;" ToolTip.Tip="Column" />
-                    <Button Content="&#x25A6;" ToolTip.Tip="Grid" />
-                    <Button Content="&#x1F504;" ToolTip.Tip="Refresh" Command="{Binding LoadNodesCommand}" />
-                    <Button Content="&#x2699;" ToolTip.Tip="Settings" />
+                    <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadNodesCommand}" />
                 </StackPanel>
 
                 <Panel />

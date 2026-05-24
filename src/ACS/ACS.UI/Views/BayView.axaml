@@ -24,27 +24,21 @@
                                VerticalAlignment="Center" Margin="4,0,0,0" />
                 </StackPanel>
 
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2"
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4"
                             VerticalAlignment="Center" Margin="0,0,4,0">
                     <StackPanel.Styles>
                         <Style Selector="Button">
-                            <Setter Property="Width" Value="28" />
-                            <Setter Property="Height" Value="28" />
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="FontSize" Value="13" />
+                            <Setter Property="Padding" Value="12,5" />
+                            <Setter Property="FontSize" Value="12" />
                             <Setter Property="HorizontalContentAlignment" Value="Center" />
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="+" ToolTip.Tip="Add Bay" Command="{Binding AddBayCommand}"
-                            FontWeight="Bold" />
-                    <Button Content="-" ToolTip.Tip="Delete Bay" Command="{Binding DeleteBayCommand}"
-                            FontWeight="Bold" />
-                    <Button Content="&#x270F;" ToolTip.Tip="Modify Bay" Command="{Binding EditBayCommand}" />
+                    <Button Content="Add" ToolTip.Tip="Add Bay" Command="{Binding AddBayCommand}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete Bay" Command="{Binding DeleteBayCommand}" />
+                    <Button Content="Edit" ToolTip.Tip="Modify Bay" Command="{Binding EditBayCommand}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
-                    <Button Content="&#x1F504;" ToolTip.Tip="Refresh" Command="{Binding LoadBaysCommand}" />
-                    <Button Content="&#x2699;" ToolTip.Tip="Settings" />
+                    <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadBaysCommand}" />
                 </StackPanel>
 
                 <Panel />
