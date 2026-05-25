@@ -16,8 +16,9 @@ namespace ACS.App.Web.Realtime
 {
     /// <summary>
     /// Trans 프로세스가 UiAgentSender(MULTICAST = fanout exchange)로 발행한
-    /// RAIL-VEHICLEUPDATE JSON을 구독하여 POSE(X,Y,Angle)가 포함된 경우
-    /// VehicleHub.PoseUpdate 이벤트로 모든 SignalR 클라이언트에 브로드캐스트한다.
+    /// RAIL-VEHICLEUPDATE JSON을 구독하여 POSE(X,Y,Angle)와 상태 필드(배터리/노드/런상태/연결)를
+    /// VehicleHub.VehicleUpdate 이벤트로 모든 SignalR 클라이언트에 브로드캐스트한다.
+    /// (알람 AlarmState는 별도 메시지 RAIL-VEHICLEALARM 이므로 이 경로에 포함되지 않는다.)
     ///
     /// AMR 100대 × 1Hz 텔레메트리를 워크플로우 엔진을 거치지 않고 직접 처리하기 위해
     /// GenericWorkflowRabbitMQListener 대신 RabbitMQ.Client API를 직접 사용한다.
@@ -101,28 +102,39 @@ namespace ACS.App.Web.Realtime
                 string json = Encoding.UTF8.GetString(args.Body.ToArray());
                 var msg = JsonSerializer.Deserialize<RailVehicleUpdateMessage>(json);
                 if (msg?.Data == null) return;
-                if (msg.Data.PoseX == null || msg.Data.PoseY == null) return;
 
+                var d = msg.Data;
+
+                // POSE뿐 아니라 RAIL-VEHICLEUPDATE에 포함된 상태 필드(배터리/노드/런상태/연결)도 함께 푸시한다.
+                // POSE는 미수신 시 null로 보내며, UI는 null이면 위치를 갱신하지 않는다(상태만 변하는 메시지도 반영).
                 var payload = new
                 {
-                    vehicleId = msg.Data.VehicleId,
-                    commId = msg.Data.CommId,
-                    x = msg.Data.PoseX.Value,
-                    y = msg.Data.PoseY.Value,
-                    angle = msg.Data.PoseAngle ?? 0f,
-                    eventTime = msg.Data.EventTime
+                    vehicleId = d.VehicleId,
+                    commId = d.CommId,
+                    // POSE (nullable)
+                    poseX = d.PoseX,
+                    poseY = d.PoseY,
+                    poseAngle = d.PoseAngle,
+                    // 상태
+                    runState = d.RunState,
+                    batteryRate = d.BatteryRate,
+                    batteryVoltage = d.BatteryVoltage,
+                    currentNodeId = d.CurrentNodeId,
+                    vehicleDestNodeId = d.VehicleDestNodeId,
+                    connectionState = d.ConnectionState,
+                    eventTime = d.EventTime
                 };
 
                 // SignalR 브로드캐스트는 비동기지만 fire-and-forget으로 처리해 RabbitMQ consumer 스레드를 막지 않는다.
-                _ = _hub.Clients.All.SendAsync("PoseUpdate", payload);
+                _ = _hub.Clients.All.SendAsync("VehicleUpdate", payload);
 
                 var now = DateTime.UtcNow;
                 if (now - _lastBroadcastLogAt >= BroadcastLogInterval)
                 {
                     _lastBroadcastLogAt = now;
                     _logger.LogInformation(
-                        "PoseUpdate broadcast vehicleId={VehicleId} commId={CommId} x={X:F3} y={Y:F3} angle={Angle:F3}",
-                        msg.Data.VehicleId, msg.Data.CommId, payload.x, payload.y, payload.angle);
+                        "VehicleUpdate broadcast vehicleId={VehicleId} commId={CommId} run={Run} batt={Batt} node={Node} conn={Conn} pose=({X},{Y},{A})",
+                        d.VehicleId, d.CommId, d.RunState, d.BatteryRate, d.CurrentNodeId, d.ConnectionState, d.PoseX, d.PoseY, d.PoseAngle);
                 }
             }
             catch (Exception ex)

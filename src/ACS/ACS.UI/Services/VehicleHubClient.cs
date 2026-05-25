@@ -8,17 +8,17 @@ namespace ACS.UI.Services;
 
 /// <summary>
 /// ACS.App UI 프로세스의 SignalR VehicleHub(/hubs/vehicle)에 연결하여
-/// 차량 POSE 텔레메트리(1Hz)를 수신한다. 자동 재연결 활성화.
+/// 차량 텔레메트리(POSE + 상태, 1Hz)를 수신한다. 자동 재연결 활성화.
 /// </summary>
 public class VehicleHubClient : IAsyncDisposable
 {
     private readonly HubConnection _connection;
 
     /// <summary>
-    /// PoseUpdate 수신 시 발생. 핸들러는 SignalR 워커 스레드에서 호출되므로
+    /// VehicleUpdate 수신 시 발생. 핸들러는 SignalR 워커 스레드에서 호출되므로
     /// UI 갱신 시 Avalonia Dispatcher.UIThread.Post로 마샬링해야 한다.
     /// </summary>
-    public event Action<PoseUpdateDto> PoseUpdated;
+    public event Action<VehicleUpdateDto> VehicleUpdated;
 
     public VehicleHubClient(string baseUrl)
     {
@@ -27,9 +27,9 @@ public class VehicleHubClient : IAsyncDisposable
             .WithAutomaticReconnect()
             .Build();
 
-        _connection.On<PoseUpdateDto>("PoseUpdate", pose =>
+        _connection.On<VehicleUpdateDto>("VehicleUpdate", dto =>
         {
-            PoseUpdated?.Invoke(pose);
+            VehicleUpdated?.Invoke(dto);
         });
     }
 

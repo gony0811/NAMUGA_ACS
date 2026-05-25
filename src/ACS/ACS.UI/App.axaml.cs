@@ -37,16 +37,13 @@ public partial class App : Application
                 DataContext = mainViewModel
             };
 
-            // SignalR VehicleHub: 차량 POSE 텔레메트리(1Hz) → MapViewModel 실시간 갱신
+            // SignalR VehicleHub: 차량 텔레메트리(POSE + 상태, 1Hz) → MapViewModel 실시간 갱신
             _vehicleHub = new VehicleHubClient(baseUrl);
-            _vehicleHub.PoseUpdated += pose =>
+            _vehicleHub.VehicleUpdated += dto =>
             {
-                // [TEMP DEBUG] SignalR PoseUpdate 수신 로그
-                Console.WriteLine($"[PoseUpdate] vid={pose.VehicleId} commId={pose.CommId} x={pose.X:F3} y={pose.Y:F3} angle={pose.Angle:F3} t={pose.EventTime:HH:mm:ss.fff}");
-
                 Dispatcher.UIThread.Post(() =>
                 {
-                    mainViewModel.MapViewModel.ApplyPoseUpdate(pose.VehicleId, pose.CommId, pose.X, pose.Y, pose.Angle);
+                    mainViewModel.MapViewModel.ApplyVehicleUpdate(dto);
                 });
             };
             _ = _vehicleHub.StartAsync();

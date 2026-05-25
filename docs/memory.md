@@ -878,3 +878,33 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **수정:** `AcsRestControllers.cs`(`LogsController`: `GET /api/logs` 필터+범위, `GET /api/logs/{id}/text` = LargeLogMessage Sequence순 재조합), `IAcsApiService`/`AcsApiService`(`GetLogsAsync`/`GetLogTextAsync`+`BuildLogQuery` 로컬→UTC), `MainWindowViewModel`(LogViewModel+OpenPopupView "Log"+`OpenLogCommand`+오픈 시 1회 조회), `MainWindow.axaml`(Log 탭 플레이스홀더 → Log Viewer 버튼).
 
 **검증:** `dotnet build ACS.sln` 성공(0 오류, XAML 컴파일 포함). 런타임 재검증 필요(PostgreSQL+control 프로세스+GUI): `GET /api/logs?limit=20`의 time이 UTC(Z) 직렬화 확인 → UI Log Viewer에서 시간/레벨/키워드/프로세스/메시지명/TxId 필터 + TIME 컬럼 로컬 표시 + 행 선택 시 상세 패널 전체 메시지(4000자 초과 재조합) + Auto-Refresh(5초) 확인.
+
+---
+
+## 32. SignalR 차량 POSE 텔레메트리 수신 사양서 작성
+
+**날짜:** 2026-05-25
+**작업:** 차량 POSE(X,Y,Angle) 실시간 수신 경로(SignalR)의 사양을 `docs/signalr_pose_status.md`로 정리(문서만 작성, 코드 변경 없음).
+
+**정리된 흐름:** Trans 프로세스가 `RAIL-VEHICLEUPDATE`를 RabbitMQ fanout(`/VM/DEMO/UI/SENDER`)로 발행 → ACS.App `PoseTelemetrySubscriber`(BackgroundService, `RabbitMQ.Client` 직접 사용, 워크플로우 우회)가 구독 → `PoseX/PoseY` 존재 시 camelCase 페이로드로 `IHubContext<VehicleHub>.Clients.All.SendAsync("PoseUpdate", …)` 브로드캐스트(`/hubs/vehicle`) → ACS.UI `VehicleHubClient.On<PoseUpdateDto>("PoseUpdate")` → `PoseUpdated` 이벤트 → `App.axaml.cs`가 `Dispatcher.UIThread.Post` 마샬링 → `MapViewModel.ApplyPoseUpdate`(VehicleId 우선, CommId fallback, OrdinalIgnoreCase 매칭) → `DataChanged` 맵 리렌더.
+
+**핵심 사실:** 서버→클라 단방향, 이벤트명 `"PoseUpdate"` 단일. `VehicleHub`은 빈 Hub(발행은 `IHubContext`로). `WithAutomaticReconnect`. `MapViewModel.UpdateVehicles`가 REST 갱신 시 기존 실시간 POSE 머지(깜빡임 방지). `App.axaml.cs:44-45`에 `[TEMP DEBUG]` Console 로그 잔존(정리 대상). 동일 패턴 부 채널 `HostCommHub`(`/hubs/hostcomm`, `"Log"`/`"Connection"`)도 존재.
+
+---
+
+## 33. SignalR 차량 텔레메트리 확장 — POSE만 → POSE + 상태(배터리/노드/런상태/연결)
+
+**날짜:** 2026-05-25
+**작업:** CS→ACS.UI SignalR 푸시를 POSE 전용에서 RAIL-VEHICLEUPDATE의 상태 필드까지 포함하도록 확장. 송신(TS) 측은 무변경 — TS는 이미 원본 JSON 전체를 fanout으로 forward 중이라 상태 정보가 CS까지 다 도착해 있었고, CS의 `PoseTelemetrySubscriber`가 POSE만 추출하던 것이 병목이었다.
+
+**확정 범위(사용자 선택):** ①RAIL-VEHICLEUPDATE 필드만(알람 제외 — 알람은 별도 메시지 RAIL-VEHICLEALARM이고 UI fanout으로 forward 안 됨), ②맵(MapView)만(차량 목록 그리드 제외 — `VehicleDto`가 INotifyPropertyChanged 미구현이라 그리드 in-place 갱신 불가).
+
+**변경:**
+- `PoseTelemetrySubscriber.cs`: 이벤트명 `"PoseUpdate"`→`"VehicleUpdate"`, `PoseX/PoseY==null` 조기 드롭 제거(`Data==null`만 가드), 페이로드에 `runState/batteryRate/batteryVoltage/currentNodeId/vehicleDestNodeId/connectionState` 추가 + POSE는 nullable로 전송. (클래스명·DI 등록은 유지)
+- UI: `PoseUpdateDto`→`VehicleUpdateDto`(POSE nullable + 상태 필드), `VehicleHubClient` `PoseUpdated`→`VehicleUpdated`/`.On("VehicleUpdate")`, `App.axaml.cs`는 `ApplyVehicleUpdate(dto)` 호출(임시 `[TEMP DEBUG]` 로그 제거), `MapViewModel.ApplyPoseUpdate`→`ApplyVehicleUpdate`(상태는 항상 머지·문자열은 빈값이면 미덮어씀·`CurrentNodeId`는 노드변경 시에만 채워지므로 빈값 클리어 방지, POSE는 `HasValue`일 때만 갱신).
+
+**한계(범위 밖):** 알람/`State`/`ProcessingState`/`TransferState`는 메시지에 없어 여전히 REST 새로고침 시에만 갱신. 차량 목록 그리드도 REST 유지.
+
+**검증:** `dotnet build ACS.sln` 0 오류(경고 172, 기존). 런타임 재검증 필요: control 로그 `VehicleUpdate broadcast ...` + ACS.UI 맵에서 수동 새로고침 없이 배터리 바/호버 팝업(RunState/Battery/Node/Connection) 1Hz 갱신, DISCONNECT 시 차량 회색 전환, POSE 없는 상태 메시지에 위치 유지(0,0 안 튐).
+
+**문서:** `docs/signalr_pose_status.md` 갱신(제목·이벤트명·페이로드·한계 반영).

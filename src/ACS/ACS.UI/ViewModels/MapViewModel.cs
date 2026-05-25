@@ -203,19 +203,22 @@ public partial class MapViewModel : ObservableObject
     }
 
     /// <summary>
-    /// SignalR로 수신한 차량 실시간 POSE를 적용한다.
+    /// SignalR로 수신한 차량 실시간 텔레메트리(POSE + 상태)를 적용한다.
     /// 호출 측에서 UI 스레드 마샬링을 보장해야 한다(Dispatcher.UIThread.Post).
     /// VehicleId(DB PK) 또는 CommId(MQTT 식별자) 어느 쪽으로도 매칭되도록 OrdinalIgnoreCase 비교.
     /// 차량이 아직 목록에 없거나 두 키 모두 비어 있으면 무시.
+    /// 상태 필드는 항상 머지하되, POSE는 수신된 경우(non-null)에만 갱신하여
+    /// POSE 없는 상태 메시지가 기존 위치를 지우지 않도록 한다.
     /// </summary>
     private DateTime _lastNoMatchLogAt = DateTime.MinValue;
     private bool _loggedFirstMatch;
     private static readonly TimeSpan NoMatchLogInterval = TimeSpan.FromSeconds(5);
 
-    public void ApplyPoseUpdate(string vehicleId, string commId, float x, float y, float angle)
+    public void ApplyVehicleUpdate(VehicleUpdateDto dto)
     {
-        string vid = vehicleId?.Trim();
-        string cid = commId?.Trim();
+        if (dto == null) return;
+        string vid = dto.VehicleId?.Trim();
+        string cid = dto.CommId?.Trim();
         bool hasVid = !string.IsNullOrEmpty(vid);
         bool hasCid = !string.IsNullOrEmpty(cid);
         if (!hasVid && !hasCid) return;
@@ -232,7 +235,7 @@ public partial class MapViewModel : ObservableObject
             {
                 _lastNoMatchLogAt = now;
                 var known = string.Join(", ", _vehicles.Select(v => $"(vid={v.VehicleId},cid={v.CommId})"));
-                Console.WriteLine($"[ApplyPoseUpdate] no-match vid='{vehicleId}' cid='{commId}'; known=[{known}]");
+                Console.WriteLine($"[ApplyVehicleUpdate] no-match vid='{dto.VehicleId}' cid='{dto.CommId}'; known=[{known}]");
             }
             return;
         }
@@ -240,12 +243,23 @@ public partial class MapViewModel : ObservableObject
         if (!_loggedFirstMatch)
         {
             _loggedFirstMatch = true;
-            Console.WriteLine($"[ApplyPoseUpdate] match-ok vid='{vehicleId}' cid='{commId}' -> vehicle.VehicleId='{vehicle.VehicleId}' CommId='{vehicle.CommId}'");
+            Console.WriteLine($"[ApplyVehicleUpdate] match-ok vid='{dto.VehicleId}' cid='{dto.CommId}' -> vehicle.VehicleId='{vehicle.VehicleId}' CommId='{vehicle.CommId}'");
         }
 
-        vehicle.PoseX = x;
-        vehicle.PoseY = y;
-        vehicle.PoseAngle = angle;
+        // 상태 필드 머지. 문자열은 비어 있으면 기존 값을 덮어쓰지 않는다
+        // (특히 CurrentNodeId는 노드 변경 시에만 채워지므로 빈 값으로 클리어되면 안 됨).
+        if (!string.IsNullOrEmpty(dto.RunState)) vehicle.RunState = dto.RunState;
+        if (!string.IsNullOrEmpty(dto.ConnectionState)) vehicle.ConnectionState = dto.ConnectionState;
+        if (!string.IsNullOrEmpty(dto.CurrentNodeId)) vehicle.CurrentNodeId = dto.CurrentNodeId;
+        if (!string.IsNullOrEmpty(dto.VehicleDestNodeId)) vehicle.VehicleDestNodeId = dto.VehicleDestNodeId;
+        vehicle.BatteryRate = dto.BatteryRate;
+        vehicle.BatteryVoltage = dto.BatteryVoltage;
+
+        // POSE는 수신된 경우에만 갱신.
+        if (dto.PoseX.HasValue) vehicle.PoseX = dto.PoseX;
+        if (dto.PoseY.HasValue) vehicle.PoseY = dto.PoseY;
+        if (dto.PoseAngle.HasValue) vehicle.PoseAngle = dto.PoseAngle;
+
         DataChanged?.Invoke();
     }
 }
