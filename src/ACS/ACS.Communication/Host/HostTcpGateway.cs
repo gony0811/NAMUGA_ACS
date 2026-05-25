@@ -144,7 +144,8 @@ namespace ACS.Communication.Host
                         }
 
                         string msgName = HostMessageProtocol.ExtractMessageName(xml);
-                        logger.Info($"[HostTcpGateway] Received: {msgName} ({xml.Length} bytes)");
+                        // 외부(MES) 수신 메시지 — 전체 본문까지 DB 로그(NA_L_LOGMESSAGE)에 남긴다.
+                        logger.Info($"[RECV←MES] {msgName} ({xml.Length} bytes) from {remote}\n{xml}");
 
                         try
                         {
@@ -202,7 +203,8 @@ namespace ACS.Communication.Host
             try
             {
                 HostMessageProtocol.ConnectAndSendAsync(SendHost, SendPort, messageBody).GetAwaiter().GetResult();
-                logger.Info($"[HostTcpGateway] Sent: {messageName} ({messageBody.Length} bytes) to {remote}");
+                // 외부(MES) 송신 메시지 — 전체 본문까지 DB 로그에 남긴다.
+                logger.Info($"[SENT→MES] {messageName} ({messageBody.Length} bytes) to {remote}\n{messageBody}");
                 SafeRaise(MessageSent, new HostTcpMessageSentEventArgs
                 {
                     MessageName = messageName,

@@ -186,14 +186,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                         break;
                 }
 
-                if (useCommunicationMessageNameForLogging)
-                {
-                    //logger.well(message + " was sent to " + dest, communicationMessageName);
-                }
-                else
-                {
-                    //logger.well(message + " was sent to " + dest);
-                }
+                LogCommMessage("SENT→", message, dest, communicationMessageName);
             }
             catch(Exception e)
             {
@@ -230,14 +223,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                         break;
                 }
 
-                if (useCommunicationMessageNameForLogging)
-                {
-                    //logger.well(message + " was sent to " + dest, communicationMessageName);
-                }
-                else
-                {
-                    //logger.well(message + " was sent to " + dest);
-                }
+                LogCommMessage("SENT→", document.InnerXml, destination, communicationMessageName);
             }
             catch (Exception e)
             {
@@ -276,14 +262,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                         break;
                 }
 
-                if (useCommunicationMessageNameForLogging)
-                {
-                    //logger.well(message + " was sent to " + dest, communicationMessageName);
-                }
-                else
-                {
-                    //logger.well(message + " was sent to " + dest);
-                }
+                LogCommMessage("SENT→", obj as string, destination, communicationMessageName);
             }
             catch (Exception e)
             {
@@ -442,9 +421,11 @@ namespace ACS.Communication.Msb.RabbitMQ
                         logger.Debug($"[HB-DIAG] request publish dest={dest} replyTo={props?.ReplyTo} corrId={props?.CorrelationId}");
                     var body = Encoding.UTF8.GetBytes(message);
                     Session.BasicPublish(exchange: "", routingKey: dest, basicProperties: props, body: body);
+                    LogCommMessage("RPC-REQ→", message, dest, communicationMessageName);
 
                     if (respQueue.TryTake(out string replyMessage, (int)timeout))
                     {
+                        LogCommMessage("RPC-REP←", replyMessage, dest, communicationMessageName);
                         return replyMessage;
                     }
                     else

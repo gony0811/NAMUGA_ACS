@@ -31,5 +31,9 @@ namespace ACS.Core.Logging
         LogMessage CreateLogMessageInstance();
 
         LargeLogMessage CreateLargeLogMessageInstance(int paramInt);
+
+        void Start();
+
+        void Flush();
     }
 }

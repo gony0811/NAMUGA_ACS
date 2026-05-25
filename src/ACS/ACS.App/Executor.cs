@@ -193,11 +193,26 @@ namespace ACS.App
                 MigrateBayTable(dbContext);
                 MigrateZoneTable(dbContext);
                 MigrateMqttTable(dbContext);
+                MigrateLogMessageTable(dbContext);
             }
             catch (Exception ex)
             {
                 logger.Error(ex, "Failed to initialize database schema.");
                 throw;
+            }
+
+            // DB 로깅(NA_L_LOGMESSAGE) 활성화: 공용 LogManager 주입 + 비동기 큐 소비자 기동.
+            // DB 스키마 초기화(연결 문자열 캐싱) 직후에 수행하여, 소비자가 항상 올바른 연결로 적재하도록 한다.
+            // 이 시점 이전의 startup 로그는 DefaultLogManager 미설정으로 DB 미기록(파일/콘솔에는 기록)된다.
+            try
+            {
+                var logManager = _container.Resolve<ACS.Core.Logging.ILogManager>();
+                ACS.Core.Logging.Logger.DefaultLogManager = logManager;
+                logManager.Start();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to initialize database logging (LogManager).");
             }
 
             var initializer = _container.Resolve<ApplicationInitializer>();
@@ -261,6 +276,13 @@ namespace ACS.App
                 {
                     service.StopAsync(System.Threading.CancellationToken.None).GetAwaiter().GetResult();
                 }
+            }
+            catch { }
+
+            // DB 로깅 큐 잔여분 flush (컨테이너 Dispose 전)
+            try
+            {
+                _container.Resolve<ACS.Core.Logging.ILogManager>().Flush();
             }
             catch { }
 
@@ -598,6 +620,57 @@ END $$;
             catch (Exception ex)
             {
                 logger.Warning(ex, "MQTT table migration skipped or failed (table may not exist yet).");
+            }
+        }
+
+        /// <summary>
+        /// DB 로깅용 NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE 테이블 존재 보장.
+        /// EnsureCreated()는 acsdb가 이미 있으면 새 테이블을 만들지 않으므로, 구 DB에 이 테이블이
+        /// 없을 수 있다. CREATE TABLE IF NOT EXISTS로 안전하게 보장한다.
+        /// 컬럼 정의는 docker/init/01_init_acsdb.sql 과 동일.
+        /// </summary>
+        private void MigrateLogMessageTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+CREATE TABLE IF NOT EXISTS public.""NA_L_LOGMESSAGE"" (
+    id character varying(64) NOT NULL,
+    ""transactionId"" character varying(64),
+    ""threadName"" character varying(64),
+    ""operationName"" character varying(128),
+    ""processName"" character varying(64),
+    ""messageName"" character varying(64),
+    ""communicationMessageName"" character varying(64),
+    ""transportCommandId"" character varying(64),
+    ""carrierName"" character varying(64),
+    ""machineName"" character varying(64),
+    ""unitName"" character varying(64),
+    text character varying(4000),
+    ""logLevel"" character varying(20),
+    ""WorkflowLog"" boolean NOT NULL DEFAULT false,
+    ""SaveToDatabase"" boolean NOT NULL DEFAULT true,
+    ""partitionId"" integer NOT NULL DEFAULT 0,
+    ""time"" timestamp with time zone,
+    CONSTRAINT ""PK_NA_L_LOGMESSAGE"" PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public.""NA_L_LARGELOGMESSAGE"" (
+    id character varying(64) NOT NULL,
+    ""logMessageId"" character varying(64),
+    ""largeText"" text,
+    sequence integer NOT NULL DEFAULT 0,
+    ""partitionId"" integer NOT NULL DEFAULT 0,
+    ""time"" timestamp with time zone,
+    CONSTRAINT ""PK_NA_L_LARGELOGMESSAGE"" PRIMARY KEY (id)
+);
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("LogMessage table existence check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "LogMessage table migration skipped or failed.");
             }
         }
 

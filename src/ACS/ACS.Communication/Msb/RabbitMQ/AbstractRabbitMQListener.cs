@@ -19,21 +19,7 @@ namespace ACS.Communication.Msb.RabbitMQ
 {
     public abstract class AbstractRabbitMQListener : AbstractRabbitMQ, IMsbControllable
     {
-        // 1초 간격 텔레메트리/스케줄 메시지는 Debug 로 강등하여 운영 시 잡음 억제.
-        // 운영: Serilog MinimumLevel=Information(기본 침묵), 디버깅: Debug(전체 흐름 가시화).
-        protected static readonly HashSet<string> _telemetryMessageNames = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "SCHEDULE-CHECKVEHICLES", "RAIL-VEHICLEUPDATE", "RAIL-VEHICLEALARM",
-            "CONTROL-HEARTBEAT", "CONTROL-STARTHEARTBEAT", "RAIL-VEHICLEHEARTBEAT"
-        };
-        protected static bool IsTelemetryJsonMessage(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return false;
-            // 빠른 substring 검사 — 정식 JSON 파싱 부담 회피
-            foreach (var name in _telemetryMessageNames)
-                if (json.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            return false;
-        }
+        // telemetry/heartbeat 판별 및 통신 메시지 로깅 헬퍼는 베이스 AbstractRabbitMQ로 이동(송수신 공용).
 
         public ChannelDestination Destination { get; set; }
         public IModel ListenerChannel { get; set; }
@@ -232,7 +218,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                 // JSON 메시지 감지: '{' 로 시작하면 JSON으로 처리
                 if (IsJsonMessage(message))
                 {
-                    logger.Info($"RPC received JSON message from {dest}");
+                    LogCommMessage("RECV←", message, dest, null);
                     OnJsonMessage(message, dest);
                 }
                 else
@@ -279,7 +265,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                         XmlDocument document = (XmlDocument)obj;
                         MessageConverterUtils.SetOriginatedName(document, this.QueueName);
 
-                        logger.Info("received message : " + document.InnerXml);
+                        LogCommMessage("RECV←", document.InnerXml, this.QueueName, null);
 
                         OnMessage(document, dest);
                     }
@@ -350,7 +336,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                     XmlDocument document = (XmlDocument)obj;
                     MessageConverterUtils.SetOriginatedName(document, this.QueueName);
 
-                    logger.Info("received message : " + document.InnerXml);
+                    LogCommMessage("RECV←", document.InnerXml, this.QueueName, null);
 
                     OnMessage(document, dest);
                 }
@@ -369,7 +355,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                     {
                         abstractMessage.OriginatedName = this.QueueName;
                     }
-                    logger.Info("received message : " + abstractMessage.MessageName);
+                    LogCommMessage("RECV←", message, this.QueueName, abstractMessage.MessageName);
                     OnMessage(abstractMessage);
                 }
                 else
@@ -431,7 +417,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                     XmlDocument document = (XmlDocument)obj;
                     MessageConverterUtils.SetOriginatedName(document, this.QueueName);
 
-                    logger.Info("received message : " + document.InnerXml);
+                    LogCommMessage("RECV←", document.InnerXml, this.QueueName, null);
 
                     OnMessage(document, dest);
                 }
@@ -450,7 +436,7 @@ namespace ACS.Communication.Msb.RabbitMQ
                     {
                         abstractMessage.OriginatedName = this.QueueName;
                     }
-                    logger.Info("received message : " + abstractMessage.MessageName);
+                    LogCommMessage("RECV←", message, this.QueueName, abstractMessage.MessageName);
                     OnMessage(abstractMessage);
                 }
                 else

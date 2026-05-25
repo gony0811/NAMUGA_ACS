@@ -30,6 +30,9 @@ public partial class MainWindowViewModel : ObservableObject
     private DataViewViewModel _dataViewViewModel;
 
     [ObservableProperty]
+    private LogViewModel _logViewModel;
+
+    [ObservableProperty]
     private ApplicationViewModel _applicationViewModel;
 
     [ObservableProperty]
@@ -104,6 +107,7 @@ public partial class MainWindowViewModel : ObservableObject
         _dashboardViewModel = new DashboardViewModel();
         _summaryViewModel = new SummaryViewModel();
         _dataViewViewModel = new DataViewViewModel();
+        _logViewModel = new LogViewModel(_apiService);
         _applicationViewModel = new ApplicationViewModel();
         _appManagementViewModel = new AppManagementViewModel(_apiService);
         _nioViewModel = new NioViewModel();
@@ -138,6 +142,7 @@ public partial class MainWindowViewModel : ObservableObject
             "AppManagement" => ("Application Management", (Control)new AppManagementView { DataContext = AppManagementViewModel }),
             "Nio" => ("NIO", (Control)new NioView { DataContext = NioViewModel }),
             "HostCommunication" => ("Host Communication - TCP", (Control)new HostCommunicationView { DataContext = HostCommunicationViewModel }),
+            "Log" => ("Log Viewer", (Control)new LogView { DataContext = LogViewModel }),
             "Node" => ("Node", (Control)new NodeView { DataContext = NodeViewModel }),
             "Station" => ("Station", (Control)new StationView { DataContext = StationViewModel }),
             "Link" => ("Link", (Control)new LinkView { DataContext = LinkViewModel }),
@@ -183,7 +188,13 @@ public partial class MainWindowViewModel : ObservableObject
             _ = PortViewModel.LoadLocationsAsync();
         if (viewName == "LinkZone")
             _ = LinkZoneViewModel.LoadLinkZonesAsync();
+        if (viewName == "Log")
+            _ = LogViewModel.SearchCommand.ExecuteAsync(null);   // 창 오픈 시 기본 범위 1회 조회
     }
+
+    /// <summary>Log 리본 버튼 → Log Viewer 팝업 열기.</summary>
+    [RelayCommand]
+    private void OpenLog() => OpenPopupView("Log");
 
     public async Task LoadInitialDataAsync() => await RefreshAsync();
 

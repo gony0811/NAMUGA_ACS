@@ -56,7 +56,8 @@ namespace ACS.App.Host
         {
             try
             {
-                _logger.Info($"[Bridge] Received from host: {e.MessageName}, length={e.MessageBody?.Length ?? 0}\n---- RAW MESSAGE ----\n{e.MessageBody}\n---- END MESSAGE ----");
+                // 전체 본문은 HostTcpGateway(외부 경계)에서 [RECV←MES]로 남긴다. 여기선 라우팅 추적용 요약만.
+                _logger.Info($"[Bridge] Received from host: {e.MessageName}, length={e.MessageBody?.Length ?? 0}");
 
                 var xmlDoc = ParseXml(e.MessageBody);
                 if (xmlDoc == null)

@@ -240,6 +240,34 @@ namespace ACS.Database
             }
         }
 
+        public void SaveAll(ICollection collection)
+        {
+            if (collection == null || collection.Count == 0) return;
+
+            int tryCount = 0;
+            do
+            {
+                try
+                {
+                    using var db = NewDb();
+                    foreach (var obj in collection)
+                    {
+                        if (obj == null) continue;
+                        NormalizeDateTimeProperties(obj);
+                        db.Add(obj);
+                    }
+                    db.SaveChanges();
+                    return;
+                }
+                catch (Exception)
+                {
+                    tryCount++;
+                    if (tryCount > dataAccessRetryCount) throw;
+                    System.Threading.Thread.Sleep((int)dataAccessRetrySleep);
+                }
+            } while (tryCount <= dataAccessRetryCount);
+        }
+
         public void SaveOrUpdate(object obj)
         {
             NormalizeDateTimeProperties(obj);

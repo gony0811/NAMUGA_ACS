@@ -19,6 +19,8 @@ namespace ACS.Core.Base.Interface
 
         bool Save(Object obj, bool flag);
 
+        void SaveAll(ICollection collection);
+
         void SaveOrUpdate(Object obj);
 
         void Flush();

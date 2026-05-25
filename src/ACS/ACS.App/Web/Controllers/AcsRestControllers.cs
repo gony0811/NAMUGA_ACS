@@ -1,8 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ACS.Communication.Http.Models;
+using ACS.Core.Logging.Model;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
@@ -829,6 +833,141 @@ namespace ACS.App.Web.Controllers
             _control.SaveHeartBeatOptions();
 
             return Ok(new { success = true });
+        }
+    }
+
+    /// <summary>
+    /// 로그 조회 엔드포인트. NA_L_LOGMESSAGE(본문) + NA_L_LARGELOGMESSAGE(4000자 초과 분할 텍스트)를
+    /// 시간 범위 + 필터로 조회한다. 시간 비교/반환은 모두 UTC 기준이며, 로컬↔UTC 변환은 클라이언트(ACS.UI)가 담당한다.
+    /// </summary>
+    [ApiController]
+    [Route("api/logs")]
+    public class LogsController : ControllerBase
+    {
+        private readonly ACS.Database.AcsDbContext _db;
+
+        public LogsController(ACS.Database.AcsDbContext db)
+        {
+            _db = db;
+        }
+
+        // GET /api/logs?from=&to=&level=&keyword=&process=&messageName=&transactionId=&limit=
+        // from/to는 ISO-8601 UTC 문자열. 모든 필터는 선택값.
+        [HttpGet]
+        public ActionResult<List<LogMessageDto>> Get(
+            [FromQuery] string from = null,
+            [FromQuery] string to = null,
+            [FromQuery] string level = null,
+            [FromQuery] string keyword = null,
+            [FromQuery] string process = null,
+            [FromQuery] string messageName = null,
+            [FromQuery] string transactionId = null,
+            [FromQuery] int limit = 1000)
+        {
+            if (limit <= 0) limit = 1000;
+            if (limit > 5000) limit = 5000;
+
+            IQueryable<LogMessage> q = _db.LogMessages.AsNoTracking();
+
+            if (TryParseUtc(from, out var fromUtc))
+                q = q.Where(x => x.Time >= fromUtc);
+            if (TryParseUtc(to, out var toUtc))
+                q = q.Where(x => x.Time <= toUtc);
+            if (!string.IsNullOrWhiteSpace(level) &&
+                !string.Equals(level, "All", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.LogLevel == level);
+            if (!string.IsNullOrWhiteSpace(process))
+                q = q.Where(x => x.ProcessName == process);
+            if (!string.IsNullOrWhiteSpace(messageName))
+                q = q.Where(x => x.MessageName == messageName);
+            if (!string.IsNullOrWhiteSpace(transactionId))
+                q = q.Where(x => x.TransactionId == transactionId);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                q = q.Where(x => EF.Functions.ILike(x.Text, "%" + keyword + "%"));
+
+            var rows = q.OrderByDescending(x => x.Time).Take(limit).ToList();
+
+            var dtos = new List<LogMessageDto>(rows.Count);
+            foreach (var x in rows)
+            {
+                dtos.Add(new LogMessageDto
+                {
+                    Id = x.Id,
+                    Time = ToUtc(x.Time),
+                    LogLevel = x.LogLevel,
+                    ProcessName = x.ProcessName,
+                    MessageName = x.MessageName,
+                    CommunicationMessageName = x.CommunicationMessageName,
+                    TransactionId = x.TransactionId,
+                    TransportCommandId = x.TransportCommandId,
+                    OperationName = x.OperationName,
+                    ThreadName = x.ThreadName,
+                    CarrierName = x.CarrierName,
+                    MachineName = x.MachineName,
+                    UnitName = x.UnitName,
+                    Text = x.Text,
+                    HasLargeText = string.IsNullOrEmpty(x.Text)
+                });
+            }
+            return dtos;
+        }
+
+        // GET /api/logs/{id}/text — NA_L_LARGELOGMESSAGE를 Sequence 순으로 재조합한 전체 텍스트.
+        // 분할 텍스트가 없으면 본문 Text를 반환한다.
+        [HttpGet("{id}/text")]
+        public ActionResult<string> GetText(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return BadRequest(new { error = "id가 필요합니다." });
+
+            var parts = _db.LargeLogMessages.AsNoTracking()
+                .Where(l => l.LogMessageId == id)
+                .OrderBy(l => l.Sequence)
+                .Select(l => l.LargeText)
+                .ToList();
+
+            if (parts.Count > 0)
+                return string.Concat(parts);
+
+            var text = _db.LogMessages.AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => x.Text)
+                .FirstOrDefault();
+            return text ?? string.Empty;
+        }
+
+        /// <summary>쿼리 문자열(ISO-8601)을 UTC DateTime(Kind=Utc)으로 파싱.</summary>
+        private static bool TryParseUtc(string s, out DateTime utc)
+        {
+            utc = default;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var dto))
+            {
+                utc = dto.UtcDateTime; // Kind=Utc
+                return true;
+            }
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var dt))
+            {
+                utc = dt.Kind == DateTimeKind.Utc ? dt
+                    : dt.Kind == DateTimeKind.Local ? dt.ToUniversalTime()
+                    : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>읽어온 Time을 Kind에 관계없이 UTC(Kind=Utc)로 정규화. (Npgsql legacy read Kind 차이 방어.)</summary>
+        private static DateTime? ToUtc(DateTime? t)
+        {
+            if (t is not { } v) return null;
+            return v.Kind switch
+            {
+                DateTimeKind.Utc => v,
+                DateTimeKind.Local => v.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            };
         }
     }
 }

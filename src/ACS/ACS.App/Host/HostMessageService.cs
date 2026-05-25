@@ -142,6 +142,7 @@ namespace ACS.App.Host
             }
 
             string xml = document.OuterXml;
+            // 전체 본문은 HostTcpGateway(외부 경계)에서 [SENT→MES]로 남긴다. 여기선 요약만.
             _logger.Info($"[HostMessageService] Sending {messageName} ({xml.Length} bytes)");
             _tcpGateway.SendToHost(messageName, xml);
         }

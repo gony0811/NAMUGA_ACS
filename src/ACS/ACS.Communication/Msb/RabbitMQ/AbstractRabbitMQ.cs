@@ -93,6 +93,56 @@ namespace ACS.Communication.Msb.RabbitMQ
             defaultTTL = 60000L;
         }
 
+        // ── 통신 메시지 DB 로깅 (telemetry/heartbeat 제외) ───────────────────────────
+        // 1초 간격 텔레메트리/스케줄/하트비트 메시지는 DB에 남기지 않고 Debug로만 강등한다.
+        // 운영: Serilog MinimumLevel=Information(기본 침묵), 디버깅: Debug(전체 흐름 가시화).
+        protected static readonly HashSet<string> _telemetryMessageNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SCHEDULE-CHECKVEHICLES", "RAIL-VEHICLEUPDATE", "RAIL-VEHICLEALARM",
+            "CONTROL-HEARTBEAT", "CONTROL-STARTHEARTBEAT", "RAIL-VEHICLEHEARTBEAT"
+        };
+
+        protected static bool IsTelemetryName(string name)
+        {
+            return !string.IsNullOrEmpty(name) && _telemetryMessageNames.Contains(name);
+        }
+
+        protected static bool IsTelemetryJsonMessage(string payload)
+        {
+            if (string.IsNullOrEmpty(payload)) return false;
+            // 빠른 substring 검사 — 정식 파싱 부담 회피
+            foreach (var name in _telemetryMessageNames)
+                if (payload.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// 송수신 통신 메시지를 DB 로그(NA_L_LOGMESSAGE)로 남긴다.
+        /// telemetry/heartbeat 류는 Debug로 강등(DB 미적재), 그 외는 INFO로 전체 본문 적재.
+        /// 빈 컨텍스트 필드(carrier/command/machine/unit/transactionId)는 ambient LogContext가 보강한다.
+        /// 로깅 실패가 통신 자체를 막지 않도록 예외는 삼킨다.
+        /// </summary>
+        protected void LogCommMessage(string direction, string payload, string peer, string communicationMessageName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(payload)) return;
+
+                string msgName = communicationMessageName ?? "";
+                string text = "[" + direction + " " + peer + "] " + payload;
+
+                if (IsTelemetryName(msgName) || IsTelemetryJsonMessage(payload))
+                {
+                    if (logger.IsDebugEnabled) logger.Debug(text);
+                }
+                else
+                {
+                    logger.Well(text, "", msgName, "", "", "", "", msgName);
+                }
+            }
+            catch { /* 통신 로깅 실패는 무시 */ }
+        }
+
         public IModel CreateSession()
         {
             IModel session = null;

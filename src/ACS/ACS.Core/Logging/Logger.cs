@@ -27,8 +27,25 @@ namespace ACS.Core.Logging
         private ILogger log;
         private bool isConfigured = true; // Serilog는 항상 구성됨
 
+        /// <summary>
+        /// 모든 Logger 인스턴스가 공유하는 기본 LogManager.
+        /// 기동 시 Executor가 DI로 해석한 ILogManager를 1회 주입한다.
+        /// GetLogger 팩토리가 생성하는 인스턴스의 logManager 초기값으로 사용된다.
+        /// </summary>
+        public static ILogManager DefaultLogManager { get; set; }
+
         public string Name { get; set; }
-        public ILogManager logManager { get; set; }
+
+        private ILogManager _logManager;
+        /// <summary>
+        /// 인스턴스에 명시적으로 설정된 LogManager. 미설정(null)이면 공용 <see cref="DefaultLogManager"/>로 폴백한다.
+        /// 이렇게 하면 DefaultLogManager 주입 전에 생성된 Logger도 주입 후 DB 경로를 사용할 수 있다.
+        /// </summary>
+        public ILogManager logManager
+        {
+            get => _logManager ?? DefaultLogManager;
+            set => _logManager = value;
+        }
         public ILogger Log
         {
             get

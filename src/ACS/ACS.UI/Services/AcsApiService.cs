@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -428,5 +429,54 @@ public class AcsApiService : IAcsApiService
         {
             return false;
         }
+    }
+
+    public async Task<List<LogMessageDto>> GetLogsAsync(LogQueryFilter filter)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<LogMessageDto>>("/api/logs" + BuildLogQuery(filter), _jsonOptions)
+                   ?? new List<LogMessageDto>();
+        }
+        catch
+        {
+            return new List<LogMessageDto>();
+        }
+    }
+
+    public async Task<string> GetLogTextAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return string.Empty;
+        try
+        {
+            return await _httpClient.GetStringAsync($"/api/logs/{Uri.EscapeDataString(id)}/text");
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    // 필터를 쿼리스트링으로 변환. From/To(로컬)는 UTC ISO-8601("o")로 변환해 전송한다.
+    private static string BuildLogQuery(LogQueryFilter f)
+    {
+        if (f == null) return string.Empty;
+        var parts = new List<string>();
+        if (f.FromLocal.HasValue)
+            parts.Add("from=" + Uri.EscapeDataString(f.FromLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (f.ToLocal.HasValue)
+            parts.Add("to=" + Uri.EscapeDataString(f.ToLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (!string.IsNullOrWhiteSpace(f.Level) && f.Level != "All")
+            parts.Add("level=" + Uri.EscapeDataString(f.Level));
+        if (!string.IsNullOrWhiteSpace(f.Keyword))
+            parts.Add("keyword=" + Uri.EscapeDataString(f.Keyword));
+        if (!string.IsNullOrWhiteSpace(f.ProcessName))
+            parts.Add("process=" + Uri.EscapeDataString(f.ProcessName));
+        if (!string.IsNullOrWhiteSpace(f.MessageName))
+            parts.Add("messageName=" + Uri.EscapeDataString(f.MessageName));
+        if (!string.IsNullOrWhiteSpace(f.TransactionId))
+            parts.Add("transactionId=" + Uri.EscapeDataString(f.TransactionId));
+        parts.Add("limit=" + f.Limit.ToString(CultureInfo.InvariantCulture));
+        return "?" + string.Join("&", parts);
     }
 }

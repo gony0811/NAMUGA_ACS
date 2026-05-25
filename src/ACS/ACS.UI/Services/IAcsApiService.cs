@@ -41,4 +41,8 @@ public interface IAcsApiService
     Task<bool> DeleteLinkZoneAsync(string linkZoneId);
     Task<HeartbeatSettingsDto?> GetHeartbeatSettingsAsync();
     Task<bool> UpdateHeartbeatSettingsAsync(HeartbeatSettingsDto settings);
+
+    // 로그 조회 (NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE)
+    Task<List<LogMessageDto>> GetLogsAsync(LogQueryFilter filter);
+    Task<string> GetLogTextAsync(string id);
 }

@@ -784,3 +784,97 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **Why:** 운영/튜닝 중 재빌드·재배포 없이 heartbeat 동작 조정. 영구 저장은 기존 NA_X_OPTION 인프라 재사용(Id 8001~8009, trans 1xxx~7xxx과 대역 분리). 기존 패턴(ApplicationsController·AcsApiService·BayEditWindow 입력 그리드) mirror.
 
 **검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임 검증 필요(`D:\ACS\deploy\CS01_P`에 ACS.App/ACS.Communication/ACS.Core dll, UI 실행 위치에 UI 산출물 재배포 후): Application 화면 "Heartbeat 설정"에 현재값 로드 → 변경·저장 시 즉시 반영 + DB 8001~8009 생성/갱신 → control 재시작 후 유지. NumericUpDown(decimal?)↔long/int 바인딩 빌드 0 오류.
+
+## 27. DB 로깅(NA_L_LOGMESSAGE) 활성화 — 휴면 상태였던 기존 경로를 비동기 큐로 기동
+
+**날짜:** 2026-05-24
+**작업:** WARN 이상 ACS 도메인 로그를 `NA_L_LOGMESSAGE`에 적재. 조사 결과 DB 로깅 인프라가 이미 구현되어 있었으나 휴면 상태였고(새 Serilog sink 불필요), 이를 "켜는" 방식으로 처리. 결정: ACS 도메인 로그만 / WARN 이상 / 비동기 백그라운드 큐.
+
+**휴면 원인(3가지):** ① `Logger.GetLogger()`(static 팩토리)가 `logManager`를 연결 안 함 → `AbstractManager/Service`의 logger 전부 `logManager==null`(통신 클래스 `AbstractRabbitMQ/Highway101`만 수동 연결). ② `LogManagerImpl.UseAdoDotNetAppender` 기본 false → DB 저장 스킵. ③ `SkipLoggingMessages` null(NRE 위험), `LogLevel` 미설정.
+
+**중요 사실:** `AcsDbContext.cs:18` `using ACS.Core.Logging.Model;` 때문에 `DbSet<LogMessage>`/`Entity<LogMessage>`(775행)는 **`ACS.Core.Logging.Model.LogMessage`**를 매핑(=Logger/LogManagerImpl이 쓰는 타입). `Database.Model.Logging.LogMessage`는 미사용 중복 클래스.
+
+**변경:**
+- `ACS.Core/Logging/Logger.cs`: `static ILogManager DefaultLogManager` 추가. `logManager`를 getter-폴백 프로퍼티로 변경(`_logManager ?? DefaultLogManager`) — DefaultLogManager 주입 전 생성된 logger도 주입 후 DB 경로 사용.
+- `ACS.Core/Logging/Implement/LogManagerImpl.cs`: `Channel<LogMessage>` 비동기 큐(Bounded, `FullMode=DropWrite`). `CreateLogMessage(...)` 2개를 동기 `PersistentDao.Save` → `Enqueue()`로 전환. `Start()`(소비자 Task, BatchSize 드레인→`SaveAll`)/`Flush()`(Writer.Complete+대기) 추가. `PrepareForPersist()`로 text 분할 로직 이동(+기존 `Substring(start,end)` 길이 버그 수정→`Min(fieldSize, size-start)`). `CreateLargeLogMessageInstance` `NotImplementedException` 수정. `SkipLoggingMessages` null 가드.
+- `ACS.Core/Logging/ILogManager.cs`: `Start()`/`Flush()` 선언 추가.
+- `ACS.Core/Base/Interface/IPersistentDao.cs` + `ACS.App/Database/EfCorePersistentDao.cs`: `SaveAll(ICollection)` 추가(단일 DbContext AddRange+SaveChanges 1회, Save와 동일 retry).
+- `ACS.App/Modules/CoreModule.cs`: `LogManagerImpl` 등록을 `.PropertiesAutowired()`→명시적 `Register(c=>...)`로 교체. `Acs:Logging:Database`(Enabled/Level/QueueCapacity/BatchSize) 주입, `UseAdoDotNetAppender=enabled`, `LogLevel`(기본 WARN), `SkipLoggingMessages=new ArrayList()`, `UseShortClassNameAtOperationName=true`.
+- `ACS.App/appsettings.json`: `Acs:Logging:Database` 섹션 추가(Enabled=true/Level=WARN/QueueCapacity=10000/BatchSize=200).
+- `ACS.App/Executor.cs`: `OnContainerBuilt`의 **DB 스키마 초기화 직후**(연결 문자열 캐싱 보장)에 `Logger.DefaultLogManager` 주입 + `logManager.Start()`. `Stop()`에서 hosted service 종료 후 `Flush()`.
+
+**Why:** ① DB 저장은 `LogManager.LogLevelInt`로 제어되어 파일/콘솔 Serilog 설정과 독립(파일/콘솔=MinimumLevel Debug 유지, DB만 WARN+). ② `Debug`는 `Logger.Debug`가 `SaveMessageToDatabase`를 호출하지 않아 어떤 경우에도 DB 미저장. ③ Start를 DB 스키마 init 이후로 둔 이유: `EfCorePersistentDao.NewDb()`는 파라미터 없는 `AcsDbContext()`→static `_cachedConnectionString` 사용, 이 캐시는 config 포함 생성(=EnsureCreated 시) 시점에 채워지므로 그 이전 소비자 쓰기는 localhost 폴백 위험. 그 전 startup 로그는 DefaultLogManager=null이라 DB 미기록(파일/콘솔엔 남음)으로 안전 스킵. ④ 모든 프로세스가 공통 `CoreModule`+`OnContainerBuilt`를 거쳐 일괄 적용.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임 검증 필요: 프로세스 기동 후 WARN/ERROR 유발 → `SELECT time,"logLevel","operationName",text,"carrierName","machineName" FROM public."NA_L_LOGMESSAGE" ORDER BY time DESC LIMIT 20;`로 Warning/Error/Fatal 행만·도메인 컬럼 채워짐 확인. Info/Debug는 DB 미존재(파일엔 존재)·다량 WARN 버스트 시 호출 스레드 정체 없음·종료 시 잔여 flush 확인.
+
+## 28. DB 로깅 런타임 크래시 수정 — ChangeCommunicationMessageName null-key + 조용한 실패 제거
+
+**날짜:** 2026-05-25
+**작업:** [[27. DB 로깅 활성화]] 후 DB에 로그가 전혀 안 들어가던 문제. 사용자 제공 스택 트레이스로 원인 확정 후 수정.
+
+**근본 원인:** `LogManagerImpl.ChangeCommunicationMessageName`가 `UseFriendlyCommunicationMessageNames.Contains(communicationMessageName)` 호출 → 이 컬렉션은 `Dictionary`(IDictionary)이고 일반 로그는 `CommunicationMessageName==null` → `Dictionary.Contains(null)`이 `ArgumentNullException` throw. `CreateLogMessage`의 `catch{Console.WriteLine}`에만 잡혀 **거의 모든 로그가 enqueue 전에 조용히 버려짐**. 원래 있던 잠재 버그가 #27의 경로 활성화로 드러남(과거엔 휴면이라 호출 안 됨). 참고: `SkipLoggingMessages`는 `ArrayList`라 `Contains(null)`이 예외 없음 → 그래서 그 가드만으론 못 막았음.
+
+**변경(`LogManagerImpl.cs` + `Executor.cs`):**
+- `ChangeCommunicationMessageName`: `string.IsNullOrEmpty(name) || dict==null`이면 즉시 return (블로커 수정).
+- 오류 가시성: 모든 `catch`의 `Console.WriteLine` → `LogInternalError()`(=`Serilog.Log.ForContext(...).Error`). **무한루프 방지 위해 ACS `Logger` 래퍼 절대 사용 금지**(Serilog 파이프라인은 LogManager 미호출이라 안전).
+- varchar 초과 방지: `PrepareForPersist` 진입 시 `NormalizeLengths()` — operationName→128, logLevel→20, 그 외 문자열 컬럼→64로 truncate. (한 행만 초과해도 `SaveAll`의 SaveChanges가 배치 전체 롤백되던 다음 단계 silent 실패 차단. operationName은 `UseShortClassNameAtOperationName=true`라 클래스FQN.메서드라 길어질 수 있음)
+- 테이블 안전망: `Executor.MigrateLogMessageTable()` 추가(`CREATE TABLE IF NOT EXISTS NA_L_LOGMESSAGE/NA_L_LARGELOGMESSAGE`, 기존 `MigrateXxxTable` 패턴). `OnContainerBuilt` DB init try에서 `MigrateMqttTable` 다음 호출. `EnsureCreated()`는 기존 DB엔 테이블 안 만들어서 구 DB 대비.
+
+**교훈:** 휴면 코드 경로를 활성화할 때 그 경로의 모든 헬퍼에 잠복한 null-guard 결함이 한꺼번에 드러남. catch에서 `Console.WriteLine`로 삼키면 서비스 환경에서 진단 불가 → 로깅 인프라 자신의 실패는 반드시 별도 sink(Serilog 파일)로 가시화.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임 재검증 필요: ACS.Core.dll(1·2·3) + ACS.App.dll(4) 재배포·재시작 후 WARN/ERROR 유발 → `NA_L_LOGMESSAGE` 적재 확인. 남은 문제 시 이제 logs 파일에 실제 원인 출력됨.
+
+## 29. DB 로그 컨텍스트 자동 보강 (messageName/carrier/command/machine/unit/transactionId)
+
+**날짜:** 2026-05-25
+**작업:** [[27]]~[[28]]로 DB 로깅은 되지만 약 65% 로그가 `logger.Warn("text")` 평문이라 컨텍스트 컬럼이 비어 있던 문제. 모든 호출부 수정 대신 **ambient(AsyncLocal) 컨텍스트 + 빈 필드 자동 보강** 방식.
+
+**핵심 설계 근거:**
+- 메시지→워크플로우 진입 단일 choke point = `GenericWorkflowRabbitMQListener.ExecuteWorkflow(...)`/`OnJsonMessage(...)`.
+- Elsa 실행(`ElsaWorkflowManagerBridge.RunElsaWorkflow`)이 `RunAsync(...).GetAwaiter().GetResult()`로 **동기 실행**(Task.Run/SuppressFlow 없음) → 진입 직전 설정한 AsyncLocal이 활동·서비스 깊은 곳까지 ExecutionContext로 전파됨.
+- **AsyncLocal은 읽는 스레드에서만 유효** → 보강은 반드시 로그 생성 스레드(`CreateLogMessage`)에서. 백그라운드 큐 소비자 스레드(`PrepareForPersist`/`ConsumeAsync`)에서 읽으면 무효(이게 가장 헷갈리는 함정).
+
+**변경:**
+- 신규 `ACS.Core/Logging/LogContext.cs`: `LogContextData` POCO + `AsyncLocal` 기반 `LogContext.Push(data)`(IDisposable, 이전값 복원 중첩 안전)/`Current`. (기존 `Compat/CallContext`는 문자열 키라 부적합 → 전용 타입.)
+- `LogManagerImpl.cs`: `EnrichFromAmbientContext(m)` — `LogContext.Current`로 7개 필드 중 **빈 것만** 채움(명시적 컨텍스트 오버로드 값 우선 보존). `CreateLogMessage(LogMessage,...)`/`CreateLogMessage(LogEvent)` 양쪽 `Enqueue` 직전(=producer 스레드)에서 호출, `ChangeCommunicationMessageName`보다 앞.
+- `GenericWorkflowRabbitMQListener.cs`: `BuildLogContext(tid, name, obj)` — tid/name/commMsgName 기본 + `obj`가 `AbstractMessage`면 machine/unit, `BaseMessage`/`TransferMessageEx`면 carrier/command(모두 `ACS.Core.Message.Model`, 둘 다 `AbstractMessage` 상속). `ExecuteWorkflow`(XML/typed)·`OnJsonMessage`의 `workflowManager.Execute(...)`를 `using LogContext.Push(...)`로 감쌈.
+
+**범위 외:** Host TCP·Quartz 스케줄 등 비-RabbitMQ 경로는 컨텍스트 없으면 기존처럼 비움(best-effort). 동일 패턴으로 확장 가능.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임: ACS.Core.dll + ACS.Communication.dll + ACS.App.dll 재배포·재시작 후 메시지 처리 중 WARN/ERROR 유발 → `NA_L_LOGMESSAGE`의 messageName/transactionId/carrier/command/machine/unit 채워짐 확인. 명시적 컨텍스트 로그는 값 유지(보강이 안 덮어씀), 비메시지 로그는 빈 컨텍스트로도 정상 적재.
+
+## 30. DB 저장 레벨 INFO 하향 + 통신 메시지(MES↔host, 앱 간 MSB) 전체 DB 로깅
+
+**날짜:** 2026-05-25
+**작업:** (a) DB 저장 임계값을 WARN→INFO로 하향. (b) 애플리케이션 간 송수신 메시지와 MES↔host 메시지를 모두 NA_L_LOGMESSAGE에 적재. 결정: heartbeat/telemetry 제외, 전체 본문 저장.
+
+**(a) 레벨 하향:** `CoreModule.cs`의 `Level` 기본값 `"WARN"`→`"INFO"` + `appsettings.json` `Acs:Logging:Database:Level` `"INFO"`. 근거: `LogManagerImpl.LogLevelInt`(WARN=30000)가 INFO(20000)를 제외했음. 주의: `Logger.Debug`는 `SaveMessageToDatabase` 미호출이라 Debug는 레벨 무관 영구 제외. **배포 주의**: deployed appsettings에 섹션 없으면 코드 기본값 적용(DLL만 재배포로 OK), `Level:"WARN"` 명시돼 있으면 그 파일도 수정 필요(deployed config가 코드 기본값을 덮음).
+
+**(b) 통신 메시지 로깅 — 현황:** 수신은 이미 INFO로 적재 중이었으나(`AbstractRabbitMQListener`의 `logger.Info("received message...")`, MES→host는 `HostBridgeService.cs:59` 전체 본문), **송신은 `GenericRabbitMQSender.Send/Request`의 로깅이 전부 주석 처리**되어 누락. 현재 MSB=rabbitmq라 Tibrv/Highway101은 범위 밖.
+
+**변경:**
+- `AbstractRabbitMQ.cs`(공유 베이스): telemetry 집합 `_telemetryMessageNames` + `IsTelemetryJsonMessage`(substring) + `IsTelemetryName`(정확일치)를 **베이스로 이동**(송수신 공용), `LogCommMessage(direction, payload, peer, commMsgName)` 추가 — telemetry는 `logger.Debug`(DB 미적재), 그 외는 `logger.Well(text,"",msgName,"","","","",msgName)`(INFO 적재, MessageName/CommunicationMessageName 설정, 빈 컨텍스트는 [[29]]의 ambient LogContext가 보강). try/catch로 통신 보호.
+- `GenericRabbitMQSender.cs`: 3개 `Send(...)`의 주석 로깅 → `LogCommMessage("SENT→",...)`. RPC `string Request(430)`에 `RPC-REQ→`/`RPC-REP←` 로깅(XmlDocument Request 계열은 모두 여기로 위임).
+- `AbstractRabbitMQListener.cs`: 중복 telemetry 정의 제거(베이스 사용). 수신 INFO 로그(XML 3곳·AbstractMessage 2곳)를 `LogCommMessage("RECV←",...)`로 교체(AbstractMessage 분기는 이름만→전체 본문). **OnRequest의 JSON 수신 로그(`RPC received JSON...`)도 교체** — heartbeat RPC가 INFO로 새던 것을 telemetry 강등으로 차단.
+- `HostMessageService.cs` `SendToHost`: 이름+크기만 → `[SENT→MES]` + 전체 XML 본문.
+
+**효과:** 한 메시지가 송신측엔 `[SENT→]`/`[RPC-REQ→]`, 수신측엔 `[RECV←]`/`[RPC-REP←]`로 각 프로세스에 적재(processName 구분). telemetry(CONTROL-HEARTBEAT/RAIL-VEHICLEHEARTBEAT/SCHEDULE-CHECKVEHICLES 등)는 송수신 양쪽 Debug 강등으로 DB 제외. 대용량 본문은 text(4000) 초과 시 LargeLogMessage 분할.
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류). 런타임: ACS.Communication.dll + ACS.App.dll 재배포·재시작 후 `SELECT "processName","communicationMessageName",left(text,80) FROM "NA_L_LOGMESSAGE" WHERE text LIKE '[SENT%' OR text LIKE '[RECV%' OR text LIKE '[RPC%' OR text LIKE '[SENT→MES]%' ORDER BY time DESC;` → 송수신 적재 확인, heartbeat/telemetry 부재 확인.
+
+## 31. ACS.UI 로그 조회 화면 (NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE)
+
+**날짜:** 2026-05-25
+**작업:** ACS.UI에 로그 조회 화면 구현 — 시간 범위 + 필터([[30]]에서 적재된 로그 대상) 조회. 시간은 **클라이언트 로컬 입력 → UTC 변환 전송 → 응답 UTC → 로컬 표시**. 배치: 팝업 창(DataView/HostComm 패턴), 필터: 시간+Level+Keyword(Text)+Process+MessageName+TransactionId, 대용량 메시지 상세 보기 포함.
+
+**아키텍처:** ACS.UI는 DB 직접 접근 안 함 → HTTP API(`AcsApiService`, :5100, control 프로세스 Kestrel) 경유. 신규 `LogsController`는 로그 전용 Manager가 없어 **`AcsDbContext`를 직접 주입**(Autofac `AsSelf().InstancePerLifetimeScope()`)해 `IQueryable` LINQ로 시간범위+필터+정렬+limit 구성(DAO `IPersistentDao`엔 범위 조회 메서드 없음).
+
+**시간/UTC 핵심:** `Program.cs:23` `Npgsql.EnableLegacyTimestampBehavior=true` + `time` 컬럼 `timestamptz`(`Executor.cs:654,664`) + DAO `NormalizeDateTimeProperties`가 저장 직전 UTC 정규화. 변환은 **클라이언트 컴퓨터 기준**: UI에서 로컬 From/To→`ToUniversalTime()`→ISO "o" 전송, 표시는 `LogRow.LocalTime = dto.Time?.ToLocalTime()`. 컨트롤러는 `from/to`를 `DateTimeOffset.Parse(...).UtcDateTime`로 파싱, 반환 Time은 Kind에 무관하게 UTC 정규화(`ToUtc()`, legacy read Kind 방어).
+- **부수 수정:** `LogManagerImpl.cs:105` `logEvent.Timestamp.DateTime`(Kind=Unspecified=로컬 벽시계 → DAO가 변환 없이 UTC 라벨링 = 오기록) → **`.UtcDateTime`**. Serilog 경로 신규 로그만 정합, 기존 적재분은 소급 안 됨(알려진 한계).
+
+**주의 — 엔티티 네임스페이스 중복:** `LogMessage`/`LargeLogMessage`/`PartitionedEntity`가 `ACS.Core.Database.Model.Logging`(+`...Base`)와 `ACS.Core.Logging.Model`(+`ACS.Core.Base`) **두 곳**에 존재. `AcsDbContext`의 DbSet은 후자(`ACS.Core.Logging.Model`)를 매핑하므로 컨트롤러 LINQ도 반드시 후자 using. (전자로 작성 시 CS0266.)
+
+**신규 파일:** `ACS.Communication/Http/Models/LogMessageDto.cs`(공유), `ACS.UI/Models/LogMessageDto.cs`(미러)+`LogQueryFilter.cs`, `ACS.UI/ViewModels/LogViewModel.cs`(+`LogRow`), `ACS.UI/Views/LogView.axaml`(+`.cs`), `ACS.UI/Converters/LogLevelToColorConverter.cs`.
+**수정:** `AcsRestControllers.cs`(`LogsController`: `GET /api/logs` 필터+범위, `GET /api/logs/{id}/text` = LargeLogMessage Sequence순 재조합), `IAcsApiService`/`AcsApiService`(`GetLogsAsync`/`GetLogTextAsync`+`BuildLogQuery` 로컬→UTC), `MainWindowViewModel`(LogViewModel+OpenPopupView "Log"+`OpenLogCommand`+오픈 시 1회 조회), `MainWindow.axaml`(Log 탭 플레이스홀더 → Log Viewer 버튼).
+
+**검증:** `dotnet build ACS.sln` 성공(0 오류, XAML 컴파일 포함). 런타임 재검증 필요(PostgreSQL+control 프로세스+GUI): `GET /api/logs?limit=20`의 time이 UTC(Z) 직렬화 확인 → UI Log Viewer에서 시간/레벨/키워드/프로세스/메시지명/TxId 필터 + TIME 컬럼 로컬 표시 + 행 선택 시 상세 패널 전체 메시지(4000자 초과 재조합) + Auto-Refresh(5초) 확인.

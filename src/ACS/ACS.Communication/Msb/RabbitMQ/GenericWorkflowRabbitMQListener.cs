@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using ACS.Core.Workflow;
 using ACS.Core.Message.Model;
+using ACS.Core.Logging;
 using ACS.Utility;
 
 namespace ACS.Communication.Msb.RabbitMQ
@@ -52,12 +53,53 @@ namespace ACS.Communication.Msb.RabbitMQ
 
         public void ExecuteWorkflow(string transactionId, string messageName, XmlDocument document)
         {
-            this.workflowManager.Execute(transactionId, messageName, document);
+            // 처리 흐름 전체(워크플로우 활동·서비스 포함)에 로그 컨텍스트를 깔아 DB 로그 컬럼을 자동 보강.
+            using (LogContext.Push(BuildLogContext(transactionId, messageName, null)))
+            {
+                this.workflowManager.Execute(transactionId, messageName, document);
+            }
         }
 
         public void ExecuteWorkflow(string transactionId, string messageName, object obj)
         {
-            this.workflowManager.Execute(transactionId, messageName, obj);
+            using (LogContext.Push(BuildLogContext(transactionId, messageName, obj)))
+            {
+                this.workflowManager.Execute(transactionId, messageName, obj);
+            }
+        }
+
+        /// <summary>
+        /// 메시지에서 가능한 로그 컨텍스트(transactionId/messageName + 가능하면 carrier/command/machine/unit)를 수집한다.
+        /// </summary>
+        private LogContextData BuildLogContext(string transactionId, string messageName, object obj)
+        {
+            var data = new LogContextData
+            {
+                TransactionId = transactionId,
+                MessageName = messageName,
+                CommunicationMessageName = messageName
+            };
+
+            if (obj is AbstractMessage am)
+            {
+                if (string.IsNullOrEmpty(data.MessageName)) data.MessageName = am.MessageName;
+                if (string.IsNullOrEmpty(data.TransactionId)) data.TransactionId = am.TransactionId;
+                data.MachineName = am.CurrentMachineName;
+                data.UnitName = am.CurrentUnitName;
+            }
+
+            if (obj is BaseMessage bm)
+            {
+                data.CarrierName = bm.CarrierName;
+                data.TransportCommandId = bm.TransportCommandId;
+            }
+            else if (obj is TransferMessageEx tm)
+            {
+                data.CarrierName = tm.CarrierName;
+                data.TransportCommandId = tm.TransportCommandId;
+            }
+
+            return data;
         }
 
         public override void OnMessage(XmlDocument document, string dest)
@@ -129,7 +171,10 @@ namespace ACS.Communication.Msb.RabbitMQ
                 }
 
                 // JSON 문자열을 object로 워크플로우에 전달
-                this.workflowManager.Execute(transactionId, messageName, (object)jsonMessage);
+                using (LogContext.Push(BuildLogContext(transactionId, messageName, null)))
+                {
+                    this.workflowManager.Execute(transactionId, messageName, (object)jsonMessage);
+                }
             }
             catch (Exception ex)
             {
