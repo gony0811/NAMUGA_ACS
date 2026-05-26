@@ -43,14 +43,20 @@ namespace ACS.App.Web.Controllers
                 foreach (var item in vehicles)
                 {
                     if (item is not VehicleEx v) continue;
-                    dtos.Add(new VehicleDto
+                    var dto = new VehicleDto
                     {
                         VehicleId = v.VehicleId,
+                        CommType = v.CommType,
                         CommId = v.CommId,
+                        Vendor = v.Vendor,
+                        Version = v.Version,
+                        PlcVersion = v.PlcVersion,
                         State = v.State,
+                        Installed = v.Installed,
                         ConnectionState = v.ConnectionState,
                         ProcessingState = v.ProcessingState,
                         RunState = v.RunState,
+                        FullState = v.FullState,
                         AlarmState = v.AlarmState,
                         TransferState = v.TransferState,
                         BatteryRate = v.BatteryRate,
@@ -59,9 +65,18 @@ namespace ACS.App.Web.Controllers
                         AcsDestNodeId = v.AcsDestNodeId,
                         VehicleDestNodeId = v.VehicleDestNodeId,
                         TransportCommandId = v.TransportCommandId,
+                        Path = v.Path,
+                        NodeCheckTime = v.NodeCheckTime == default ? null : v.NodeCheckTime,
+                        EventTime = v.EventTime == default ? null : v.EventTime,
                         BayId = v.BayId,
                         CarrierType = v.CarrierType
-                    });
+                    };
+                    if (v is VehicleExs vx)
+                    {
+                        dto.LastChargeTime = vx.LastChargeTime == default ? null : vx.LastChargeTime;
+                        dto.LastChargeBattery = vx.LastChargeBattery;
+                    }
+                    dtos.Add(dto);
                 }
             }
             return dtos;

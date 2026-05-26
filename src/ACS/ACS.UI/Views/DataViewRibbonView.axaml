@@ -225,9 +225,6 @@
                                 <MenuItem Header="Vehicle View"
                                           Command="{Binding SelectMenuCommand}"
                                           CommandParameter="Vehicle View" />
-                                <MenuItem Header="Vehicle CrossWait View"
-                                          Command="{Binding SelectMenuCommand}"
-                                          CommandParameter="Vehicle CrossWait View" />
                                 <MenuItem Header="Alarm View"
                                           Command="{Binding SelectMenuCommand}"
                                           CommandParameter="Alarm View" />

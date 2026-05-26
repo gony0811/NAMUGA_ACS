@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ACS.UI.ViewModels"
+             x:Class="ACS.UI.Views.VehicleView"
+             x:DataType="vm:VehicleViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Row 0: Toolbar -->
+        <Border Grid.Row="0" Background="{StaticResource AcsTabBarBrush}"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="&#x270F;" FontSize="14"
+                               Foreground="{StaticResource AcsPrimaryBlueBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="Vehicle" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource AcsPrimaryBlueBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding TotalCount, StringFormat='[{0}] Rows'}"
+                               FontSize="12"
+                               Foreground="{StaticResource AcsTextSecondaryBrush}"
+                               VerticalAlignment="Center" Margin="4,0,0,0" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4"
+                            VerticalAlignment="Center" Margin="0,0,4,0">
+                    <StackPanel.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="Padding" Value="12,5" />
+                            <Setter Property="FontSize" Value="12" />
+                        </Style>
+                    </StackPanel.Styles>
+                    <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadVehiclesCommand}" />
+                </StackPanel>
+
+                <Panel />
+            </DockPanel>
+        </Border>
+
+        <!-- Row 1: Table Option -->
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}"
+                BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="6,4">
+            <StackPanel>
+                <TextBlock Text="&#x25BC; Table Option" FontSize="11"
+                           Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                <TextBlock Text="NA_R_VEHICLE" FontSize="11" Margin="12,2,0,0"
+                           Foreground="{StaticResource AcsPrimaryBlueBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Row 2: Vehicle DataGrid -->
+        <DataGrid Grid.Row="2"
+                  Name="VehicleDataGrid"
+                  ItemsSource="{Binding Vehicles}"
+                  SelectionMode="Single"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
+                  CanUserReorderColumns="True"
+                  GridLinesVisibility="All"
+                  BorderThickness="0"
+                  Background="{StaticResource AcsSurfaceCardBrush}"
+                  FontSize="11"
+                  RowHeight="26"
+                  HeadersVisibility="Column">
+
+            <DataGrid.Styles>
+                <Style Selector="DataGridColumnHeader">
+                    <Setter Property="FontSize" Value="11" />
+                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                    <Setter Property="Padding" Value="8,4" />
+                </Style>
+            </DataGrid.Styles>
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="vehicleId"           Binding="{Binding VehicleId}"           Width="100" />
+                <DataGridTextColumn Header="commType"            Binding="{Binding CommType}"            Width="80" />
+                <DataGridTextColumn Header="commId"              Binding="{Binding CommId}"              Width="100" />
+                <DataGridTextColumn Header="vendor"              Binding="{Binding Vendor}"              Width="90" />
+                <DataGridTextColumn Header="version"             Binding="{Binding Version}"             Width="80" />
+                <DataGridTextColumn Header="plcVersion"          Binding="{Binding PlcVersion}"          Width="80" />
+                <DataGridTextColumn Header="bayId"               Binding="{Binding BayId}"               Width="80" />
+                <DataGridTextColumn Header="carrierType"         Binding="{Binding CarrierType}"         Width="80" />
+                <DataGridTextColumn Header="state"               Binding="{Binding State}"               Width="80" />
+                <DataGridTextColumn Header="installed"           Binding="{Binding Installed}"           Width="70" />
+                <DataGridTextColumn Header="connectionState"     Binding="{Binding ConnectionState}"     Width="100" />
+                <DataGridTextColumn Header="processingState"     Binding="{Binding ProcessingState}"     Width="100" />
+                <DataGridTextColumn Header="runState"            Binding="{Binding RunState}"            Width="80" />
+                <DataGridTextColumn Header="fullState"           Binding="{Binding FullState}"           Width="80" />
+                <DataGridTextColumn Header="alarmState"          Binding="{Binding AlarmState}"          Width="80" />
+                <DataGridTextColumn Header="transferState"       Binding="{Binding TransferState}"       Width="120" />
+                <DataGridTextColumn Header="batteryRate"         Binding="{Binding BatteryRate}"         Width="70" />
+                <DataGridTextColumn Header="batteryVoltage"      Binding="{Binding BatteryVoltage}"      Width="80" />
+                <DataGridTextColumn Header="currentNodeId"       Binding="{Binding CurrentNodeId}"       Width="100" />
+                <DataGridTextColumn Header="acsDestNodeId"       Binding="{Binding AcsDestNodeId}"       Width="100" />
+                <DataGridTextColumn Header="vehicleDestNodeId"   Binding="{Binding VehicleDestNodeId}"   Width="110" />
+                <DataGridTextColumn Header="transportCommandId"  Binding="{Binding TransportCommandId}"  Width="120" />
+                <DataGridTextColumn Header="path"                Binding="{Binding Path}"                Width="220" />
+                <DataGridTextColumn Header="nodeCheckTime"       Binding="{Binding NodeCheckTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="140" />
+                <DataGridTextColumn Header="eventTime"           Binding="{Binding EventTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"     Width="140" />
+                <DataGridTextColumn Header="lastChargeTime"      Binding="{Binding LastChargeTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="140" />
+                <DataGridTextColumn Header="lastChargeBattery"   Binding="{Binding LastChargeBattery}"   Width="100" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

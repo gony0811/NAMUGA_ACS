@@ -28,7 +28,7 @@ public partial class DataViewViewModel : ObservableObject
             "TrCmd View" => "Transfer",
             "Node View" or "Station View" or "Port View" or "Link View" => "Layout",
             "Bay View" or "LinkZone View" or "Zone View" => "Area",
-            "Vehicle View" or "Vehicle CrossWait View" or "Alarm View" or "Alarm Spec View" => "Device",
+            "Vehicle View" or "Alarm View" or "Alarm Spec View" => "Device",
             "Assign View" or "Route View" => "Assign/Route",
             "TCP" => "Host",
             _ => ""
@@ -46,6 +46,7 @@ public partial class DataViewViewModel : ObservableObject
             "Zone View" => "Zone",
             "Port View" => "Port",
             "LinkZone View" => "LinkZone",
+            "Vehicle View" => "Vehicle",
             _ => (string?)null
         };
         if (viewName != null)
