@@ -66,6 +66,9 @@ public partial class MainWindowViewModel : ObservableObject
     private LinkZoneViewModel _linkZoneViewModel;
 
     [ObservableProperty]
+    private TransferCommandViewModel _transferCommandViewModel;
+
+    [ObservableProperty]
     private string _connectionStatus = "Disconnected";
 
     [ObservableProperty]
@@ -119,6 +122,7 @@ public partial class MainWindowViewModel : ObservableObject
         _zoneViewModel = new ZoneViewModel(_apiService);
         _portViewModel = new PortViewModel(_apiService);
         _linkZoneViewModel = new LinkZoneViewModel(_apiService);
+        _transferCommandViewModel = new TransferCommandViewModel(_apiService);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -150,6 +154,7 @@ public partial class MainWindowViewModel : ObservableObject
             "Zone" => ("Zone", (Control)new ZoneView { DataContext = ZoneViewModel }),
             "Port" => ("Port", (Control)new PortView { DataContext = PortViewModel }),
             "LinkZone" => ("LinkZone", (Control)new LinkZoneView { DataContext = LinkZoneViewModel }),
+            "TransferCommand" => ("Transfer Command", (Control)new TransferCommandView { DataContext = TransferCommandViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -188,6 +193,8 @@ public partial class MainWindowViewModel : ObservableObject
             _ = PortViewModel.LoadLocationsAsync();
         if (viewName == "LinkZone")
             _ = LinkZoneViewModel.LoadLinkZonesAsync();
+        if (viewName == "TransferCommand")
+            _ = TransferCommandViewModel.LoadTransferCommandsAsync();
         if (viewName == "Log")
             _ = LogViewModel.SearchCommand.ExecuteAsync(null);   // 창 오픈 시 기본 범위 1회 조회
     }

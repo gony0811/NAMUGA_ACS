@@ -36,7 +36,14 @@ namespace ACS.Scheduling
 
         private void delLog()
         {
-            string delday = _configuration["Acs:Database:LogDeleteDays"];
+            // appsettings.json은 Acs:LogDeleteDays(자식 키)로 보존 일수를 둔다.
+            // null/빈값/비정수면 int.Parse가 예외를 던지므로 TryParse + 기본 7일로 가드한다.
+            string delday = _configuration["Acs:LogDeleteDays"];
+            if (!int.TryParse(delday, out var days) || days <= 0)
+            {
+                days = 7;
+            }
+
             string logDir = _configuration["Acs:Logging:Path"];
 
             if (string.IsNullOrEmpty(logDir))
@@ -50,20 +57,20 @@ namespace ACS.Scheduling
             }
 
             DirectoryInfo serverFolderDi = new DirectoryInfo(logDir);
-            check(serverFolderDi, delday);
+            check(serverFolderDi, days);
         }
 
-        public void check(DirectoryInfo FolderName, string delday)
+        public void check(DirectoryInfo FolderName, int days)
         {
             DirectoryInfo[] diList = FolderName.GetDirectories();
             FileInfo[] files = FolderName.GetFiles();
-            string lDate = DateTime.Today.AddDays(-(int.Parse(delday))).ToString("yyyy-MM-dd");
+            string lDate = DateTime.Today.AddDays(-days).ToString("yyyy-MM-dd");
 
             if(diList.Length > 0)
             {
                 foreach (DirectoryInfo di in diList)
                 {
-                    check(di, delday);
+                    check(di, days);
                 }
             }
             if(files.Length > 0)

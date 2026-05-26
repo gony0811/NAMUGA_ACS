@@ -675,6 +675,28 @@ namespace ACS.App.Web.Controllers
             }
             return dtos;
         }
+
+        // DELETE /api/commands/{jobId} — 반송 명령 1건 삭제 (NA_T_TRANSPORTCMD)
+        [HttpDelete("{jobId}")]
+        public ActionResult Delete(string jobId)
+        {
+            _transferManager.DeleteTransportCommand(jobId);
+            return Ok(new { success = true });
+        }
+
+        // POST /api/commands/{jobId}/reset — 반송 명령 초기화: State=QUEUED, VehicleId 비우기
+        [HttpPost("{jobId}/reset")]
+        public ActionResult Reset(string jobId)
+        {
+            var cmd = _transferManager.GetTransportCommand(jobId);
+            if (cmd == null)
+                return NotFound(new { error = "TransportCommand not found: " + jobId });
+
+            cmd.State = TransportCommandEx.STATE_QUEUED;
+            cmd.VehicleId = "";
+            _transferManager.UpdateTransportCommand(cmd);
+            return Ok(new { success = true });
+        }
     }
 
     /// <summary>

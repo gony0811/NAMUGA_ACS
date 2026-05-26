@@ -624,17 +624,21 @@ END $$;
         }
 
         /// <summary>
-        /// DB 로깅용 NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE 테이블 존재 보장.
-        /// EnsureCreated()는 acsdb가 이미 있으면 새 테이블을 만들지 않으므로, 구 DB에 이 테이블이
-        /// 없을 수 있다. CREATE TABLE IF NOT EXISTS로 안전하게 보장한다.
+        /// DB 로깅용 NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE 를 time RANGE 파티션 테이블로 보장/변환한다.
+        /// - 테이블 없음: 파티션 부모 + DEFAULT 파티션 + 인덱스 생성.
+        /// - 구 비파티션 테이블(relkind 'r'): 데이터 보존하며 파티션 테이블로 1회 변환(이름변경→생성→복사→삭제).
+        /// - 이미 파티션(relkind 'p'): no-op.
+        /// 모든 프로세스가 기동 시 동시 실행하므로 pg_advisory_xact_lock으로 변환을 직렬화한다.
+        /// 보존 만료 파티션은 AwakeLogPartitionMaintenanceJob이 DROP TABLE로 제거(스캔/bloat 없음).
         /// 컬럼 정의는 docker/init/01_init_acsdb.sql 과 동일.
         /// </summary>
         private void MigrateLogMessageTable(ACS.Database.AcsDbContext dbContext)
         {
-            try
-            {
-                const string migrationSql = @"
-CREATE TABLE IF NOT EXISTS public.""NA_L_LOGMESSAGE"" (
+            ConvertLogTableToPartitioned(
+                dbContext,
+                "NA_L_LOGMESSAGE",
+                778811001,
+                @"
     id character varying(64) NOT NULL,
     ""transactionId"" character varying(64),
     ""threadName"" character varying(64),
@@ -651,26 +655,108 @@ CREATE TABLE IF NOT EXISTS public.""NA_L_LOGMESSAGE"" (
     ""WorkflowLog"" boolean NOT NULL DEFAULT false,
     ""SaveToDatabase"" boolean NOT NULL DEFAULT true,
     ""partitionId"" integer NOT NULL DEFAULT 0,
-    ""time"" timestamp with time zone,
-    CONSTRAINT ""PK_NA_L_LOGMESSAGE"" PRIMARY KEY (id)
-);
+    ""time"" timestamp with time zone",
+                @"id, ""transactionId"", ""threadName"", ""operationName"", ""processName"", ""messageName"", ""communicationMessageName"", ""transportCommandId"", ""carrierName"", ""machineName"", ""unitName"", text, ""logLevel"", ""WorkflowLog"", ""SaveToDatabase"", ""partitionId"", ""time""",
+                @"CREATE INDEX IF NOT EXISTS ""IX_NA_L_LOGMESSAGE_time"" ON public.""NA_L_LOGMESSAGE"" (""time"");");
 
-CREATE TABLE IF NOT EXISTS public.""NA_L_LARGELOGMESSAGE"" (
+            ConvertLogTableToPartitioned(
+                dbContext,
+                "NA_L_LARGELOGMESSAGE",
+                778811002,
+                @"
     id character varying(64) NOT NULL,
     ""logMessageId"" character varying(64),
     ""largeText"" text,
     sequence integer NOT NULL DEFAULT 0,
     ""partitionId"" integer NOT NULL DEFAULT 0,
-    ""time"" timestamp with time zone,
-    CONSTRAINT ""PK_NA_L_LARGELOGMESSAGE"" PRIMARY KEY (id)
-);
-";
-                dbContext.Database.ExecuteSqlRaw(migrationSql);
-                logger.Information("LogMessage table existence check completed.");
+    ""time"" timestamp with time zone",
+                @"id, ""logMessageId"", ""largeText"", sequence, ""partitionId"", ""time""",
+                @"CREATE INDEX IF NOT EXISTS ""IX_NA_L_LARGELOGMESSAGE_time"" ON public.""NA_L_LARGELOGMESSAGE"" (""time"");
+CREATE INDEX IF NOT EXISTS ""IX_NA_L_LARGELOGMESSAGE_logMessageId"" ON public.""NA_L_LARGELOGMESSAGE"" (""logMessageId"");");
+        }
+
+        /// <summary>
+        /// 단일 로그 테이블을 time RANGE 파티션 테이블로 보장/변환한다(idempotent, 동시 실행 안전).
+        /// columnsDdl: 컬럼 정의(괄호 제외), columnList: 복사용 컬럼 목록, indexesDdl: 부모에 만들 인덱스.
+        /// </summary>
+        private void ConvertLogTableToPartitioned(
+            ACS.Database.AcsDbContext dbContext,
+            string table,
+            long lockKey,
+            string columnsDdl,
+            string columnList,
+            string indexesDdl)
+        {
+            string sql = $@"
+DO $migrate$
+DECLARE
+    v_relkind text;
+    v_mindate date;
+    v_startdate date;
+    v_curdate date;
+BEGIN
+    SET LOCAL timezone = 'UTC';
+    PERFORM pg_advisory_xact_lock({lockKey});
+
+    SELECT c.relkind::text INTO v_relkind
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = '{table}';
+
+    -- 파티션 테이블이 아니면(신규 또는 구 'r' 테이블) 부모+DEFAULT+인덱스를 만들고, 'r'이면 데이터를 보존 변환한다.
+    -- 이미 'p'면 아래 일별 파티션 보장만 수행한다(매 기동마다 idempotent).
+    IF v_relkind IS DISTINCT FROM 'p' THEN
+        DROP TABLE IF EXISTS public.""{table}_old"";  -- 이전 중단 잔여물 정리
+
+        IF v_relkind = 'r' THEN
+            ALTER TABLE public.""{table}"" RENAME TO ""{table}_old"";
+        END IF;
+
+        CREATE TABLE public.""{table}"" ({columnsDdl}
+        ) PARTITION BY RANGE (""time"");
+        CREATE TABLE public.""{table}_pdefault"" PARTITION OF public.""{table}"" DEFAULT;
+        {indexesDdl}
+
+        IF v_relkind = 'r' THEN
+            SELECT date_trunc('day', min(""time""))::date INTO v_mindate FROM public.""{table}_old"";
+        END IF;
+    END IF;
+
+    -- 오늘..+3일(변환 시엔 기존 데이터 최소일부터) 일별 파티션 보장. 신규 DB가 'p'로 시작해도 기동 시점에 보장된다.
+    v_startdate := LEAST(COALESCE(v_mindate, current_date), current_date);
+    v_curdate := v_startdate;
+    WHILE v_curdate <= current_date + 3 LOOP
+        BEGIN
+            EXECUTE format(
+                'CREATE TABLE IF NOT EXISTS public.%I PARTITION OF public.%I FOR VALUES FROM (%L) TO (%L)',
+                '{table}_p' || to_char(v_curdate, 'YYYYMMDD'),
+                '{table}',
+                v_curdate::timestamptz,
+                (v_curdate + 1)::timestamptz);
+        EXCEPTION WHEN others THEN
+            -- DEFAULT 파티션에 해당 범위 행이 있으면 생성이 실패할 수 있다(잡 장기 미실행 등). 경고만 남기고 계속.
+            RAISE WARNING 'log partition create skipped for % %: %', '{table}', v_curdate, SQLERRM;
+        END;
+        v_curdate := v_curdate + 1;
+    END LOOP;
+
+    -- 변환 데이터 복사 후 구 테이블 제거
+    IF v_relkind = 'r' THEN
+        INSERT INTO public.""{table}"" ({columnList})
+        SELECT {columnList} FROM public.""{table}_old"";
+        DROP TABLE public.""{table}_old"";
+    END IF;
+END
+$migrate$;";
+
+            try
+            {
+                dbContext.Database.ExecuteSqlRaw(sql);
+                logger.Information("Log table partition check/conversion completed for {Table}.", table);
             }
             catch (Exception ex)
             {
-                logger.Warning(ex, "LogMessage table migration skipped or failed.");
+                logger.Warning(ex, "Log table partition conversion skipped or failed for {Table}.", table);
             }
         }
 

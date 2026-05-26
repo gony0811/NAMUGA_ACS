@@ -416,7 +416,13 @@ CREATE TABLE public."NA_L_LARGELOGMESSAGE" (
     sequence integer NOT NULL,
     "partitionId" integer NOT NULL,
     "time" timestamp with time zone
-);
+) PARTITION BY RANGE ("time");
+
+-- 보존 만료 파티션은 DROP TABLE로 제거(스캔/bloat 없음). 일 단위 파티션은 AwakeLogPartitionMaintenanceJob이 생성/삭제.
+-- DEFAULT 파티션은 null/범위 밖 time을 받는 안전망(절대 DROP 안 함).
+CREATE TABLE public."NA_L_LARGELOGMESSAGE_pdefault" PARTITION OF public."NA_L_LARGELOGMESSAGE" DEFAULT;
+CREATE INDEX "IX_NA_L_LARGELOGMESSAGE_time" ON public."NA_L_LARGELOGMESSAGE" ("time");
+CREATE INDEX "IX_NA_L_LARGELOGMESSAGE_logMessageId" ON public."NA_L_LARGELOGMESSAGE" ("logMessageId");
 
 
 --
@@ -441,7 +447,12 @@ CREATE TABLE public."NA_L_LOGMESSAGE" (
     "SaveToDatabase" boolean NOT NULL,
     "partitionId" integer NOT NULL,
     "time" timestamp with time zone
-);
+) PARTITION BY RANGE ("time");
+
+-- 보존 만료 파티션은 DROP TABLE로 제거(스캔/bloat 없음). 일 단위 파티션은 AwakeLogPartitionMaintenanceJob이 생성/삭제.
+-- DEFAULT 파티션은 null/범위 밖 time을 받는 안전망(절대 DROP 안 함).
+CREATE TABLE public."NA_L_LOGMESSAGE_pdefault" PARTITION OF public."NA_L_LOGMESSAGE" DEFAULT;
+CREATE INDEX "IX_NA_L_LOGMESSAGE_time" ON public."NA_L_LOGMESSAGE" ("time");
 
 
 --
@@ -1601,19 +1612,9 @@ ALTER TABLE ONLY public."NA_H_VEHICLE_BATTERYHISTORY"
 
 
 --
--- Name: NA_L_LARGELOGMESSAGE PK_NA_L_LARGELOGMESSAGE; Type: CONSTRAINT; Schema: public; Owner: -
+-- NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE: time RANGE 파티션 테이블이라 PK를 두지 않음
+-- (PG는 파티션 키 time을 PK에 포함하도록 요구하나 time은 nullable 공유 베이스 컬럼이라 제외). id는 Guid라 사실상 유일.
 --
-
-ALTER TABLE ONLY public."NA_L_LARGELOGMESSAGE"
-    ADD CONSTRAINT "PK_NA_L_LARGELOGMESSAGE" PRIMARY KEY (id);
-
-
---
--- Name: NA_L_LOGMESSAGE PK_NA_L_LOGMESSAGE; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public."NA_L_LOGMESSAGE"
-    ADD CONSTRAINT "PK_NA_L_LOGMESSAGE" PRIMARY KEY (id);
 
 
 --

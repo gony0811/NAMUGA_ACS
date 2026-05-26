@@ -908,3 +908,29 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **검증:** `dotnet build ACS.sln` 0 오류(경고 172, 기존). 런타임 재검증 필요: control 로그 `VehicleUpdate broadcast ...` + ACS.UI 맵에서 수동 새로고침 없이 배터리 바/호버 팝업(RunState/Battery/Node/Connection) 1Hz 갱신, DISCONNECT 시 차량 회색 전환, POSE 없는 상태 메시지에 위치 유지(0,0 안 튐).
 
 **문서:** `docs/signalr_pose_status.md` 갱신(제목·이벤트명·페이로드·한계 반영).
+
+---
+
+## 34. 로그 자동 삭제(7일 보존) — 파일 로그 잡 복구 + DB 시간 파티셔닝 전환
+
+**날짜:** 2026-05-25 ~ 2026-05-26
+**작업:** "7일마다 로그 삭제가 돌고 있냐"는 확인에서 출발. 파일/DB 로그 모두 정리가 사실상 미작동이라 7일 보존 도입. DB는 처음 단일 DELETE 잡으로 갔다가 "대량 한 방 DELETE면 DB 느려짐" 우려로 **시간 파티셔닝 재설계**로 선회.
+
+**진단(작업 전):**
+- 파일 로그(`logs/{processId}-.log`): `AwakeDeleteLogJob` 존재하나 ①등록 주석, ②daemon 전용 블록, ③설정 키 오타(`Acs:Database:LogDeleteDays` vs `Acs:LogDeleteDays`)로 `int.Parse(null)` 예외 → 미작동. Serilog `retainedFileCountLimit`도 없음.
+- DB 로그(`NA_L_LOGMESSAGE`/`NA_L_LARGELOGMESSAGE`): #27 이후 적재만, 정리 전무. `time` 인덱스도 없어 DELETE 시 풀스캔. → 단일 대량 DELETE는 긴 락/WAL/bloat 위험.
+
+**변경 — 파일 로그(완료, 유지):**
+- `AwakeDeleteLogJob.cs`: 설정 키 `Acs:LogDeleteDays`로 수정, `int.Parse`→`int.TryParse`+기본 7 가드(`delLog()`에서 1회 계산→`check(DirectoryInfo,int)`).
+- `SchedulingModule.cs`: 파일 잡을 daemon 블록 밖으로 빼 **전 프로세스** 등록(각자 `logs/` 정리).
+
+**변경 — DB 로그(시간 파티셔닝):**
+- 두 로그 테이블을 `time` 일별 RANGE 파티션으로 전환. 보존 만료분은 `DROP TABLE`로 즉시 제거(스캔/bloat 없음). DB는 **PostgreSQL 17**(`docker-compose.yml:19`)이라 선언적 파티셔닝 완전 지원.
+- **PK 없음 결정**: PG는 파티션 키(`time`)를 PK에 포함 요구하나 `time`은 nullable 공유 베이스(`PartitionedEntity`, 다수 `NA_H_*`가 의존)라 비-nullable화 위험 → 로그 테이블만 PK 제거(`id`는 Guid라 사실상 유일). **EF는 런타임에 DB PK를 검증 안 하므로 `AcsDbContext` 무변경**(`HasKey(x=>x.Id)` 유지, INSERT/뷰어 정상). 대신 `("time")`(large는 `logMessageId`도) 인덱스 추가.
+- `docker/init/01_init_acsdb.sql`: 두 테이블 `PARTITION BY RANGE ("time")` + `_pdefault` + 인덱스, 두 `NA_L_*` PK 제약 제거.
+- `Executor.cs` `MigrateLogMessageTable` 재작성 → `ConvertLogTableToPartitioned`: 기동 시 `pg_advisory_xact_lock`(전 프로세스 동시 실행 직렬화) + `pg_class.relkind` 가드. `'p'`면 일별 파티션 보장만, 아니면 부모+DEFAULT+인덱스 생성하고 `'r'`이면 rename→생성→`min(time)`~오늘+3일 일별 파티션→명시 컬럼 INSERT 복사→old DROP. 오늘..+3 파티션은 매 기동 보장(per-day `BEGIN/EXCEPTION`로 DEFAULT 겹침 시에도 계속). 경계는 `SET LOCAL timezone='UTC'`로 UTC.
+- 신규 `AwakeLogPartitionMaintenanceJob.cs`(기존 `AwakeDeleteDbLogJob.cs` 대체·삭제): 매일 03:00, 오늘~+3일 `CREATE TABLE IF NOT EXISTS ... PARTITION OF`(오늘 파티션은 전날 미리 생성돼 자정 직후 DEFAULT 누수 방지), `(days+1)~(days+40)`일 전 `DROP TABLE IF EXISTS`. `IPersistentDao.ExecuteUpdate`, 문장별 try/catch. control 단독 등록.
+
+**핵심 사실:** `SchedulingModule`은 `Executor.cs:164`에서 전 프로세스 등록. IHostedService는 콘솔 호스트(`OnContainerBuilt(true)`)+control 웹호스트(Generic Host) 모두 기동. 보존 일수 단일 키 `Acs:LogDeleteDays`(=7) 파일/DB 공용. 두 로그 테이블 간 FK 없음. `WorkflowLog`/`SaveToDatabase`는 EF 관례 매핑(PascalCase). 파티션명 `"<부모>_pYYYYMMDD"`(UTC), DEFAULT는 절대 DROP 안 함.
+
+**검증:** `dotnet build ACS.App.csproj` 0 오류. 런타임 재검증 필요: ①파일 — 8일 전 더미 `*.log` 생성 후 삭제·7일 내 보존. ②기존 DB 변환 — 구 비파티션 테이블+데이터로 기동 시 1회 변환(`relkind='p'`, 행수 일치, `_old` 삭제), 재기동 no-op, 동시 2프로세스 락 경합. ③삽입→정확 `_pYYYYMMDD` 파티션(null/이상치는 `_pdefault`). ④뷰어 `GET /api/logs?from=…` 정상 + `EXPLAIN` 프루닝. ⑤보존 — 만료 파티션만 `DROP`(즉시), `_pdefault`/최근 보존. ⑥신규 설치(docker) — `\d+`에 `Partition key: RANGE("time")`, PK 없음, `time` 인덱스.

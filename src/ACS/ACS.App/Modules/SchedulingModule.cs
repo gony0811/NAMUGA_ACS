@@ -48,6 +48,17 @@ namespace ACS.App.Modules
                 .SingleInstance()
                 .PropertiesAutowired();
 
+            // 파일 로그 정리: 모든 프로세스가 각자 logs/ 폴더를 보존 기간(Acs:LogDeleteDays, 기본 7일)으로 정리.
+            // (각 프로세스는 자기 작업 디렉터리의 logs/만 정리하므로 daemon 전용 블록 밖에서 전 프로세스에 등록한다.)
+            RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.App");
+
+            // DB 로그 파티션 유지보수(일별 파티션 사전 생성 + 만료 파티션 DROP): 공유 DB이므로 단일 소유자에서만 실행.
+            // 상시 가동·로그 뷰어를 호스팅하는 control 프로세스에 등록.
+            if (string.Equals(_processType, "control", StringComparison.OrdinalIgnoreCase))
+            {
+                RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeLogPartitionMaintenanceJob, ACS.App");
+            }
+
             // Awake 잡 10개: daemon 프로세스에서만 등록
             if (string.Equals(_processType, "daemon", StringComparison.OrdinalIgnoreCase))
             {
@@ -59,7 +70,6 @@ namespace ACS.App.Modules
                 //RegisterHostedService(builder, "ACS.Scheduling.AwakeCallVehicleStopWaitJob, ACS.App");
                 //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteUiInformJob, ACS.App");
                 //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteVehicleCrossWaitJob, ACS.App");
-                //RegisterHostedService(builder, "ACS.Scheduling.AwakeDeleteLogJob, ACS.App");
                 //RegisterHostedService(builder, "ACS.Scheduling.Awake.AwakeTruncateHistoryJob, ACS.App");
             }
         }

@@ -12,6 +12,8 @@ public interface IAcsApiService
     Task<List<NodeDto>> GetNodesAsync();
     Task<List<LinkDto>> GetLinksAsync();
     Task<List<TransportCommandDto>> GetTransportCommandsAsync();
+    Task<bool> DeleteTransportCommandAsync(string jobId);
+    Task<bool> ResetTransportCommandAsync(string jobId);
     Task<bool> SendJobReportAsync(string reportType);
     Task<bool> CreateNodeAsync(NodeDto node);
     Task<bool> UpdateNodeAsync(NodeDto node);

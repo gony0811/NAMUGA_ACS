@@ -104,6 +104,32 @@ public class AcsApiService : IAcsApiService
                ?? new List<TransportCommandDto>();
     }
 
+    public async Task<bool> DeleteTransportCommandAsync(string jobId)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"/api/commands/{Uri.EscapeDataString(jobId)}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> ResetTransportCommandAsync(string jobId)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"/api/commands/{Uri.EscapeDataString(jobId)}/reset", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<bool> SendJobReportAsync(string reportType)
     {
         try

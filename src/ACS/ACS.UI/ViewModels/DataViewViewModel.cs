@@ -38,6 +38,7 @@ public partial class DataViewViewModel : ObservableObject
         var viewName = menu switch
         {
             "TCP" => "HostCommunication",
+            "TrCmd View" => "TransferCommand",
             "Node View" => "Node",
             "Station View" => "Station",
             "Link View" => "Link",
