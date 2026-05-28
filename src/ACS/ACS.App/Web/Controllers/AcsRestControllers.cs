@@ -18,6 +18,56 @@ using AppModel = ACS.Core.Application.Model;
 namespace ACS.App.Web.Controllers
 {
     /// <summary>
+    /// 계층형 연쇄 삭제(cascade) 공용 헬퍼.
+    /// 자원 계층 NODE → LINK → STATION → LINK_ZONE / LOCATION(PORT)에서
+    /// 상위 항목 삭제 시 하위 항목이 고아(orphan)로 남지 않도록 함께 삭제한다.
+    /// 컨트롤러들이 서로 분리되어 있어 로직 중복을 막기 위해 static 헬퍼로 분리.
+    /// </summary>
+    internal static class ResourceCascade
+    {
+        // Station 삭제: 하위 Location 먼저 삭제 후 Station 삭제
+        public static void DeleteStationCascade(IResourceManagerEx mgr, StationEx station, IList allLocations)
+        {
+            allLocations ??= mgr.GetLocations();
+            if (allLocations != null)
+            {
+                foreach (var o in allLocations)
+                {
+                    if (o is LocationEx loc && loc.StationId == station.Id)
+                        mgr.DeleteLocation(loc);
+                }
+            }
+            mgr.DeleteStation(station);
+        }
+
+        // Link 삭제: 하위 Station(→Location) + LinkZone 먼저 삭제 후 Link 삭제
+        public static void DeleteLinkCascade(IResourceManagerEx mgr, LinkEx link, IList allStations, IList allLocations)
+        {
+            allStations ??= mgr.GetStations();
+            if (allStations != null)
+            {
+                foreach (var o in allStations)
+                {
+                    if (o is StationEx st && st.LinkId == link.Id)
+                        DeleteStationCascade(mgr, st, allLocations);
+                }
+            }
+
+            IList linkZones = mgr.GetLinkZonesByLinkId(link.Id);
+            if (linkZones != null)
+            {
+                foreach (var o in linkZones)
+                {
+                    if (o is LinkZoneEx lz)
+                        mgr.DeleteLinkZone(lz);
+                }
+            }
+
+            mgr.DeleteLink(link);
+        }
+    }
+
+    /// <summary>
     /// REST 엔드포인트 모음.
     /// 기존 ACS.Communication.Http.Handlers.ApiRequestHandler의 라우팅·로직을 ASP.NET Core 컨트롤러로 1:1 이전한다.
     /// 클라이언트(ACS.UI/AcsApiService)와 호환되는 JSON 페이로드를 보장하기 위해 DTO 형태와 경로를 그대로 유지.
@@ -27,10 +77,12 @@ namespace ACS.App.Web.Controllers
     public class VehiclesController : ControllerBase
     {
         private readonly IResourceManagerEx _resourceManager;
+        private readonly ITransferManagerEx _transferManager;
 
-        public VehiclesController(IResourceManagerEx resourceManager)
+        public VehiclesController(IResourceManagerEx resourceManager, ITransferManagerEx transferManager)
         {
             _resourceManager = resourceManager;
+            _transferManager = transferManager;
         }
 
         [HttpGet]
@@ -80,6 +132,37 @@ namespace ACS.App.Web.Controllers
                 }
             }
             return dtos;
+        }
+
+        // POST /api/vehicles/{vehicleId}/reset — 차량 초기화:
+        //   Vehicle: ProcessingState=IDLE, TransferState=NOTASSIGNED, TransportCommandId=""
+        //   묶인 TransportCommand(NA_T_TRANSPORTCMD): State=QUEUED, VehicleId="" (재할당 대기)
+        [HttpPost("{vehicleId}/reset")]
+        public ActionResult Reset(string vehicleId)
+        {
+            var vehicle = _resourceManager.GetVehicle(vehicleId);
+            if (vehicle == null)
+                return NotFound(new { error = "Vehicle not found: " + vehicleId });
+
+            // 차량에 묶여 있던 TransportCommand 환원 (있는 경우만)
+            var prevJobId = vehicle.TransportCommandId;
+            if (!string.IsNullOrEmpty(prevJobId))
+            {
+                var cmd = _transferManager.GetTransportCommand(prevJobId);
+                if (cmd != null)
+                {
+                    cmd.State = TransportCommandEx.STATE_QUEUED;
+                    cmd.VehicleId = "";
+                    _transferManager.UpdateTransportCommand(cmd);
+                }
+            }
+
+            // 차량 상태 초기화
+            _resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE);
+            _resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
+            _resourceManager.UpdateVehicleTransportCommandId(vehicle, "");
+
+            return Ok(new { success = true });
         }
     }
 
@@ -149,8 +232,11 @@ namespace ACS.App.Web.Controllers
         [HttpDelete("{id}")]
         public ActionResult Delete(string id)
         {
-            // Node 삭제 전: 관련 Link → LinkZone 연쇄 삭제 (기존 ApiRequestHandler.HandleNodeCrud DELETE와 동일)
+            // Node 삭제 전: 관련 Link → Station(→Location) + LinkZone 연쇄 삭제
+            // (전체 목록을 루프 밖에서 한 번만 조회해 cascade 헬퍼에 전달)
             IList links = _resourceManager.GetLinks();
+            IList allStations = _resourceManager.GetStations();
+            IList allLocations = _resourceManager.GetLocations();
             if (links != null)
             {
                 foreach (var item in links)
@@ -158,16 +244,7 @@ namespace ACS.App.Web.Controllers
                     if (item is not LinkEx link) continue;
                     if (link.FromNodeId != id && link.ToNodeId != id) continue;
 
-                    IList linkZones = _resourceManager.GetLinkZonesByLinkId(link.Id);
-                    if (linkZones != null)
-                    {
-                        foreach (var lzItem in linkZones)
-                        {
-                            if (lzItem is LinkZoneEx lz)
-                                _resourceManager.DeleteLinkZone(lz);
-                        }
-                    }
-                    _resourceManager.DeleteLink(link);
+                    ResourceCascade.DeleteLinkCascade(_resourceManager, link, allStations, allLocations);
                 }
             }
 
@@ -251,7 +328,10 @@ namespace ACS.App.Web.Controllers
         [HttpDelete("{id}")]
         public ActionResult Delete(string id)
         {
-            _resourceManager.DeleteLink(id);
+            // Link 삭제 전: 하위 Station(→Location) + LinkZone 연쇄 삭제
+            var link = _resourceManager.GetLink(id);
+            if (link != null)
+                ResourceCascade.DeleteLinkCascade(_resourceManager, link, null, null);
             return Ok(new { success = true });
         }
     }
@@ -322,7 +402,10 @@ namespace ACS.App.Web.Controllers
         [HttpDelete("{id}")]
         public ActionResult Delete(string id)
         {
-            _resourceManager.DeleteStation(id);
+            // Station 삭제 전: 하위 Location 연쇄 삭제
+            var station = _resourceManager.GetStation(id);
+            if (station != null)
+                ResourceCascade.DeleteStationCascade(_resourceManager, station, null);
             return Ok(new { success = true });
         }
     }

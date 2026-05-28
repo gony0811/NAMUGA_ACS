@@ -9,9 +9,9 @@ AMR(차량)의 실시간 위치/방향(**POSE**: X, Y, Angle)과 일부 **상태
 - **이벤트명**: `"VehicleUpdate"` (단일)
 - **Hub 엔드포인트**: `/hubs/vehicle`
 
-> 원천 데이터는 EI → Trans 프로세스로 전달되는 `RAIL-VEHICLEUPDATE` 메시지에 포함되며, Trans가 **원본 JSON 전체**를 RabbitMQ fanout으로 재발행한다. ACS.App이 이 fanout을 구독해 POSE + 상태 필드를 추려 SignalR로 다시 브로드캐스트한다.
+> 원천 데이터는 EI → Trans 프로세스로 전달되는 `RAIL-VEHICLEUPDATE` 메시지에 포함된다. Trans는 forward 직전에 EI 원본(특히 POSE)은 유지하되 상태 필드를 자신이 갱신·동기화한 **vehicle 권위값(ProcessingState/State/CurrentNodeId/TransportCommandId/Path 등)** 으로 채운 "전체 상태 스냅샷"을 RabbitMQ fanout으로 재발행한다. ACS.App이 이 fanout을 구독해 POSE + 상태 필드를 추려 SignalR로 다시 브로드캐스트한다.
 >
-> ⚠️ **알람(AlarmState)은 이 경로에 포함되지 않는다.** 알람은 별도 메시지 `RAIL-VEHICLEALARM`(SET/RESET)이며 UI fanout으로 forward되지 않는다. `State`/`ProcessingState`/`TransferState`도 서버 계산값이라 이 메시지에 없다 — 모두 REST(`GET /api/vehicles`) 새로고침 시에만 갱신된다.
+> ⚠️ **알람(AlarmState)은 이 경로에 포함되지 않는다.** 알람은 별도 메시지 `RAIL-VEHICLEALARM`(SET/RESET)이며 UI fanout으로 forward되지 않는다. (이전에는 `State`/`ProcessingState`/`TransferState`도 이 경로에 없었으나, 이제 Trans 권위 스냅샷에 포함되어 실시간 전달된다.)
 
 ---
 
@@ -21,7 +21,7 @@ AMR(차량)의 실시간 위치/방향(**POSE**: X, Y, Angle)과 일부 **상태
 [EI] ──RAIL-VEHICLEUPDATE──▶ [Trans 프로세스]
                                   │  ForwardToUi → UiAgentSender (MULTICAST=fanout)
                                   │  RabbitMQ exchange: "/VM/DEMO/UI/SENDER"
-                                  │  (원본 JSON 전체 forward — POSE + 상태)
+                                  │  (EI 원본 POSE + Trans 권위 상태 스냅샷 병합 forward)
                                   ▼
                          ┌──────────────────────────────────────────────┐
                          │ ACS.App                                       │
@@ -46,7 +46,7 @@ AMR(차량)의 실시간 위치/방향(**POSE**: X, Y, Angle)과 일부 **상태
 
 **단계 요약**
 
-1. Trans 프로세스가 `RAIL-VEHICLEUPDATE` JSON(원본 전체)을 RabbitMQ fanout exchange(`/VM/DEMO/UI/SENDER`)에 발행한다.
+1. Trans 프로세스가 `RAIL-VEHICLEUPDATE` JSON을 RabbitMQ fanout exchange(`/VM/DEMO/UI/SENDER`)에 발행한다. forward 직전 상태 필드를 vehicle 권위값으로 채운다(POSE는 EI 원본 유지).
 2. ACS.App의 `PoseTelemetrySubscriber`(BackgroundService)가 이 exchange를 직접 구독한다.
 3. `Data`가 있으면 POSE(nullable) + 상태 필드를 camelCase 페이로드로 만들어 SignalR `"VehicleUpdate"` 이벤트로 **모든 연결**에 브로드캐스트한다. (POSE가 없어도 상태만 푸시)
 4. ACS.UI의 `VehicleHubClient`가 `"VehicleUpdate"`를 수신해 `VehicleUpdated` 이벤트를 발생시킨다.
@@ -108,11 +108,17 @@ _connection = new HubConnectionBuilder()
 | `PoseX` | `float?` | 위치 X (meters). 미수신 시 null |
 | `PoseY` | `float?` | 위치 Y (meters). 미수신 시 null |
 | `PoseAngle` | `float?` | 방향 (radian). 미수신 시 null |
-| `RunState` | `string` | 주행 상태 |
+| `RunState` | `string` | 주행 상태 (Trans 권위값) |
+| `ProcessingState` | `string` | 처리 상태(CHARGE/IDLE/RUN). Trans 권위값 |
+| `State` | `string` | 차량 상태(ALIVE/BANNED 등). Trans 권위값 |
+| `TransferState` | `string` | 반송 상태. Trans 권위값 |
 | `BatteryRate` | `int` | 배터리 잔량(%) |
 | `BatteryVoltage` | `float` | 배터리 전압 |
-| `CurrentNodeId` | `string` | 현재 노드 (노드 변경 시에만 채워짐) |
+| `CurrentNodeId` | `string` | 현재 노드 (Trans 권위값, 항상 채워짐) |
+| `AcsDestNodeId` | `string` | ACS 할당 목적 노드 (완료 시 "" 클리어) |
 | `VehicleDestNodeId` | `string` | 차량 목적 노드 |
+| `TransportCommandId` | `string` | 할당된 반송 명령 ID (완료 시 "" 클리어) |
+| `Path` | `string` | 경로 (완료 시 "" 클리어) |
 | `ConnectionState` | `string` | 연결 상태 |
 | `EventTime` | `DateTime` | 이벤트 발생 시각 |
 
@@ -131,13 +137,19 @@ var payload = new
     poseX     = d.PoseX,        // nullable
     poseY     = d.PoseY,        // nullable
     poseAngle = d.PoseAngle,    // nullable
-    runState          = d.RunState,
-    batteryRate       = d.BatteryRate,
-    batteryVoltage    = d.BatteryVoltage,
-    currentNodeId     = d.CurrentNodeId,
-    vehicleDestNodeId = d.VehicleDestNodeId,
-    connectionState   = d.ConnectionState,
-    eventTime         = d.EventTime
+    runState           = d.RunState,
+    processingState    = d.ProcessingState,
+    state              = d.State,
+    transferState      = d.TransferState,
+    batteryRate        = d.BatteryRate,
+    batteryVoltage     = d.BatteryVoltage,
+    currentNodeId      = d.CurrentNodeId,
+    acsDestNodeId      = d.AcsDestNodeId,
+    vehicleDestNodeId  = d.VehicleDestNodeId,
+    transportCommandId = d.TransportCommandId,
+    path               = d.Path,
+    connectionState    = d.ConnectionState,
+    eventTime          = d.EventTime
 };
 ```
 
@@ -188,15 +200,21 @@ var payload = new
 | `vehicleId` | `VehicleId` | `string` | (매칭 키) |
 | `commId` | `CommId` | `string` | (매칭 키) |
 | `poseX/poseY/poseAngle` | `PoseX/PoseY/PoseAngle` | `float?` | ✅ 위치/방향 |
-| `runState` | `RunState` | `string` | ✅ |
+| `runState` | `RunState` | `string` | ✅ (Trans 권위값) |
+| `processingState` | `ProcessingState` | `string` | ✅ (Trans 권위값) |
+| `state` | `State` | `string` | ✅ (Trans 권위값) |
+| `transferState` | `TransferState` | `string` | ✅ (Trans 권위값) |
 | `batteryRate` | `BatteryRate` | `int` | ✅ 배터리 바 |
 | `batteryVoltage` | `BatteryVoltage` | `float` | ✅ |
-| `currentNodeId` | `CurrentNodeId` | `string` | ✅ (노드 변경 시) |
+| `currentNodeId` | `CurrentNodeId` | `string` | ✅ (Trans 권위값, 항상) |
+| `acsDestNodeId` | `AcsDestNodeId` | `string` | ✅ (완료 시 클리어) |
 | `vehicleDestNodeId` | `VehicleDestNodeId` | `string` | ✅ |
+| `transportCommandId` | `TransportCommandId` | `string` | ✅ (완료 시 클리어) |
+| `path` | `Path` | `string` | ✅ (완료 시 클리어) |
 | `connectionState` | `ConnectionState` | `string` | ✅ 차량 색상 |
 | `fullState`, `batteryChargingState`, `nodeChanged` | — | — | ❌ VehicleDto에 대응 필드 없음 |
 
-> `State`/`ProcessingState`/`AlarmState`/`TransferState`는 이 메시지에 없다(서버 계산값/별도 메시지). DB 반영은 `RailVehicleUpdateWorkflow`에서, UI 반영은 REST 새로고침 시.
+> `State`/`ProcessingState`/`TransferState`/`AcsDestNodeId`/`TransportCommandId`/`Path`는 EI 원본에는 없지만, `RailVehicleUpdateWorkflow`가 forward 직전 vehicle 권위값으로 채워 보내므로 실시간 전달된다(Step 10). `AlarmState`만 별도 메시지(`RAIL-VEHICLEALARM`) 경로라 여기 없다.
 
 ---
 
@@ -234,7 +252,9 @@ _ = _vehicleHub.StartAsync();
 
 - 매칭: **`VehicleId` 우선, 없으면 `CommId`** 로 `OrdinalIgnoreCase` 비교(공백 trim).
 - 두 키 모두 비었거나 목록에 차량이 없으면 무시. no-match 로그는 5초 throttle(`NoMatchLogInterval`).
-- **상태 필드는 항상 머지**하되, 문자열은 빈 값이면 기존 값을 덮어쓰지 않음(특히 `CurrentNodeId`는 노드 변경 시에만 채워지므로 빈 값 클리어 방지). `BatteryRate/BatteryVoltage`는 항상 설정.
+- **상태 필드 머지 규칙은 두 갈래**:
+  - 기존 필드(`RunState`/`ConnectionState`/`CurrentNodeId`/`VehicleDestNodeId`)는 빈 값이면 기존 값 유지(EI 부분 채움 호환). `BatteryRate/BatteryVoltage`는 항상 설정.
+  - Trans 권위 스냅샷 필드 중 `AcsDestNodeId`/`TransportCommandId`/`Path`는 **빈 값으로도 직접 대입**해 클리어 반영(작업 완료 시 "" 전달). `ProcessingState`/`State`/`TransferState`는 `null`이 아니면 그대로 반영.
 - **POSE는 `HasValue`일 때만 갱신** — POSE 없는 상태 메시지가 기존 위치를 (0,0)으로 지우지 않도록.
 - 끝에 `DataChanged?.Invoke()`로 맵 리렌더 트리거.
 
@@ -244,9 +264,8 @@ REST 차량 목록 갱신 시, 기존 차량의 실시간 `PoseX/Y/Angle`을 신
 
 ### 6.5 표시 범위 및 한계
 
-- **맵(MapView)만 실시간**: 차량 색상(ConnectionState), 배터리 바(BatteryRate), 호버 팝업(RunState/Battery/Node/Connection)이 1Hz로 갱신.
-- **차량 목록 그리드는 실시간 아님**: `VehicleListViewModel`은 `ObservableCollection<VehicleDto>`이고 `VehicleDto`는 `INotifyPropertyChanged` 미구현이라 in-place 갱신이 그리드에 반영되지 않음 → 기존 REST 새로고침 유지.
-- 맵 차량 색상 중 `State` 기반 부분은 메시지에 `State`가 없어 REST 새로고침에 의존.
+- **맵(MapView)만 실시간**: 차량 색상(ConnectionState/State), 배터리 바(BatteryRate), 호버 팝업(RunState/ProcessingState/Battery/Node/TC/Connection)이 1Hz로 갱신. `State`/`ProcessingState`도 이제 메시지에 포함되어 실시간 반영된다.
+- **차량 목록 그리드는 실시간 아님**: `VehicleListViewModel`/`VehicleViewModel`은 `ObservableCollection<VehicleDto>`이고 `VehicleDto`는 `INotifyPropertyChanged` 미구현이라 in-place 갱신이 그리드에 반영되지 않음 → 기존 REST 새로고침 유지. (그리드 실시간화는 별도 작업.)
 
 ### 6.6 수명주기 / 종료
 

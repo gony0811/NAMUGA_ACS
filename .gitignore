@@ -59,3 +59,7 @@ docker/backups/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# DB 자격증명/접속 정보 (커밋 금지 — 비밀번호 포함)
+docs/namuga_db.md
+docs/*_db.md

@@ -74,6 +74,8 @@ namespace ACS.Core.Transfer
 
         bool ExistTransportCommand(String paramString);
 
+        TransportCommandEx FindActiveTransportCommandByLocationMatch(String newSourceLoc, String newDestLoc);
+
         String ConvertPriorityToMES(String paramString);
 
         void UpdateTransportCommandAdditionalInfo(TransportCommandEx paramTransportCommand);

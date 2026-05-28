@@ -101,17 +101,59 @@ public class MapCanvas : Control
     private void UpdateViewModel()
     {
         if (_viewModel != null)
+        {
             _viewModel.DataChanged -= OnDataChanged;
+            _viewModel.CenterOnWorldRequested -= OnCenterOnWorldRequested;
+        }
 
         _viewModel = DataContext as MapViewModel;
 
         if (_viewModel != null)
+        {
             _viewModel.DataChanged += OnDataChanged;
+            _viewModel.CenterOnWorldRequested += OnCenterOnWorldRequested;
+        }
     }
 
     private void OnDataChanged()
     {
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Minimap에서 "이 월드 좌표를 화면 중심으로" 요청을 받았을 때 _pan을 조정한다.
+    /// 회전은 화면 중심을 기준으로 적용되므로 점이 중심에 있으면 그대로 유지됨 → 회전 보정 불필요.
+    /// </summary>
+    private void OnCenterOnWorldRequested(double worldX, double worldY)
+    {
+        // _baseScale/_offsetX/_offsetY 는 CalculateTransform에서 갱신.
+        // 노드가 없는 초기 상태에서는 의미 있는 이동 불가 → skip.
+        if (_baseScale <= 0 || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+
+        double cx = Bounds.Width / 2;
+        double cy = Bounds.Height / 2;
+        double bx = worldX * _baseScale + _offsetX;
+        double by = -worldY * _baseScale + _offsetY;
+        _pan = new Point(cx - bx * _zoom, cy - by * _zoom);
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// 현재 화면 4모서리에 해당하는 월드 좌표를 계산해 MapViewModel에 publish.
+    /// ScreenToWorld가 rotation/pan/zoom 모두 역변환하므로 4개 코너 그대로 사용.
+    /// </summary>
+    private void PublishViewport()
+    {
+        if (_viewModel == null) return;
+        if (_baseScale <= 0 || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+
+        double w = Bounds.Width;
+        double h = Bounds.Height;
+        var p0 = ScreenToWorld(new Point(0, 0));
+        var p1 = ScreenToWorld(new Point(w, 0));
+        var p2 = ScreenToWorld(new Point(w, h));
+        var p3 = ScreenToWorld(new Point(0, h));
+        _viewModel.UpdateViewport(p0, p1, p2, p3);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -517,6 +559,9 @@ public class MapCanvas : Control
 
         // 스케일 표시 (우하단)
         DrawScaleIndicator(context);
+
+        // Minimap 동기화: 현재 viewport(월드 4모서리) publish
+        PublishViewport();
     }
 
     private void DrawVehicleHoverPopup(DrawingContext context, IReadOnlyList<VehicleDto> vehicles)

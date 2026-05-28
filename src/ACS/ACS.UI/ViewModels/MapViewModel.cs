@@ -20,6 +20,31 @@ public partial class MapViewModel : ObservableObject
 
     public event Action DataChanged;
 
+    // ── Minimap 연동: 메인 맵 viewport(월드좌표 4모서리) ──
+    // MapCanvas.Render에서 매번 publish, MinimapCanvas가 read.
+    // 회전이 있을 경우 축 정렬이 아닌 4점 polygon이 된다.
+    public (double X, double Y) ViewportP0 { get; private set; }
+    public (double X, double Y) ViewportP1 { get; private set; }
+    public (double X, double Y) ViewportP2 { get; private set; }
+    public (double X, double Y) ViewportP3 { get; private set; }
+    public bool HasViewport { get; private set; }
+    public event Action? ViewportChanged;
+    public event Action<double, double>? CenterOnWorldRequested;
+
+    public void UpdateViewport(
+        (double X, double Y) p0,
+        (double X, double Y) p1,
+        (double X, double Y) p2,
+        (double X, double Y) p3)
+    {
+        ViewportP0 = p0; ViewportP1 = p1; ViewportP2 = p2; ViewportP3 = p3;
+        HasViewport = true;
+        ViewportChanged?.Invoke();
+    }
+
+    public void RequestCenterOnWorld(double worldX, double worldY)
+        => CenterOnWorldRequested?.Invoke(worldX, worldY);
+
     // ── 표시 옵션 (Option 탭) ──
     [ObservableProperty] private bool _showLinks = true;
     partial void OnShowLinksChanged(bool value) => DataChanged?.Invoke();
@@ -254,6 +279,16 @@ public partial class MapViewModel : ObservableObject
         if (!string.IsNullOrEmpty(dto.VehicleDestNodeId)) vehicle.VehicleDestNodeId = dto.VehicleDestNodeId;
         vehicle.BatteryRate = dto.BatteryRate;
         vehicle.BatteryVoltage = dto.BatteryVoltage;
+
+        // Trans 권위 스냅샷 필드. 매 메시지마다 vehicle 권위값으로 오므로 빈 값도 "실제로 비어 있음"을 의미한다.
+        // ProcessingState/State는 정상적으로 비지 않으므로 null일 때만 기존 값 유지하고, 그 외엔 그대로 반영한다.
+        if (dto.ProcessingState != null) vehicle.ProcessingState = dto.ProcessingState;
+        if (dto.State != null) vehicle.State = dto.State;
+        if (dto.TransferState != null) vehicle.TransferState = dto.TransferState;
+        // 작업 완료 시 ""로 클리어되는 필드 — 빈 값으로도 UI를 비워야 하므로 직접 대입한다.
+        vehicle.AcsDestNodeId = dto.AcsDestNodeId;
+        vehicle.TransportCommandId = dto.TransportCommandId;
+        vehicle.Path = dto.Path;
 
         // POSE는 수신된 경우에만 갱신.
         if (dto.PoseX.HasValue) vehicle.PoseX = dto.PoseX;

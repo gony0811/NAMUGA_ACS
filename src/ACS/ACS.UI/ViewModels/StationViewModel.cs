@@ -100,8 +100,8 @@ public partial class StationViewModel : ObservableObject
         var msgBox = new Window
         {
             Title = "Delete Station",
-            Width = 320,
-            Height = 140,
+            Width = 360,
+            Height = 160,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             CanResize = false,
             Content = CreateDeleteConfirmContent(SelectedStation.Id)
@@ -127,7 +127,7 @@ public partial class StationViewModel : ObservableObject
         };
         panel.Children.Add(new TextBlock
         {
-            Text = $"Station '{stationId}' 을(를) 삭제하시겠습니까?",
+            Text = $"Station '{stationId}' 을(를) 삭제하시겠습니까?\n(관련 Location도 함께 삭제됩니다)",
             FontSize = 12
         });
 
@@ -163,7 +163,7 @@ public partial class StationViewModel : ObservableObject
     {
         return Avalonia.Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Station") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Station" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

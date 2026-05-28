@@ -120,8 +120,8 @@ public partial class NodeViewModel : ObservableObject
             : new List<NodeDto> { SelectedNode };
 
         string message = targets.Count == 1
-            ? $"Node '{targets[0].Id}' 을(를) 삭제하시겠습니까?\n(관련 Link, LinkZone도 함께 삭제됩니다)"
-            : $"선택된 {targets.Count}개의 Node를 삭제하시겠습니까?\n(관련 Link, LinkZone도 함께 삭제됩니다)";
+            ? $"Node '{targets[0].Id}' 을(를) 삭제하시겠습니까?\n(관련 Link, Station, Location, LinkZone도 함께 삭제됩니다)"
+            : $"선택된 {targets.Count}개의 Node를 삭제하시겠습니까?\n(관련 Link, Station, Location, LinkZone도 함께 삭제됩니다)";
 
         var msgBox = new Window
         {
@@ -310,7 +310,7 @@ public partial class NodeViewModel : ObservableObject
         // NodeView는 팝업 Window의 Content로 설정되므로, 해당 Window를 찾는다
         return Avalonia.Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Node") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Node" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

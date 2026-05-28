@@ -133,7 +133,15 @@ namespace ACS.Database
                 }
                 catch { }
 
-                optionsBuilder.UseNpgsql(connectionString ?? _cachedConnectionString ?? DefaultConnectionString);
+                // 일시적 연결 장애(연결 타임아웃 등)를 즉시 실패시키지 않고 재시도한다.
+                // NpgsqlRetryingExecutionStrategy 가 transient 오류를 분류해 재시도하므로,
+                // 원격 DB(10.0.26.2) 로의 짧은 네트워크 단절이 Quartz 잡 실패로 직결되지 않는다.
+                optionsBuilder.UseNpgsql(
+                    connectionString ?? _cachedConnectionString ?? DefaultConnectionString,
+                    npgsql => npgsql.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorCodesToAdd: null));
             }
         }
 

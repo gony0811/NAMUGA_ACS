@@ -160,7 +160,7 @@ public partial class BayViewModel : ObservableObject
     {
         return Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Bay") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Bay" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

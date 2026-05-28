@@ -32,6 +32,9 @@
                             <Setter Property="FontSize" Value="12" />
                         </Style>
                     </StackPanel.Styles>
+                    <Button Content="초기화" ToolTip.Tip="선택 차량 초기화 (ProcessingState=IDLE, TransferState=NOTASSIGNED, TransportCommandId 비움; 묶인 TransportCommand는 QUEUED로 환원)"
+                            Command="{Binding ResetVehicleCommand}" />
+                    <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadVehiclesCommand}" />
                 </StackPanel>
 
@@ -55,6 +58,7 @@
         <DataGrid Grid.Row="2"
                   Name="VehicleDataGrid"
                   ItemsSource="{Binding Vehicles}"
+                  SelectedItem="{Binding SelectedVehicle}"
                   SelectionMode="Single"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
@@ -78,15 +82,8 @@
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="vehicleId"           Binding="{Binding VehicleId}"           Width="100" />
-                <DataGridTextColumn Header="commType"            Binding="{Binding CommType}"            Width="80" />
-                <DataGridTextColumn Header="commId"              Binding="{Binding CommId}"              Width="100" />
-                <DataGridTextColumn Header="vendor"              Binding="{Binding Vendor}"              Width="90" />
-                <DataGridTextColumn Header="version"             Binding="{Binding Version}"             Width="80" />
-                <DataGridTextColumn Header="plcVersion"          Binding="{Binding PlcVersion}"          Width="80" />
                 <DataGridTextColumn Header="bayId"               Binding="{Binding BayId}"               Width="80" />
                 <DataGridTextColumn Header="carrierType"         Binding="{Binding CarrierType}"         Width="80" />
-                <DataGridTextColumn Header="state"               Binding="{Binding State}"               Width="80" />
-                <DataGridTextColumn Header="installed"           Binding="{Binding Installed}"           Width="70" />
                 <DataGridTextColumn Header="connectionState"     Binding="{Binding ConnectionState}"     Width="100" />
                 <DataGridTextColumn Header="processingState"     Binding="{Binding ProcessingState}"     Width="100" />
                 <DataGridTextColumn Header="runState"            Binding="{Binding RunState}"            Width="80" />
@@ -99,11 +96,8 @@
                 <DataGridTextColumn Header="acsDestNodeId"       Binding="{Binding AcsDestNodeId}"       Width="100" />
                 <DataGridTextColumn Header="vehicleDestNodeId"   Binding="{Binding VehicleDestNodeId}"   Width="110" />
                 <DataGridTextColumn Header="transportCommandId"  Binding="{Binding TransportCommandId}"  Width="120" />
-                <DataGridTextColumn Header="path"                Binding="{Binding Path}"                Width="220" />
                 <DataGridTextColumn Header="nodeCheckTime"       Binding="{Binding NodeCheckTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="140" />
                 <DataGridTextColumn Header="eventTime"           Binding="{Binding EventTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"     Width="140" />
-                <DataGridTextColumn Header="lastChargeTime"      Binding="{Binding LastChargeTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="140" />
-                <DataGridTextColumn Header="lastChargeBattery"   Binding="{Binding LastChargeBattery}"   Width="100" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

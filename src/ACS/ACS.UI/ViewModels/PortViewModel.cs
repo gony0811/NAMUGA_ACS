@@ -154,7 +154,7 @@ public partial class PortViewModel : ObservableObject
     {
         return Avalonia.Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Port") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Port" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

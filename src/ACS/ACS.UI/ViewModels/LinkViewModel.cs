@@ -169,8 +169,8 @@ public partial class LinkViewModel : ObservableObject
         var msgBox = new Window
         {
             Title = "Delete Link",
-            Width = 320,
-            Height = 140,
+            Width = 360,
+            Height = 160,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             CanResize = false,
             Content = CreateDeleteConfirmContent(SelectedLink.Id)
@@ -196,7 +196,7 @@ public partial class LinkViewModel : ObservableObject
         };
         panel.Children.Add(new TextBlock
         {
-            Text = $"Link '{linkId}' 을(를) 삭제하시겠습니까?",
+            Text = $"Link '{linkId}' 을(를) 삭제하시겠습니까?\n(관련 Station, Location, LinkZone도 함께 삭제됩니다)",
             FontSize = 12
         });
 
@@ -246,7 +246,7 @@ public partial class LinkViewModel : ObservableObject
     {
         return Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Link") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Link" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

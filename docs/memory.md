@@ -934,3 +934,50 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **핵심 사실:** `SchedulingModule`은 `Executor.cs:164`에서 전 프로세스 등록. IHostedService는 콘솔 호스트(`OnContainerBuilt(true)`)+control 웹호스트(Generic Host) 모두 기동. 보존 일수 단일 키 `Acs:LogDeleteDays`(=7) 파일/DB 공용. 두 로그 테이블 간 FK 없음. `WorkflowLog`/`SaveToDatabase`는 EF 관례 매핑(PascalCase). 파티션명 `"<부모>_pYYYYMMDD"`(UTC), DEFAULT는 절대 DROP 안 함.
 
 **검증:** `dotnet build ACS.App.csproj` 0 오류. 런타임 재검증 필요: ①파일 — 8일 전 더미 `*.log` 생성 후 삭제·7일 내 보존. ②기존 DB 변환 — 구 비파티션 테이블+데이터로 기동 시 1회 변환(`relkind='p'`, 행수 일치, `_old` 삭제), 재기동 no-op, 동시 2프로세스 락 경합. ③삽입→정확 `_pYYYYMMDD` 파티션(null/이상치는 `_pdefault`). ④뷰어 `GET /api/logs?from=…` 정상 + `EXPLAIN` 프루닝. ⑤보존 — 만료 파티션만 `DROP`(즉시), `_pdefault`/최근 보존. ⑥신규 설치(docker) — `\d+`에 `Partition key: RANGE("time")`, PK 없음, `time` 인덱스.
+
+---
+
+## 35. 서버 이전용 마스터 데이터 이관 도구 보완 (스키마 전용 init + NA_C_NIO)
+
+**날짜:** 2026-05-26
+**작업:** "ACS 서버 이전 시 현재 DB 기준정보(NA_R_VEHICLE/NODE/LINK/존 등)를 모두 이전할 실행 가능한 SQL을 만들어달라. init.sql은 이전 데이터인 것 같다"는 요청. 원본=Docker 컨테이너, 대상=동일 docker-compose, 방식=기존 스크립트 활용·보완으로 확정.
+
+**진단(핵심 사실):**
+- `docker/init/01_init_acsdb.sql`은 과거 전체 pg_dump(스키마 + 모든 테이블 `COPY` 데이터). 안의 데이터는 **DEMO 사이트**(노드 N001~N012, 차량 AMR001 1대, 192.168.1.x 데모 location). 컨테이너 최초 기동 시 자동 적재되므로 신규 서버 init으로 부적합 = 사용자가 말한 "이전 데이터".
+- 이미 `docker/scripts/backup-master.ps1`/`restore-master.ps1`(커밋 `20d662b`) 존재. `pg_dump --data-only --column-inserts --disable-triggers`로 마스터 테이블만 추출 → `psql -1 -v ON_ERROR_STOP=1`로 단일 트랜잭션 복원. 시퀀스는 dump의 `setval()`로 동기화.
+- 데이터는 **반드시 라이브 DB에서 추출**(손작성 정적 SQL 불가). 로컬엔 `pg_dump`/`psql` 없고 Docker만 → 컨테이너 `docker exec`로 수행.
+
+**변경:**
+- `backup-master.ps1`/`restore-master.ps1`: 마스터 목록에 **`NA_C_NIO` 추가**(인터페이스 정의 = 사이트 설정. `remoteIp`/`machineName`은 이관 후 수정 필요). MQTT `brokerIp`와 동일 성격.
+- 신규 `backup-schema.ps1`: 라이브 DB `pg_dump --schema-only --no-owner --no-privileges` → `acs-schema-<ts>.sql`. 신규 서버의 `docker/init/01_init_acsdb.sql`로 사용 → 빈 현재 스키마로 기동(라이브 스키마라 02/03 마이그레이션 이미 반영 = 별도 마이그 불필요). `backup-master.ps1`와 동일 docker cp/exec + DryRun 패턴.
+- `README.md`: 시나리오 A를 "구→신 서버 클린 이관"으로 재작성(backup-schema → backup-master → 신규 서버 schema-only init → restore -Truncate), 스크립트 표/주의문 추가.
+
+---
+
+## 36. TS→CS forward에 차량 권위 상태 스냅샷 추가 (ProcessingState 등 실시간화)
+
+**날짜:** 2026-05-27
+**작업:** "TS가 CS로 포워딩할 때 ProcessingState/CurrentNodeId 등을 조회해 함께 보낼 수 없냐"는 요청. #33이 "TS는 원본 JSON 전체를 보내므로 상태가 다 도착해 있다"고 했으나, 그건 **EI 원본에 있는 필드만** 해당. `ProcessingState`/`State`/`TransferState`와 작업 완료 시 클리어되는 `AcsDestNodeId`/`TransportCommandId`/`Path`는 **EI 원본에 없고 Trans가 워크플로우에서 계산**하는 값이라 UI엔 REST 새로고침 때만 반영됐다. 또 `currentNodeId`는 EI가 노드 변경 시에만 채워 상태-only 메시지엔 비어 있었다.
+
+**핵심 통찰:** `RailVehicleUpdateActivity`는 이미 `vehicle`(VehicleEx)을 메모리에 들고 활동 내내 DB 갱신과 함께 권위값을 sync(`vehicle.RunState/CurrentNodeId/ProcessingState/...`)해 둔다. **forward 직전(Step 10)에 그 권위값으로 메시지를 채워 보내면** 추가 DB 조회 없이 실시간 전달 가능.
+
+**확정 범위(사용자 선택):** ①전체 상태 스냅샷(AlarmState만 제외 — RAIL-VEHICLEALARM 전용 경로), ②값 출처 = 메모리 vehicle 객체(재조회 없음).
+
+**변경:**
+- `RailVehicleUpdateMessage.cs`(`RailVehicleUpdateData`): 신규 필드 `processingState/state/transferState/acsDestNodeId/transportCommandId/path` 추가(camelCase). `currentNodeId/runState/...`는 기존.
+- `RailVehicleUpdateWorkflow.cs` Step 10: `ForwardToUi(accessor, json)` → forward 직전 `data`의 상태 필드를 `vehicle` 권위값으로 덮어쓴 뒤 `JsonSerializer.Serialize(updateMessage)` 전달. **POSE/배터리는 EI 원본 유지.** `currentNodeId`는 노드변경 여부 무관 항상 `vehicle.CurrentNodeId`.
+- `PoseTelemetrySubscriber.cs`: SignalR payload에 신규 6필드 추가. 진단 로그에 `proc/tc` 추가.
+- UI `VehicleUpdateDto.cs`: 신규 6필드 + 주석 갱신. `VehicleDto`는 이미 보유 → 무변경.
+- `MapViewModel.ApplyVehicleUpdate`: merge 2갈래 — `ProcessingState/State/TransferState`는 null 아니면 반영, **`AcsDestNodeId/TransportCommandId/Path`는 빈 값도 직접 대입(완료 시 "" 클리어 반영)**. 기존 필드 머지 로직은 회귀 방지 위해 유지.
+
+**한계(범위 밖):** SignalR는 `MapViewModel._vehicles`에만 머지 → 맵/호버 팝업만 실시간. 차량 그리드(`VehicleViewModel`/`VehicleListViewModel`)는 `VehicleDto`가 INotifyPropertyChanged 미구현이라 여전히 REST 새로고침 유지. AlarmState는 RAIL-VEHICLEALARM 경로 그대로.
+
+**검증:** `dotnet build ACS.sln` 확인. 런타임 재검증 필요: EI→TS 흐름에서 control 로그 `VehicleUpdate broadcast ... proc=... tc=...`에 새 값 채워짐, ACS.UI 맵 호버에서 충전 노드 도착 시 ProcessingState CHARGE, 배터리≥15%에서 IDLE, 충전잡 완료 시 TransportCommandId 비워짐, POSE 위치/회전 회귀 없음.
+
+**문서:** `docs/signalr_pose_status.md` 갱신(개요·흐름도·DTO/payload/모델 표·머지 규칙·한계 반영).
+
+**이관 절차:** 구 서버 `backup-schema.ps1` + `backup-master.ps1 -IncludeApplication` → 신 서버에 schema 파일을 init으로 배치 후 `docker-compose up -d` → `restore-master.ps1 -InputFile ... -Truncate` → `appsettings.json`/MQTT/NIO 사이트 종속 값 수정.
+
+**핵심 사실:** Windows PowerShell 5.1은 BOM 없는 `.ps1`을 ANSI(CP949)로 읽어 UTF-8 한글이 깨짐 → `docker/scripts/*.ps1`은 **UTF-8 BOM 필수**(Write 도구는 무 BOM 저장하므로 생성 후 BOM 재인코딩). 백업 제외: `NA_T_TRANSPORTCMD`, `NA_T_CURRENTINTERSECTION`, `NA_A_ALARM`, 차량 런타임(`NA_R_VEHICLE_IDLE/ORDER/CROSS_WAIT`), `NA_H_*`, `NA_L_*`/`NA_Q_*`/`NA_U_*`.
+
+**검증:** 세 `.ps1` 파싱 OK(`Parser::ParseFile`), `backup-schema.ps1` UTF-8 BOM 확인. **미완료(Docker Desktop 미기동)**: 실제 산출물 생성·DryRun·복원 검증은 컨테이너 기동 후 필요. 신규 서버에서 `NA_R_NODE`에 데모 N001~N012가 아니라 현재 노드만, `NA_R_VEHICLE`에 AMR001 아닌 실제 차량 확인, 앱 기동 시 맵 레이아웃 로드 확인.

@@ -183,7 +183,7 @@ public partial class TransferCommandViewModel : ObservableObject
         // TransferCommandView는 팝업 Window의 Content로 설정되므로, 해당 Window를 찾는다
         return Avalonia.Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Transfer Command") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Transfer Command" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }

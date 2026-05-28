@@ -31,6 +31,19 @@ public class AcsApiService : IAcsApiService
                ?? new List<VehicleDto>();
     }
 
+    public async Task<bool> ResetVehicleAsync(string vehicleId)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"/api/vehicles/{Uri.EscapeDataString(vehicleId)}/reset", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<List<ApplicationDto>> GetApplicationsAsync()
     {
         return await _httpClient.GetFromJsonAsync<List<ApplicationDto>>("/api/applications", _jsonOptions)

@@ -48,6 +48,18 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("fullState")]
         public string FullState { get; set; }
 
+        /// <summary>Trans 권위 상태. forward 직전 vehicle.ProcessingState로 채워 UI 실시간 전달(EI 원본에는 없음).</summary>
+        [JsonPropertyName("processingState")]
+        public string ProcessingState { get; set; }
+
+        /// <summary>Trans 권위 상태(ALIVE/BANNED 등). forward 직전 vehicle.State로 채움.</summary>
+        [JsonPropertyName("state")]
+        public string State { get; set; }
+
+        /// <summary>Trans 권위 상태. forward 직전 vehicle.TransferState로 채움.</summary>
+        [JsonPropertyName("transferState")]
+        public string TransferState { get; set; }
+
         [JsonPropertyName("batteryRate")]
         public int BatteryRate { get; set; }
 
@@ -60,7 +72,19 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("vehicleDestNodeId")]
         public string VehicleDestNodeId { get; set; }
 
-        /// <summary>노드 변경 시에만 값이 설정됨</summary>
+        /// <summary>ACS가 할당한 목적지. forward 직전 vehicle.AcsDestNodeId로 채움(작업 완료 시 ""로 클리어 가능).</summary>
+        [JsonPropertyName("acsDestNodeId")]
+        public string AcsDestNodeId { get; set; }
+
+        /// <summary>현재 할당된 반송 명령 ID. forward 직전 vehicle.TransportCommandId로 채움(완료 시 ""로 클리어 가능).</summary>
+        [JsonPropertyName("transportCommandId")]
+        public string TransportCommandId { get; set; }
+
+        /// <summary>경로 문자열. forward 직전 vehicle.Path로 채움(완료 시 ""로 클리어 가능).</summary>
+        [JsonPropertyName("path")]
+        public string Path { get; set; }
+
+        /// <summary>노드 변경 시에만 EI가 설정. Trans는 forward 직전 vehicle.CurrentNodeId(권위값)로 항상 덮어씀.</summary>
         [JsonPropertyName("currentNodeId")]
         public string CurrentNodeId { get; set; }
 

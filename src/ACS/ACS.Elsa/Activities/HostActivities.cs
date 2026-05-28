@@ -502,6 +502,64 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
+                // 동일 SourceLoc/DestLoc 의 기존 비-종료 TC 가 있으면 정책에 따라 처리.
+                //   - 진행중(ASSIGNED/TRANSFERRING_SOURCE/TRANSFERRING_DEST): 기존 TC 의 MES 입력 필드 갱신
+                //     + 차량의 TransportCommandId 도 신규 jobId 로 동기화. 새 TC 는 만들지 않고 성공 응답.
+                //   - 그 외 비-종료: 기존 TC 삭제 후 아래의 생성 로직 진행.
+                {
+                    var inProgressStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        TransportCommandEx.STATE_ASSIGNED,
+                        TransportCommandEx.STATE_TRANSFERRING_SOURCE,
+                        TransportCommandEx.STATE_TRANSFERRING_DEST
+                    };
+
+                    var matched = transferManager.FindActiveTransportCommandByLocationMatch(sourceLoc, destLoc);
+                    if (matched != null)
+                    {
+                        if (inProgressStates.Contains(matched.State))
+                        {
+                            var oldJobId   = matched.JobId;
+                            var oldVehicle = matched.VehicleId;
+                            matched.JobId       = jobId;
+                            matched.Source      = source;
+                            matched.Dest        = dest;
+                            matched.JobType     = actionType;
+                            matched.Description = materialType;
+                            matched.EqpId       = acsId;
+                            matched.BayId       = sameBayId;
+                            transferManager.UpdateTransportCommand(matched);
+
+                            if (!string.IsNullOrWhiteSpace(oldVehicle))
+                            {
+                                var resourceManager = accessor.Resolve<IResourceManagerEx>();
+                                if (resourceManager != null)
+                                {
+                                    int upd = resourceManager.UpdateVehicleTransportCommandId(oldVehicle, jobId);
+                                    logger.Info($"CreateTransportCommandActivity: vehicle TC ptr updated - VehicleId={oldVehicle}, oldJobId={oldJobId}, newJobId={jobId}, rows={upd}");
+                                }
+                                else
+                                {
+                                    logger.Warn($"CreateTransportCommandActivity: IResourceManagerEx not available - vehicle {oldVehicle} TransportCommandId not synced");
+                                }
+                            }
+
+                            logger.Info($"CreateTransportCommandActivity: matched in-progress TC updated - oldJobId={oldJobId}, newJobId={jobId}, State={matched.State}, VehicleId={oldVehicle}, Source={source}, Dest={dest}");
+
+                            context.Set(TransportCommandId, jobId);
+                            context.Set(ErrCode, "0");
+                            context.Set(ErrMsg, "");
+                            context.Set(Result, true);
+                            return;
+                        }
+                        else
+                        {
+                            logger.Info($"CreateTransportCommandActivity: matched not-started TC deleted - jobId={matched.JobId}, State={matched.State}, oldSource={matched.Source}, oldDest={matched.Dest}");
+                            transferManager.DeleteTransportCommand(matched.JobId);
+                        }
+                    }
+                }
+
                 // TransportCommandEx 생성
                 var transportCommand = new TransportCommandEx
                 {

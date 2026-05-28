@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:controls="using:ACS.UI.Controls"
              x:Class="ACS.UI.Views.SummaryView"
              x:DataType="vm:SummaryViewModel">
 
@@ -226,17 +227,19 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Mini Map (placeholder) -->
+                <!-- Mini Map -->
                 <Border Padding="10,8">
                     <StackPanel Spacing="4">
                         <TextBlock Text="Mini Map" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource AcsActiveTabBrush}" />
                         <Border Background="{StaticResource AcsSurfaceOverlayBrush}" CornerRadius="3"
-                                Height="120" Margin="0,4,0,0">
-                            <TextBlock Text="(Mini Map)" FontSize="10"
-                                       Foreground="{StaticResource AcsTextMutedBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                Height="180" Margin="0,4,0,0">
+                            <controls:MinimapCanvas
+                                DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MapViewModel}" />
                         </Border>
+                        <TextBlock Text="클릭/드래그로 메인 맵 이동"
+                                   FontSize="10"
+                                   Foreground="{StaticResource AcsTextMutedBrush}" />
                     </StackPanel>
                 </Border>
 

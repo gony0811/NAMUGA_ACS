@@ -130,6 +130,41 @@ namespace ACS.Manager.Transfer
             return false;
         }
 
+        // 새 MOVECMD 의 SourceLoc/DestLoc 가 기존 비-종료 TC 의 Source/Dest 의 location 부분(":" split 첫 토큰) 과
+        // 하나라도 일치하면 그 TC 를 반환. 매칭 후보가 여러 건이면 CreateTime 오름차순 첫 건.
+        public TransportCommandEx FindActiveTransportCommandByLocationMatch(String newSourceLoc, String newDestLoc)
+        {
+            var terminalStates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                TransportCommandEx.STATE_COMPLETED, TransportCommandEx.STATE_CANCELED,
+                TransportCommandEx.STATE_CANCELING, TransportCommandEx.STATE_ABORTED,
+                TransportCommandEx.STATE_ABORTING,  TransportCommandEx.STATE_COMPLETEFAILED,
+                TransportCommandEx.STATE_CHARGE_COMPLETED, TransportCommandEx.STATE_CHANGE_VEHICLE
+            };
+
+            string LocPart(string s) =>
+                string.IsNullOrWhiteSpace(s) ? null : s.Split(':')[0];
+
+            bool Eq(string a, string b) =>
+                !string.IsNullOrWhiteSpace(a) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+            IList all = this.PersistentDao.FindAll(typeof(TransportCommandEx));
+            if (all == null || all.Count == 0) return null;
+
+            return all
+                .Cast<TransportCommandEx>()
+                .Where(tc => tc.State == null || !terminalStates.Contains(tc.State))
+                .Where(tc =>
+                {
+                    var sLoc = LocPart(tc.Source);
+                    var dLoc = LocPart(tc.Dest);
+                    return Eq(newSourceLoc, sLoc) || Eq(newSourceLoc, dLoc)
+                        || Eq(newDestLoc,   sLoc) || Eq(newDestLoc,   dLoc);
+                })
+                .OrderBy(tc => tc.CreateTime ?? DateTime.MaxValue)
+                .FirstOrDefault();
+        }
+
         public TransportCommandEx GetTransportCommand(String transportCommandId)
         {
             IList results = this.PersistentDao.FindByAttribute(typeof(TransportCommandEx), "JobId", transportCommandId);

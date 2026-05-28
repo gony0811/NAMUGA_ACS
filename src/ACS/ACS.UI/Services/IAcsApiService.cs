@@ -5,6 +5,7 @@ namespace ACS.UI.Services;
 public interface IAcsApiService
 {
     Task<List<VehicleDto>> GetVehiclesAsync();
+    Task<bool> ResetVehicleAsync(string vehicleId);
     Task<List<ApplicationDto>> GetApplicationsAsync();
     Task<bool> StartApplicationAsync(string name);
     Task<bool> StopApplicationAsync(string name);

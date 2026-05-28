@@ -318,9 +318,24 @@ namespace ACS.Elsa.Workflows.Trans
                 if (logger.IsDebugEnabled)
                     logger.Debug($"RailVehicleUpdateActivity 완료: vehicleId={data.VehicleId}");
 
-                // 10. UI 프로세스로 원본 JSON 그대로 forward (POSE 포함, 1Hz 텔레메트리)
+                // 10. UI 프로세스로 forward (1Hz 텔레메트리).
+                //     EI 원본(특히 POSE/Battery)은 유지하되, 상태 필드는 이 활동에서 갱신·동기화된
+                //     vehicle 권위값으로 덮어써서 ProcessingState/CurrentNodeId 등을 실시간 전달한다.
+                //     (CurrentNodeId는 EI가 노드 변경 시에만 채우므로, 항상 권위값으로 보정한다.)
+                //     AlarmState는 별도 경로(RAIL-VEHICLEALARM)에서 처리하므로 여기서 다루지 않는다.
+                data.ProcessingState    = vehicle.ProcessingState;
+                data.State              = vehicle.State;
+                data.RunState           = vehicle.RunState;
+                data.CurrentNodeId      = vehicle.CurrentNodeId;
+                data.AcsDestNodeId      = vehicle.AcsDestNodeId;
+                data.VehicleDestNodeId  = vehicle.VehicleDestNodeId;
+                data.TransportCommandId = vehicle.TransportCommandId;
+                data.TransferState      = vehicle.TransferState;
+                data.Path               = vehicle.Path;
+                data.ConnectionState    = vehicle.ConnectionState;
+
                 //     UI BackgroundService가 SignalR로 클라이언트에 브로드캐스트한다.
-                ForwardToUi(accessor, json);
+                ForwardToUi(accessor, JsonSerializer.Serialize(updateMessage));
             }
             catch (Exception e)
             {

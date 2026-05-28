@@ -105,7 +105,7 @@ namespace ACS.App.Web.Realtime
 
                 var d = msg.Data;
 
-                // POSE뿐 아니라 RAIL-VEHICLEUPDATE에 포함된 상태 필드(배터리/노드/런상태/연결)도 함께 푸시한다.
+                // POSE뿐 아니라 Trans가 채운 권위 상태 스냅샷(ProcessingState/State/노드/TC/Path 등)을 함께 푸시한다.
                 // POSE는 미수신 시 null로 보내며, UI는 null이면 위치를 갱신하지 않는다(상태만 변하는 메시지도 반영).
                 var payload = new
                 {
@@ -115,12 +115,18 @@ namespace ACS.App.Web.Realtime
                     poseX = d.PoseX,
                     poseY = d.PoseY,
                     poseAngle = d.PoseAngle,
-                    // 상태
+                    // 상태 (Trans 권위 스냅샷)
                     runState = d.RunState,
+                    processingState = d.ProcessingState,
+                    state = d.State,
+                    transferState = d.TransferState,
                     batteryRate = d.BatteryRate,
                     batteryVoltage = d.BatteryVoltage,
                     currentNodeId = d.CurrentNodeId,
+                    acsDestNodeId = d.AcsDestNodeId,
                     vehicleDestNodeId = d.VehicleDestNodeId,
+                    transportCommandId = d.TransportCommandId,
+                    path = d.Path,
                     connectionState = d.ConnectionState,
                     eventTime = d.EventTime
                 };
@@ -133,8 +139,8 @@ namespace ACS.App.Web.Realtime
                 {
                     _lastBroadcastLogAt = now;
                     _logger.LogInformation(
-                        "VehicleUpdate broadcast vehicleId={VehicleId} commId={CommId} run={Run} batt={Batt} node={Node} conn={Conn} pose=({X},{Y},{A})",
-                        d.VehicleId, d.CommId, d.RunState, d.BatteryRate, d.CurrentNodeId, d.ConnectionState, d.PoseX, d.PoseY, d.PoseAngle);
+                        "VehicleUpdate broadcast vehicleId={VehicleId} commId={CommId} run={Run} proc={Proc} batt={Batt} node={Node} tc={Tc} conn={Conn} pose=({X},{Y},{A})",
+                        d.VehicleId, d.CommId, d.RunState, d.ProcessingState, d.BatteryRate, d.CurrentNodeId, d.TransportCommandId, d.ConnectionState, d.PoseX, d.PoseY, d.PoseAngle);
                 }
             }
             catch (Exception ex)

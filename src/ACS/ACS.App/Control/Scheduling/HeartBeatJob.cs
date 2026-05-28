@@ -38,6 +38,15 @@ namespace ACS.Control.Scheduling
 
             ACS.Core.Application.Model.Application application = controlServerManager.ApplicationManager.GetApplication(applicationName);
 
+            // GetApplication 은 FindByNameWithoutException 경로라 DB 일시 장애 시 예외를 삼키고 null 을 반환한다.
+            // null 인 채 .RunningHardware 에 접근하면 NRE → RepeatForever 트리거가 매 주기 예외를 반복한다.
+            // 이번 주기는 건너뛰고 경고만 남긴다(언스케줄 X: 일시 장애일 수 있어 살아있는 앱을 끊지 않도록).
+            if (application == null)
+            {
+                logger.Warn($"HeartBeat: application '{applicationName}' 조회 실패(null) — 이번 주기 건너뜀 (DB 일시 장애 또는 삭제 가능)");
+                return;
+            }
+
             if(!application.RunningHardware.Equals(hardwareType))
             {
                 controlServerManager.UnscheduleHeartBeat(applicationName);

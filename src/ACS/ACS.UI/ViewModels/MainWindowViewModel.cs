@@ -138,9 +138,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private void OpenPopupView(string viewName)
     {
-        // 이미 열린 창이 있으면 활성화
-        if (_popupWindows.TryGetValue(viewName, out var existing) && existing.IsVisible)
+        // 이미 열린 창이 있으면 재사용 (숨겨진 경우 다시 표시) — 동일 제목 중복 창 생성 방지
+        if (_popupWindows.TryGetValue(viewName, out var existing))
         {
+            if (!existing.IsVisible)
+                existing.Show();
             existing.Activate();
             return;
         }

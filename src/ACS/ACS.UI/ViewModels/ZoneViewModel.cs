@@ -162,7 +162,7 @@ public partial class ZoneViewModel : ObservableObject
     {
         return Application.Current?.ApplicationLifetime is
             Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.Windows.FirstOrDefault(w => w.Title == "Zone") ?? desktop.MainWindow!
+            ? desktop.Windows.FirstOrDefault(w => w.Title == "Zone" && w.IsVisible) ?? desktop.MainWindow!
             : null!;
     }
 }
