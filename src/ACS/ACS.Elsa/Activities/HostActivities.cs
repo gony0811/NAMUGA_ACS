@@ -401,6 +401,7 @@ namespace ACS.Elsa.Activities
                 //           새 DestPort 는 "LEFT" 로 통일.
                 bool isLoad   = string.Equals(actionType, "LOAD",   StringComparison.OrdinalIgnoreCase);
                 bool isUnload = string.Equals(actionType, "UNLOAD", StringComparison.OrdinalIgnoreCase);
+                bool autoResolved = false;
                 if ((isLoad || isUnload)
                     && string.IsNullOrWhiteSpace(sourceLoc)
                     && string.IsNullOrWhiteSpace(sourcePort))
@@ -418,6 +419,7 @@ namespace ACS.Elsa.Activities
                         }
                         sourceLoc = resolved;
                         sourcePort = "LEFT";
+                        autoResolved = true;
                         logger.Info($"CreateTransportCommandActivity: LOAD source auto-resolved - SourceLoc={sourceLoc}, SourcePort={sourcePort}, Dest={destLoc}");
                     }
                     else // UNLOAD
@@ -439,8 +441,19 @@ namespace ACS.Elsa.Activities
                         }
                         destLoc = resolved;
                         destPort = "LEFT";
+                        autoResolved = true;
                         logger.Info($"CreateTransportCommandActivity: UNLOAD dest auto-resolved - Source={sourceLoc}:{sourcePort}, DestLoc={destLoc}, DestPort={destPort}");
                     }
+                }
+
+                // 새 사양: SourceLoc/Port=BUFFER 고정, DestLoc/Port=EQP 고정.
+                // UNLOAD 는 물리 반송 방향이 EQP→BUFFER 이므로 source/dest 를 교환한다.
+                // (레거시 빈-Source 자동해석이 이미 물리 방향으로 배치한 경우엔 이중 교환 방지를 위해 생략)
+                if (isUnload && !autoResolved)
+                {
+                    (sourceLoc, destLoc)   = (destLoc, sourceLoc);
+                    (sourcePort, destPort) = (destPort, sourcePort);
+                    logger.Info($"CreateTransportCommandActivity: UNLOAD swap - Source={sourceLoc}:{sourcePort}, Dest={destLoc}:{destPort}");
                 }
 
                 // Source, Dest 조합: "SourceLoc:SourcePort" 형식
