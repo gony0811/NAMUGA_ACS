@@ -34,6 +34,7 @@ MES 가 송신하는 `MOVECMD` 메시지에서 `SourceLoc` / `SourcePort` 가 �
 3. source/sourcePort 비어있고 LOAD/UNLOAD 이면 자동 해석 분기
    ├── LOAD  : source = ResolveZoneMatchedBuffer(MES.dest, ACQUIRE)
    └── UNLOAD: source = MES.dest, dest = ResolveZoneMatchedBuffer(MES.dest, DEPOSIT)
+3-1. SourcePort/DestPort 만 누락된 경우 prefix 매칭으로 보완 (`ResolveMissingPortByLocPrefix`)
 4. source/dest 문자열 결합 ("Loc:Port")
 5. source == dest 차단 가드
 6. JobID 중복 검증
@@ -89,6 +90,20 @@ MES 가 송신하는 `MOVECMD` 메시지에서 `SourceLoc` / `SourcePort` 가 �
 - `source` 와 `dest` 가 대소문자 무시 동일하면 차단.
 - 응답: `<ErrorCode>106</ErrorCode><ErrorMsg>SOURCEDESTMACHINEDUPLICATE</ErrorMsg>` (`ID_RESULT_SOURCEDESTMACHINE_DUPLICATE`).
 - 로그: `CreateTransportCommandActivity: source and dest are identical - 192.168.1.103:LEFT`.
+
+## ResolveMissingPortByLocPrefix — 누락 포트 보완 함수
+
+`HostActivities.cs` 의 `CreateTransportCommandActivity` 본체 뒤에 있는 private static 헬퍼. MES 가 `SourceLoc`/`DestLoc` 만 보내고 대응 포트를 누락한 경우를 방어한다.
+
+- 호출 시점: UNLOAD swap 직후, `source`/`dest` 문자열 결합 직전.
+- 진입 조건: `Loc` 은 비어있지 않은데 `Port` 만 빈 경우. (`Loc`,`Port` 둘 다 비면 위쪽 자동 해석 분기가 먼저 처리)
+- 로직: `resource.GetLocations()` 전체에서 `LocationId.StartsWith("<Loc>:")` 인 후보를 사전순 정렬해 첫 행의 콜론 뒷부분을 반환.
+- 후보 0건이면 보완하지 않음 → 기존 location 존재 확인 단계에서 자연스럽게 `SOURCEMACHINENOTFOUND`/`DESTMACHINENOTFOUND` NACK.
+- 로그:
+  - 보완 성공: `CreateTransportCommandActivity: SourcePort auto-filled - SourceLoc=IN_BUF_01, SourcePort=LEFT`
+  - 후보 0건: `ResolveMissingPortByLocPrefix: no '<loc>:<port>' candidate for loc='IN_BUF_01'`
+
+예: MES 가 `SourceLoc=IN_BUF_01, SourcePort=(빈값)` 으로 LOAD 를 보내고 `NA_R_LOCATION` 에 `IN_BUF_01:LEFT` 행이 등록되어 있으면 fallback 이 `sourcePort="LEFT"` 로 보완하여 정상 처리.
 
 ## ResolveZoneMatchedBuffer — 일반화된 자동 해석 함수
 
@@ -152,6 +167,8 @@ SELECT pg_catalog.setval('public."NA_R_LOCATION_id_seq"', 10, true);
 | 정상 | `0` | (빈값) |
 
 에러 코드 상수는 `src/ACS/ACS.Core/Base/AbstractManager.cs` 의 `ID_RESULT_*` 튜플.
+
+NOTE: `SourceLoc` 만 있고 `SourcePort` 만 누락된 LOAD/UNLOAD 는 `ResolveMissingPortByLocPrefix` 가 prefix 매칭으로 포트를 보완하므로, 정상 데이터에서는 `25 SOURCEMACHINENOTFOUND` 가 나오지 않는다. 보완 후에도 location 조회 실패하면 동일 코드로 NACK.
 
 ## 검증 시나리오
 

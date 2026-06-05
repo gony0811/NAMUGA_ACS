@@ -122,7 +122,7 @@ CREATE TABLE public."NA_A_ALARM" (
     "vehicleId" character varying(64),
     "createTime" timestamp with time zone,
     "alarmId" character varying(64),
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     "nearAgv" character varying(64),
     "isCross" character varying(20)
 );
@@ -205,7 +205,7 @@ CREATE TABLE public."NA_H_ALARMRPTHISTORY" (
     "alarmCode" character varying(64),
     "alarmText" character varying(255),
     state character varying(20),
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     "partitionId" integer NOT NULL,
     "time" timestamp with time zone
 );
@@ -223,7 +223,7 @@ CREATE TABLE public."NA_H_ALARMTIMEHISTORY" (
     "alarmId" character varying(64),
     "createTime" timestamp with time zone,
     "clearTime" timestamp with time zone,
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     "nearAgv" character varying(64),
     "bayId" character varying(64),
     "isCross" character varying(20),
@@ -305,7 +305,7 @@ CREATE TABLE public."NA_H_NIOHISTORY" (
 
 CREATE TABLE public."NA_H_TRANSPORTCMDHISTORY" (
     id character varying(64) NOT NULL,
-    "jobId" character varying(64),
+    "jobId" character varying(256),
     priority integer NOT NULL,
     state character varying(20),
     "vehicleId" character varying(64),
@@ -355,7 +355,7 @@ CREATE TABLE public."NA_H_VEHICLEHISTORY" (
     "alarmState" character varying(8),
     "processingState" character varying(20),
     "currentNodeId" character varying(64),
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     path character varying(2000),
     "nodeCheckTime" timestamp with time zone,
     state character varying(20),
@@ -437,7 +437,7 @@ CREATE TABLE public."NA_L_LOGMESSAGE" (
     "processName" character varying(64),
     "messageName" character varying(64),
     "communicationMessageName" character varying(64),
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     "carrierName" character varying(64),
     "machineName" character varying(64),
     "unitName" character varying(64),
@@ -474,7 +474,7 @@ CREATE TABLE public."NA_M_CARRIER" (
 CREATE TABLE public."NA_Q_TRANSPORTCMDREQUEST" (
     id character varying(64) NOT NULL,
     "messageName" character varying(64),
-    "jobId" character varying(64),
+    "jobId" character varying(256),
     "vehicleId" character varying(64),
     dest character varying(64),
     description character varying(255),
@@ -655,7 +655,7 @@ CREATE TABLE public."NA_R_VEHICLE" (
     "currentNodeId" character varying(64),
     "acsDestNodeId" character varying(64),
     "vehicleDestNodeId" character varying(64),
-    "transportCommandId" character varying(64),
+    "transportCommandId" character varying(256),
     path character varying(2000),
     "nodeCheckTime" timestamp with time zone NOT NULL,
     installed character varying(20),
@@ -819,7 +819,7 @@ CREATE TABLE public."NA_T_TRANSPORTCMD" (
     "originLoc" character varying(64),
     description character varying(256),
     "bayId" character varying(64),
-    "jobId" character varying(64),
+    "jobId" character varying(256),
     id bigint NOT NULL
 );
 

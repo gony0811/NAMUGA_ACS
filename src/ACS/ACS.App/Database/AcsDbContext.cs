@@ -302,7 +302,7 @@ namespace ACS.Database
                 e.Property(x => x.BatteryRate).HasColumnName("batteryRate");
                 e.Property(x => x.BatteryVoltage).HasColumnName("batteryVoltage");
                 e.Property(x => x.CurrentNodeId).HasColumnName("currentNodeId").HasMaxLength(64);
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
                 e.Property(x => x.Path).HasColumnName("path").HasMaxLength(2000);
                 e.Property(x => x.NodeCheckTime).HasColumnName("nodeCheckTime");
                 e.Property(x => x.EventTime).HasColumnName("eventTime");
@@ -431,7 +431,7 @@ namespace ACS.Database
                 e.ToTable("NA_T_TRANSPORTCMD");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
-                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(64);
+                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(256);
                 e.Property(x => x.Priority).HasColumnName("priority");
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
@@ -469,7 +469,7 @@ namespace ACS.Database
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
                 e.Property(x => x.MessageName).HasColumnName("messageName").HasMaxLength(64);
-                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(64);
+                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(256);
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
                 e.Property(x => x.Dest).HasColumnName("dest").HasMaxLength(64);
                 e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
@@ -516,7 +516,7 @@ namespace ACS.Database
                 e.ToTable("NA_H_TRANSPORTCMDHISTORY");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
-                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(64);
+                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(256);
                 e.Property(x => x.Priority).HasColumnName("priority");
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
@@ -564,7 +564,7 @@ namespace ACS.Database
                 e.Property(x => x.AlarmState).HasColumnName("alarmState").HasMaxLength(8);
                 e.Property(x => x.ProcessingState).HasColumnName("processingState").HasMaxLength(20);
                 e.Property(x => x.CurrentNodeId).HasColumnName("currentNodeId").HasMaxLength(64);
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
                 e.Property(x => x.Path).HasColumnName("path").HasMaxLength(2000);
                 e.Property(x => x.NodeCheckTime).HasColumnName("nodeCheckTime");
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
@@ -619,7 +619,7 @@ namespace ACS.Database
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
                 e.Property(x => x.PartitionId).HasColumnName("partitionId");
                 e.Property(x => x.Time).HasColumnName("time");
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
             });
 
             modelBuilder.Entity<AlarmTimeHistoryEx>(e =>
@@ -635,7 +635,7 @@ namespace ACS.Database
                 e.Property(x => x.Time).HasColumnName("time");
                 e.Property(x => x.CreateTime).HasColumnName("createTime");
                 e.Property(x => x.ClearTime).HasColumnName("clearTime");
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
                 e.Property(x => x.NearAgv).HasColumnName("nearAgv").HasMaxLength(64);
                 e.Property(x => x.BayId).HasColumnName("bayId").HasMaxLength(64);
                 e.Property(x => x.IsCross).HasColumnName("isCross").HasMaxLength(20);
@@ -763,7 +763,7 @@ namespace ACS.Database
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
                 e.Property(x => x.CreateTime).HasColumnName("createTime");
                 e.Property(x => x.AlarmId).HasColumnName("alarmId").HasMaxLength(64);
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
                 e.Property(x => x.NearAgv).HasColumnName("nearAgv").HasMaxLength(64);
                 e.Property(x => x.IsCross).HasColumnName("isCross").HasMaxLength(20);
             });
@@ -789,7 +789,7 @@ namespace ACS.Database
                 e.Property(x => x.ThreadName).HasColumnName("threadName").HasMaxLength(64);
                 e.Property(x => x.OperationName).HasColumnName("operationName").HasMaxLength(128);
                 e.Property(x => x.CommunicationMessageName).HasColumnName("communicationMessageName").HasMaxLength(64);
-                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(64);
+                e.Property(x => x.TransportCommandId).HasColumnName("transportCommandId").HasMaxLength(256);
                 e.Property(x => x.CarrierName).HasColumnName("carrierName").HasMaxLength(64);
                 e.Property(x => x.ProcessName).HasColumnName("processName").HasMaxLength(64);
                 e.Property(x => x.MessageName).HasColumnName("messageName").HasMaxLength(64);

@@ -981,3 +981,19 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **핵심 사실:** Windows PowerShell 5.1은 BOM 없는 `.ps1`을 ANSI(CP949)로 읽어 UTF-8 한글이 깨짐 → `docker/scripts/*.ps1`은 **UTF-8 BOM 필수**(Write 도구는 무 BOM 저장하므로 생성 후 BOM 재인코딩). 백업 제외: `NA_T_TRANSPORTCMD`, `NA_T_CURRENTINTERSECTION`, `NA_A_ALARM`, 차량 런타임(`NA_R_VEHICLE_IDLE/ORDER/CROSS_WAIT`), `NA_H_*`, `NA_L_*`/`NA_Q_*`/`NA_U_*`.
 
 **검증:** 세 `.ps1` 파싱 OK(`Parser::ParseFile`), `backup-schema.ps1` UTF-8 BOM 확인. **미완료(Docker Desktop 미기동)**: 실제 산출물 생성·DryRun·복원 검증은 컨테이너 기동 후 필요. 신규 서버에서 `NA_R_NODE`에 데모 N001~N012가 아니라 현재 노드만, `NA_R_VEHICLE`에 AMR001 아닌 실제 차량 확인, 앱 기동 시 맵 레이아웃 로드 확인.
+
+---
+
+## jobId / transportCommandId 컬럼 길이 256 확장
+
+**날짜:** 2026-06-05
+**작업:** MES JobID 75자 수신 → `NA_T_TRANSPORTCMD.jobId varchar(64)` 초과로 `SaveChanges` 실패 → JOBREPORT `ErrorCode=03` 사고 대응.
+
+**변경:**
+- `docker/init/01_init_acsdb.sql`: `jobId` 3개(`NA_T_TRANSPORTCMD`, `NA_H_TRANSPORTCMDHISTORY`, `NA_Q_TRANSPORTCMDREQUEST`) + `transportCommandId` 6개(`NA_A_ALARM`, `NA_H_ALARMRPTHISTORY`, `NA_H_ALARMTIMEHISTORY`, `NA_H_VEHICLEHISTORY`, `NA_L_LOGMESSAGE`, `NA_R_VEHICLE`)를 `character varying(64)` → `character varying(256)` 으로 통일.
+- `src/ACS/ACS.App/Database/AcsDbContext.cs`: 대응하는 EF Core 매핑 9개 라인 `HasMaxLength(64)` → `HasMaxLength(256)`.
+- 신규 `docker/init/migration_jobid_256.sql`: 운영 DB(`acsdb@10.0.26.2`) 적용용 멱등 ALTER 스크립트. 9개 ALTER 모두 포함(사용자가 이미 수동 적용한 `NA_T_TRANSPORTCMD.jobId` 포함 — PostgreSQL 은 동일 길이면 사실상 no-op).
+
+**핵심 사실:** `transportCommandId` 는 `NA_T_TRANSPORTCMD.jobId` 값을 참조 저장하므로 길이 불일치 시 alarm/history/log 기록 시점에 동일 truncation 오류 발생. jobId 만 늘리면 안 됨.
+
+**검증:** `ACS.Elsa` 빌드 통과. 운영 적용은 `psql -h 10.0.26.2 -U acsuser -d acsdb -f docker/init/migration_jobid_256.sql` 후 `\d "<table>"` 로 타입 확인. 사고 메시지 재현 시 `TransportCommand created` + JOBREPORT `<ErrorCode>0</ErrorCode>` 예상.

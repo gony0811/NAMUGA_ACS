@@ -1,0 +1,3 @@
+#!/bin/bash
+set -e
+pg_dump -h 10.0.26.2 -p 5432 -U postgres -d acsdb --data-only --column-inserts --disable-triggers --no-owner --no-privileges -t 'public."NA_R_NODE"' -t 'public."NA_R_LINK"' -t 'public."NA_R_LINK_ZONE"' -t 'public."NA_R_STATION"' -t 'public."NA_R_LOCATION"' -t 'public."NA_R_BAY"' -t 'public."NA_R_ZONE"' -t 'public."NA_T_INTERSECTION"' -t 'public."NA_R_ORDER_PAIR"' -t 'public."NA_R_VEHICLE"' -t 'public."NA_M_CARRIER"' -t 'public."NA_A_ALARMSPEC"' -t 'public."NA_C_MQTT"' -t 'public."NA_C_NIO"' -t 'public."NA_R_SPECIALCONFIG"' -t 'public."NA_X_OPTION"' -t 'public."NA_X_APPLICATION_MANAGER"' -f /out/acs-master-prod.sql

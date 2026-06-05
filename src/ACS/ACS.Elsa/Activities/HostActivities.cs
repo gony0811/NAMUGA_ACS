@@ -456,6 +456,28 @@ namespace ACS.Elsa.Activities
                     logger.Info($"CreateTransportCommandActivity: UNLOAD swap - Source={sourceLoc}:{sourcePort}, Dest={destLoc}:{destPort}");
                 }
 
+                // SourceLoc/DestLoc 만 있고 대응 포트가 비어있으면 NA_R_LOCATION 의 '<Loc>:<Port>' 키에서 첫 후보 포트로 보완.
+                // MES 가 SourcePort 를 누락한 LOAD/UNLOAD 요청을 ACS 가 방어적으로 살리기 위함.
+                // 후보 없으면 보완하지 않음 → 기존 location 미조회 분기에서 자연스럽게 NACK.
+                if (!string.IsNullOrWhiteSpace(sourceLoc) && string.IsNullOrWhiteSpace(sourcePort))
+                {
+                    var resolvedPort = ResolveMissingPortByLocPrefix(accessor, sourceLoc);
+                    if (!string.IsNullOrEmpty(resolvedPort))
+                    {
+                        sourcePort = resolvedPort;
+                        logger.Info($"CreateTransportCommandActivity: SourcePort auto-filled - SourceLoc={sourceLoc}, SourcePort={sourcePort}");
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(destLoc) && string.IsNullOrWhiteSpace(destPort))
+                {
+                    var resolvedPort = ResolveMissingPortByLocPrefix(accessor, destLoc);
+                    if (!string.IsNullOrEmpty(resolvedPort))
+                    {
+                        destPort = resolvedPort;
+                        logger.Info($"CreateTransportCommandActivity: DestPort auto-filled - DestLoc={destLoc}, DestPort={destPort}");
+                    }
+                }
+
                 // Source, Dest 조합: "SourceLoc:SourcePort" 형식
                 string source = string.IsNullOrEmpty(sourcePort) ? sourceLoc : $"{sourceLoc}:{sourcePort}";
                 string dest = string.IsNullOrEmpty(destPort) ? destLoc : $"{destLoc}:{destPort}";
@@ -746,6 +768,45 @@ namespace ACS.Elsa.Activities
             var result = parts.Length > 0 ? parts[0] : first;
             logger.Info($"{tag}: chosen first candidate '{first}' → '{result}'");
             return result;
+        }
+
+        // LocationId 가 '<loc>:<port>' 포맷인 후보 중 사전순 첫 행의 port 부분을 반환.
+        // 후보 없거나 단독 키만 있는 경우 null. SourcePort/DestPort 누락 시 fallback 용.
+        private static string ResolveMissingPortByLocPrefix(
+            AutofacContainerAccessor accessor, string loc)
+        {
+            if (string.IsNullOrWhiteSpace(loc)) return null;
+
+            var resource = accessor.Resolve<IResourceManagerEx>();
+            if (resource == null)
+            {
+                logger.Warn($"ResolveMissingPortByLocPrefix: IResourceManagerEx not available - loc={loc}");
+                return null;
+            }
+
+            var allLocations = resource.GetLocations();
+            if (allLocations == null) return null;
+
+            var prefix = loc + ":";
+            var candidates = new List<string>();
+            foreach (LocationEx l in allLocations)
+            {
+                if (l == null || string.IsNullOrEmpty(l.LocationId)) continue;
+                if (l.LocationId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    candidates.Add(l.LocationId);
+            }
+            if (candidates.Count == 0)
+            {
+                logger.Info($"ResolveMissingPortByLocPrefix: no '<loc>:<port>' candidate for loc='{loc}'");
+                return null;
+            }
+
+            candidates.Sort(StringComparer.OrdinalIgnoreCase);
+            var firstId = candidates[0];
+            var idx = firstId.IndexOf(':');
+            var port = idx >= 0 && idx + 1 < firstId.Length ? firstId.Substring(idx + 1) : null;
+            logger.Info($"ResolveMissingPortByLocPrefix: chosen '{firstId}' → port='{port}' (candidates={candidates.Count})");
+            return port;
         }
     }
 
