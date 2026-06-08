@@ -6,10 +6,12 @@
 
 | 스크립트 | 역할 |
 |----------|------|
+| `backup-deploy-bundle.ps1` | **신규 운영 서버용 배포 번들 생성** (스키마 + 마스터 + docker-compose + README 를 한 디렉토리로). **시나리오 E 참고 — 권장 절차** |
 | `backup-master.ps1` | 현재 마스터 데이터 추출 → `acs-master-<ts>.sql` (INSERT + setval) |
 | `restore-master.ps1` | 위 파일을 빈 스키마에 적재 (단일 트랜잭션) |
-| `backup-schema.ps1` | 라이브 DB 스키마 전용 덤프 → `acs-schema-<ts>.sql` (신규 서버 init 용). **서버 이전 시 사용** |
+| `backup-schema.ps1` | 라이브 DB 스키마 전용 덤프 → `acs-schema-<ts>.sql` (신규 서버 init 용). 시나리오 A 수동 절차에서 사용 |
 | `create-user.ps1` | 슈퍼유저 공유 없이 **제한된 협업자 계정** 생성 (일부 테이블 읽기 전용 + 본인 스키마). **시나리오 D 참고** |
+| `_master-tables.ps1` | 마스터 테이블 목록(17/18 개) 단일 출처 — 위 스크립트들이 dot-source 로 공유 |
 
 ## 사전조건
 
@@ -47,7 +49,53 @@ pwsh docker/scripts/restore-master.ps1 -InputFile .\backup.sql -Force
 
 ## 시나리오
 
-### A. 서버 이전 / 사이트 이관 (구 서버 → 신 서버, 권장 클린 절차)
+### E. 운영 서버 신규 배포 — 번들 사용 (권장)
+
+라이브 DB 의 스키마 + 마스터 데이터 + docker-compose.yml + README 를 한 디렉토리로 묶고, 신규 서버에 통째로 옮겨 `docker-compose up -d` 한 번으로 완성한다. 시나리오 A 의 모든 절차를 한 스크립트로 자동화한 버전.
+
+```powershell
+# --- 구 서버 (라이브 컨테이너 기동 중) ---
+# 비번 placeholder(__CHANGE_ME__) 로 만들기
+pwsh docker\scripts\backup-deploy-bundle.ps1 -IncludeApplication
+
+# 또는 신규 운영 비번을 미리 박아두기
+pwsh docker\scripts\backup-deploy-bundle.ps1 -IncludeApplication -NewPassword '<신규운영비번>'
+
+# 실행 전에 명령만 보고 싶다면
+pwsh docker\scripts\backup-deploy-bundle.ps1 -DryRun
+```
+
+결과: `docker\backups\deploy-<yyyyMMdd-HHmmss>\`
+
+```
+deploy-<ts>/
+├── docker-compose.yml          # 비번 치환된 사본 (포트/볼륨/init 매핑 동일)
+├── README.md                   # 신규 서버 운영자용 절차 + 검증 SQL
+└── init/
+    ├── 01_schema.sql           # pg_dump --schema-only
+    └── 02_master_data.sql      # 마스터 17/18 개 테이블 INSERT
+```
+
+```powershell
+# --- 신 서버 ---
+# 1) deploy-<ts>/ 디렉토리 통째로 복사 (USB / SCP / zip)
+# 2) docker-compose.yml 의 __CHANGE_ME__ 검색 → 운영 비번으로 치환 (NewPassword 안 박은 경우)
+# 3) 해당 디렉토리에서 기동
+cd deploy-<ts>
+docker-compose up -d
+docker logs -f acs-postgres-db   # 01_schema.sql -> 02_master_data.sql 순서 실행 확인
+
+# 4) 사이트 종속값 갱신 (NA_C_MQTT.brokerIp, NA_C_NIO.remoteIp/machineName 등) — README.md 참고
+# 5) ACS 앱 측 appsettings.json (DefaultConnection / MQTT brokerIp / NIO remoteIp) 조정
+```
+
+> ⚠️ `./init` 스크립트는 PostgreSQL 볼륨이 **비어있는 최초 기동** 시에만 실행됩니다. 재실행이 필요하면 `docker-compose down -v` 로 볼륨까지 제거 후 `up -d` (운영 데이터 손실 주의).
+
+> ⚠️ 로그(`NA_L_*`) / 이력(`NA_H_*`) / 런타임 큐(`NA_T_*`, `NA_Q_*`, `NA_U_*`, `NA_A_ALARM`) 는 번들에 포함되지 않습니다 — 신규 서버에서는 비어 있어야 정상.
+
+### A. 서버 이전 / 사이트 이관 — 수동 분리 절차
+
+> ℹ️ 새 작업에는 자동화된 **시나리오 E** 를 권장합니다. 이 절차는 단계별 검증이 필요하거나 schema/data 를 따로 다뤄야 할 때 사용하세요.
 
 > ⚠️ 레포의 `docker/init/01_init_acsdb.sql` 에는 **과거 DEMO 데이터**가 박혀 있다(노드 N001~N012, 차량 AMR001, 192.168.1.x 데모 location 등). 이걸 그대로 init 으로 쓰면 신규 서버가 데모 데이터로 초기화된다. 신규 서버는 아래처럼 **스키마 전용 init** 위에 현재 마스터 데이터만 적재해야 깨끗하다.
 

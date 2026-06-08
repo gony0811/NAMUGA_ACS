@@ -27,28 +27,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # 1) 백업 대상 마스터 테이블 (운영/이력 테이블은 제외)
-$masterTables = @(
-    # Path / Layout
-    'NA_R_NODE', 'NA_R_LINK', 'NA_R_LINK_ZONE',
-    'NA_R_STATION', 'NA_R_LOCATION', 'NA_R_BAY', 'NA_R_ZONE',
-    # Intersection 정의
-    'NA_T_INTERSECTION', 'NA_R_ORDER_PAIR',
-    # Vehicle 마스터
-    'NA_R_VEHICLE',
-    # 자재 / 알람 정의
-    'NA_M_CARRIER', 'NA_A_ALARMSPEC',
-    # 통신 설정 (NA_C_NIO 는 인터페이스 정의 — remoteIp/machineName 등 사이트 종속 값은 이관 후 수정 필요)
-    'NA_C_MQTT', 'NA_C_NIO',
-    # 사이트 / 옵션
-    'NA_R_SPECIALCONFIG',
-    'NA_X_OPTION', 'NA_X_APPLICATION_MANAGER'
-)
-
-if ($IncludeApplication) {
-    # NA_X_APPLICATION 은 기본적으로 ApplicationInitializer 가 런타임에 만들어 PK 충돌 위험.
-    # 사이트 이관 등 명시적으로 필요할 때만 포함.
-    $masterTables += 'NA_X_APPLICATION'
-}
+#    목록은 _master-tables.ps1 에서 단일 출처로 관리 — backup/restore/deploy 가 공유.
+. $PSScriptRoot\_master-tables.ps1
+$masterTables = if ($IncludeApplication) { $script:MasterTablesWithApplication } else { $script:MasterTables }
 
 # 2) 컨테이너 가동 여부 확인
 $running = & docker ps --filter "name=^/$Container$" --filter 'status=running' --format '{{.Names}}' 2>$null

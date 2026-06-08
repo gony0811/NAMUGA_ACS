@@ -32,18 +32,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # 백업 스크립트와 동일한 마스터 테이블 목록.
-# NA_X_APPLICATION 은 -IncludeApplication 옵션으로 백업됐을 때만 포함됨.
-$masterTables = @(
-    'NA_R_NODE', 'NA_R_LINK', 'NA_R_LINK_ZONE',
-    'NA_R_STATION', 'NA_R_LOCATION', 'NA_R_BAY', 'NA_R_ZONE',
-    'NA_T_INTERSECTION', 'NA_R_ORDER_PAIR',
-    'NA_R_VEHICLE',
-    'NA_M_CARRIER', 'NA_A_ALARMSPEC',
-    'NA_C_MQTT', 'NA_C_NIO',
-    'NA_R_SPECIALCONFIG',
-    'NA_X_OPTION', 'NA_X_APPLICATION_MANAGER',
-    'NA_X_APPLICATION'
-)
+# NA_X_APPLICATION 은 -IncludeApplication 옵션으로 백업됐을 때만 포함되지만,
+# 복원 시에는 존재 가능성이 있는 모든 테이블을 점검 대상으로 둔다.
+. $PSScriptRoot\_master-tables.ps1
+$masterTables = $script:MasterTablesWithApplication
 
 # 1) 입력 파일 검증
 if (-not (Test-Path $InputFile)) {
