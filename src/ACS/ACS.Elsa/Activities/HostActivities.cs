@@ -478,6 +478,14 @@ namespace ACS.Elsa.Activities
                     }
                 }
 
+                // LOAD 인데 DestPort 가 끝까지 비어 있으면 'LEFT' 로 강제 세팅.
+                // MES 가 LOAD 의 DestPort 를 누락하고 캐시 후보로도 보충되지 않을 때 NACK 대신 EQP 표준 포트명 'LEFT' 로 진행.
+                if (isLoad && !string.IsNullOrWhiteSpace(destLoc) && string.IsNullOrWhiteSpace(destPort))
+                {
+                    destPort = "LEFT";
+                    logger.Info($"CreateTransportCommandActivity: LOAD DestPort defaulted to LEFT - DestLoc={destLoc}");
+                }
+
                 // Source, Dest 조합: "SourceLoc:SourcePort" 형식
                 string source = string.IsNullOrEmpty(sourcePort) ? sourceLoc : $"{sourceLoc}:{sourcePort}";
                 string dest = string.IsNullOrEmpty(destPort) ? destLoc : $"{destLoc}:{destPort}";
