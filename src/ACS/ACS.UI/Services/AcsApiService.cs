@@ -518,4 +518,78 @@ public class AcsApiService : IAcsApiService
         parts.Add("limit=" + f.Limit.ToString(CultureInfo.InvariantCulture));
         return "?" + string.Join("&", parts);
     }
+
+    public async Task<List<TransportCommandHistoryDto>> GetTransportCmdHistoriesAsync(TransportCmdHistoryQueryFilter filter)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<TransportCommandHistoryDto>>(
+                       "/api/history/transport-commands" + BuildTransportCmdHistoryQuery(filter), _jsonOptions)
+                   ?? new List<TransportCommandHistoryDto>();
+        }
+        catch
+        {
+            return new List<TransportCommandHistoryDto>();
+        }
+    }
+
+    public async Task<List<VehicleHistoryDto>> GetVehicleHistoriesAsync(VehicleHistoryQueryFilter filter)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<VehicleHistoryDto>>(
+                       "/api/history/vehicles" + BuildVehicleHistoryQuery(filter), _jsonOptions)
+                   ?? new List<VehicleHistoryDto>();
+        }
+        catch
+        {
+            return new List<VehicleHistoryDto>();
+        }
+    }
+
+    private static string BuildTransportCmdHistoryQuery(TransportCmdHistoryQueryFilter f)
+    {
+        if (f == null) return string.Empty;
+        var parts = new List<string>();
+        if (f.FromLocal.HasValue)
+            parts.Add("from=" + Uri.EscapeDataString(f.FromLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (f.ToLocal.HasValue)
+            parts.Add("to=" + Uri.EscapeDataString(f.ToLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (!string.IsNullOrWhiteSpace(f.JobId))
+            parts.Add("jobId=" + Uri.EscapeDataString(f.JobId));
+        if (!string.IsNullOrWhiteSpace(f.VehicleId))
+            parts.Add("vehicleId=" + Uri.EscapeDataString(f.VehicleId));
+        if (!string.IsNullOrWhiteSpace(f.CarrierId))
+            parts.Add("carrierId=" + Uri.EscapeDataString(f.CarrierId));
+        if (!string.IsNullOrWhiteSpace(f.State) && f.State != "All")
+            parts.Add("state=" + Uri.EscapeDataString(f.State));
+        if (!string.IsNullOrWhiteSpace(f.JobType) && f.JobType != "All")
+            parts.Add("jobType=" + Uri.EscapeDataString(f.JobType));
+        if (!string.IsNullOrWhiteSpace(f.BayId))
+            parts.Add("bayId=" + Uri.EscapeDataString(f.BayId));
+        parts.Add("limit=" + f.Limit.ToString(CultureInfo.InvariantCulture));
+        return "?" + string.Join("&", parts);
+    }
+
+    private static string BuildVehicleHistoryQuery(VehicleHistoryQueryFilter f)
+    {
+        if (f == null) return string.Empty;
+        var parts = new List<string>();
+        if (f.FromLocal.HasValue)
+            parts.Add("from=" + Uri.EscapeDataString(f.FromLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (f.ToLocal.HasValue)
+            parts.Add("to=" + Uri.EscapeDataString(f.ToLocal.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)));
+        if (!string.IsNullOrWhiteSpace(f.VehicleId))
+            parts.Add("vehicleId=" + Uri.EscapeDataString(f.VehicleId));
+        if (!string.IsNullOrWhiteSpace(f.BayId))
+            parts.Add("bayId=" + Uri.EscapeDataString(f.BayId));
+        if (!string.IsNullOrWhiteSpace(f.State) && f.State != "All")
+            parts.Add("state=" + Uri.EscapeDataString(f.State));
+        if (!string.IsNullOrWhiteSpace(f.TransportCommandId))
+            parts.Add("transportCommandId=" + Uri.EscapeDataString(f.TransportCommandId));
+        if (!string.IsNullOrWhiteSpace(f.MessageName))
+            parts.Add("messageName=" + Uri.EscapeDataString(f.MessageName));
+        parts.Add("limit=" + f.Limit.ToString(CultureInfo.InvariantCulture));
+        return "?" + string.Join("&", parts);
+    }
 }

@@ -97,11 +97,32 @@
                                                   IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsTab3Selected}" />
 
                         <!-- History -->
-                        <Border Background="{StaticResource AcsSurfaceCardBrush}" Padding="12,8"
+                        <Border Background="{StaticResource AcsSurfaceCardBrush}" Padding="8,6"
                                 IsVisible="{Binding IsTab4Selected}" MinHeight="80">
-                            <TextBlock Text="History" FontSize="11"
-                                       Foreground="{StaticResource AcsTextSecondaryBrush}"
-                                       VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Command="{Binding OpenTransportCmdHistoryCommand}"
+                                        Background="Transparent" BorderThickness="0" Padding="8,4">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="📑" FontSize="22" HorizontalAlignment="Center" />
+                                        <TextBlock Text="TrCmd History" FontSize="11" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding OpenVehicleHistoryCommand}"
+                                        Background="Transparent" BorderThickness="0" Padding="8,4">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="🚗" FontSize="22" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Vehicle History" FontSize="11" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Text="NA_T_TRANSPORTCMD_HISTORY / NA_T_VEHICLE_HISTORY 조회 (시간/필터)"
+                                           FontSize="11"
+                                           Foreground="{StaticResource AcsTextMutedBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Log -->

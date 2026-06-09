@@ -72,6 +72,12 @@ public partial class MainWindowViewModel : ObservableObject
     private VehicleViewModel _vehicleViewModel;
 
     [ObservableProperty]
+    private TransportCmdHistoryViewModel _transportCmdHistoryViewModel;
+
+    [ObservableProperty]
+    private VehicleHistoryViewModel _vehicleHistoryViewModel;
+
+    [ObservableProperty]
     private string _connectionStatus = "Disconnected";
 
     [ObservableProperty]
@@ -127,6 +133,8 @@ public partial class MainWindowViewModel : ObservableObject
         _linkZoneViewModel = new LinkZoneViewModel(_apiService);
         _transferCommandViewModel = new TransferCommandViewModel(_apiService);
         _vehicleViewModel = new VehicleViewModel(_apiService);
+        _transportCmdHistoryViewModel = new TransportCmdHistoryViewModel(_apiService);
+        _vehicleHistoryViewModel = new VehicleHistoryViewModel(_apiService);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -162,6 +170,8 @@ public partial class MainWindowViewModel : ObservableObject
             "LinkZone" => ("LinkZone", (Control)new LinkZoneView { DataContext = LinkZoneViewModel }),
             "TransferCommand" => ("Transfer Command", (Control)new TransferCommandView { DataContext = TransferCommandViewModel }),
             "Vehicle" => ("Vehicle", (Control)new VehicleView { DataContext = VehicleViewModel }),
+            "TransportCmdHistory" => ("TrCmd History", (Control)new TransportCmdHistoryView { DataContext = TransportCmdHistoryViewModel }),
+            "VehicleHistory" => ("Vehicle History", (Control)new VehicleHistoryView { DataContext = VehicleHistoryViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -206,11 +216,23 @@ public partial class MainWindowViewModel : ObservableObject
             _ = VehicleViewModel.LoadVehiclesAsync();
         if (viewName == "Log")
             _ = LogViewModel.SearchCommand.ExecuteAsync(null);   // 창 오픈 시 기본 범위 1회 조회
+        if (viewName == "TransportCmdHistory")
+            _ = TransportCmdHistoryViewModel.SearchCommand.ExecuteAsync(null);
+        if (viewName == "VehicleHistory")
+            _ = VehicleHistoryViewModel.SearchCommand.ExecuteAsync(null);
     }
 
     /// <summary>Log 리본 버튼 → Log Viewer 팝업 열기.</summary>
     [RelayCommand]
     private void OpenLog() => OpenPopupView("Log");
+
+    /// <summary>History 리본 버튼 → TrCmd History 팝업 열기.</summary>
+    [RelayCommand]
+    private void OpenTransportCmdHistory() => OpenPopupView("TransportCmdHistory");
+
+    /// <summary>History 리본 버튼 → Vehicle History 팝업 열기.</summary>
+    [RelayCommand]
+    private void OpenVehicleHistory() => OpenPopupView("VehicleHistory");
 
     public async Task LoadInitialDataAsync() => await RefreshAsync();
 

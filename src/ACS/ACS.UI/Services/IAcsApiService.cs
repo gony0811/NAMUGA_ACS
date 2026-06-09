@@ -48,4 +48,8 @@ public interface IAcsApiService
     // 로그 조회 (NA_L_LOGMESSAGE / NA_L_LARGELOGMESSAGE)
     Task<List<LogMessageDto>> GetLogsAsync(LogQueryFilter filter);
     Task<string> GetLogTextAsync(string id);
+
+    // 히스토리 조회 (NA_T_TRANSPORTCMD_HISTORY / NA_T_VEHICLE_HISTORY)
+    Task<List<TransportCommandHistoryDto>> GetTransportCmdHistoriesAsync(TransportCmdHistoryQueryFilter filter);
+    Task<List<VehicleHistoryDto>> GetVehicleHistoriesAsync(VehicleHistoryQueryFilter filter);
 }

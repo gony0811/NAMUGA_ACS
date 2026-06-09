@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ACS.Communication.Http.Models;
+using ACS.Core.History.Model;
 using ACS.Core.Logging.Model;
 using ACS.Core.Path.Model;
 using ACS.Core.Resource;
@@ -1088,6 +1089,227 @@ namespace ACS.App.Web.Controllers
                 DateTimeKind.Local => v.ToUniversalTime(),
                 _ => DateTime.SpecifyKind(v, DateTimeKind.Utc)
             };
+        }
+    }
+
+    /// <summary>
+    /// History 조회 컨트롤러들이 공유하는 시간 변환 유틸. LogsController의 private 헬퍼와 동일한 동작.
+    /// </summary>
+    internal static class HistoryQueryUtils
+    {
+        public static bool TryParseUtc(string s, out DateTime utc)
+        {
+            utc = default;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var dto))
+            {
+                utc = dto.UtcDateTime;
+                return true;
+            }
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var dt))
+            {
+                utc = dt.Kind == DateTimeKind.Utc ? dt
+                    : dt.Kind == DateTimeKind.Local ? dt.ToUniversalTime()
+                    : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                return true;
+            }
+            return false;
+        }
+
+        public static DateTime? ToUtc(DateTime? t)
+        {
+            if (t is not { } v) return null;
+            return v.Kind switch
+            {
+                DateTimeKind.Utc => v,
+                DateTimeKind.Local => v.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            };
+        }
+    }
+
+    /// <summary>
+    /// NA_T_TRANSPORTCMD_HISTORY 조회 엔드포인트. 시간 범위 + 다중 필터로 최근순(DESC) 정렬해 반환한다.
+    /// 시간 비교/반환은 모두 UTC 기준이며, 로컬↔UTC 변환은 클라이언트가 담당한다.
+    /// </summary>
+    [ApiController]
+    [Route("api/history/transport-commands")]
+    public class TransportCommandHistoriesController : ControllerBase
+    {
+        private readonly ACS.Database.AcsDbContext _db;
+
+        public TransportCommandHistoriesController(ACS.Database.AcsDbContext db)
+        {
+            _db = db;
+        }
+
+        // GET /api/history/transport-commands?from=&to=&jobId=&vehicleId=&carrierId=&state=&jobType=&bayId=&limit=
+        // from/to는 ISO-8601 UTC 문자열. 모든 필터는 선택값.
+        [HttpGet]
+        public ActionResult<List<TransportCommandHistoryDto>> Get(
+            [FromQuery] string from = null,
+            [FromQuery] string to = null,
+            [FromQuery] string jobId = null,
+            [FromQuery] string vehicleId = null,
+            [FromQuery] string carrierId = null,
+            [FromQuery] string state = null,
+            [FromQuery] string jobType = null,
+            [FromQuery] string bayId = null,
+            [FromQuery] int limit = 1000)
+        {
+            if (limit <= 0) limit = 1000;
+            if (limit > 5000) limit = 5000;
+
+            IQueryable<TransportCommandHistoryEx> q = _db.TransportCommandHistories.AsNoTracking();
+
+            if (HistoryQueryUtils.TryParseUtc(from, out var fromUtc))
+                q = q.Where(x => x.Time >= fromUtc);
+            if (HistoryQueryUtils.TryParseUtc(to, out var toUtc))
+                q = q.Where(x => x.Time <= toUtc);
+            if (!string.IsNullOrWhiteSpace(jobId))
+                q = q.Where(x => x.JobId == jobId);
+            if (!string.IsNullOrWhiteSpace(vehicleId))
+                q = q.Where(x => x.VehicleId == vehicleId);
+            if (!string.IsNullOrWhiteSpace(carrierId))
+                q = q.Where(x => x.CarrierId == carrierId);
+            if (!string.IsNullOrWhiteSpace(state) &&
+                !string.Equals(state, "All", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.State == state);
+            if (!string.IsNullOrWhiteSpace(jobType) &&
+                !string.Equals(jobType, "All", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.JobType == jobType);
+            if (!string.IsNullOrWhiteSpace(bayId))
+                q = q.Where(x => x.BayId == bayId);
+
+            var rows = q.OrderByDescending(x => x.Time).Take(limit).ToList();
+
+            var dtos = new List<TransportCommandHistoryDto>(rows.Count);
+            foreach (var x in rows)
+            {
+                dtos.Add(new TransportCommandHistoryDto
+                {
+                    Id = x.Id,
+                    Time = HistoryQueryUtils.ToUtc(x.Time),
+                    PartitionId = x.PartitionId,
+                    JobId = x.JobId,
+                    Priority = x.Priority,
+                    State = x.State,
+                    VehicleId = x.VehicleId,
+                    VehicleEvent = x.VehicleEvent,
+                    CarrierId = x.CarrierId,
+                    Source = x.Source,
+                    Dest = x.Dest,
+                    Path = x.Path,
+                    JobType = x.JobType,
+                    BayId = x.BayId,
+                    EqpId = x.EqpId,
+                    PortId = x.PortId,
+                    AgvName = x.AgvName,
+                    MidLoc = x.MidLoc,
+                    MidPortId = x.MidPortId,
+                    OriginLoc = x.OriginLoc,
+                    Reason = x.Reason,
+                    Code = x.Code,
+                    Description = x.Description,
+                    AdditionalInfo = x.AdditionalInfo,
+                    CreateTime = HistoryQueryUtils.ToUtc(x.CreateTime),
+                    QueuedTime = HistoryQueryUtils.ToUtc(x.QueuedTime),
+                    AssignedTime = HistoryQueryUtils.ToUtc(x.AssignedTime),
+                    StartedTime = HistoryQueryUtils.ToUtc(x.StartedTime),
+                    LoadArrivedTime = HistoryQueryUtils.ToUtc(x.LoadArrivedTime),
+                    LoadedTime = HistoryQueryUtils.ToUtc(x.LoadedTime),
+                    UnloadArrivedTime = HistoryQueryUtils.ToUtc(x.UnloadArrivedTime),
+                    UnloadedTime = HistoryQueryUtils.ToUtc(x.UnloadedTime),
+                    LoadingTime = HistoryQueryUtils.ToUtc(x.LoadingTime),
+                    UnloadingTime = HistoryQueryUtils.ToUtc(x.UnloadingTime),
+                    CompletedTime = HistoryQueryUtils.ToUtc(x.CompletedTime)
+                });
+            }
+            return dtos;
+        }
+    }
+
+    /// <summary>
+    /// NA_T_VEHICLE_HISTORY 조회 엔드포인트. 시간 범위 + 다중 필터로 최근순(DESC) 정렬해 반환한다.
+    /// 시간 비교/반환은 모두 UTC 기준이며, 로컬↔UTC 변환은 클라이언트가 담당한다.
+    /// </summary>
+    [ApiController]
+    [Route("api/history/vehicles")]
+    public class VehicleHistoriesController : ControllerBase
+    {
+        private readonly ACS.Database.AcsDbContext _db;
+
+        public VehicleHistoriesController(ACS.Database.AcsDbContext db)
+        {
+            _db = db;
+        }
+
+        // GET /api/history/vehicles?from=&to=&vehicleId=&bayId=&state=&transportCommandId=&messageName=&limit=
+        [HttpGet]
+        public ActionResult<List<VehicleHistoryDto>> Get(
+            [FromQuery] string from = null,
+            [FromQuery] string to = null,
+            [FromQuery] string vehicleId = null,
+            [FromQuery] string bayId = null,
+            [FromQuery] string state = null,
+            [FromQuery] string transportCommandId = null,
+            [FromQuery] string messageName = null,
+            [FromQuery] int limit = 1000)
+        {
+            if (limit <= 0) limit = 1000;
+            if (limit > 5000) limit = 5000;
+
+            IQueryable<VehicleHistoryEx> q = _db.VehicleHistories.AsNoTracking();
+
+            if (HistoryQueryUtils.TryParseUtc(from, out var fromUtc))
+                q = q.Where(x => x.Time >= fromUtc);
+            if (HistoryQueryUtils.TryParseUtc(to, out var toUtc))
+                q = q.Where(x => x.Time <= toUtc);
+            if (!string.IsNullOrWhiteSpace(vehicleId))
+                q = q.Where(x => x.VehicleId == vehicleId);
+            if (!string.IsNullOrWhiteSpace(bayId))
+                q = q.Where(x => x.BayId == bayId);
+            if (!string.IsNullOrWhiteSpace(state) &&
+                !string.Equals(state, "All", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.State == state);
+            if (!string.IsNullOrWhiteSpace(transportCommandId))
+                q = q.Where(x => x.TransportCommandId == transportCommandId);
+            if (!string.IsNullOrWhiteSpace(messageName))
+                q = q.Where(x => x.MessageName == messageName);
+
+            var rows = q.OrderByDescending(x => x.Time).Take(limit).ToList();
+
+            var dtos = new List<VehicleHistoryDto>(rows.Count);
+            foreach (var x in rows)
+            {
+                dtos.Add(new VehicleHistoryDto
+                {
+                    Id = x.Id,
+                    Time = HistoryQueryUtils.ToUtc(x.Time),
+                    PartitionId = x.PartitionId,
+                    VehicleId = x.VehicleId,
+                    BayId = x.BayId,
+                    CarrierType = x.CarrierType,
+                    ConnectionState = x.ConnectionState,
+                    AlarmState = x.AlarmState,
+                    ProcessingState = x.ProcessingState,
+                    CurrentNodeId = x.CurrentNodeId,
+                    TransportCommandId = x.TransportCommandId,
+                    Path = x.Path,
+                    NodeCheckTime = HistoryQueryUtils.ToUtc(x.NodeCheckTime),
+                    State = x.State,
+                    Installed = x.Installed,
+                    TransferState = x.TransferState,
+                    RunState = x.RunState,
+                    FullState = x.FullState,
+                    MessageName = x.MessageName,
+                    AcsDestNodeId = x.AcsDestNodeId,
+                    VehicleDestNodeId = x.VehicleDestNodeId
+                });
+            }
+            return dtos;
         }
     }
 }
