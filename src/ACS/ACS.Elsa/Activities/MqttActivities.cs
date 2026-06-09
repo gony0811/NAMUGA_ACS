@@ -173,6 +173,12 @@ namespace ACS.Elsa.Activities
         public string ErrorMessage;
         public string PreviousAlarmState;   // DB 조회 시점의 vehicle.AlarmState
         public string ComputedAlarmState;   // ErrorCode 기준 NOALARM/ALARM
+
+        // Abnormal → RAIL-VEHICLEABNORMAL 메시지 적재용. AbnormalType 비어있으면 송신 생략.
+        public string AbnormalType;
+        public string AbnormalCode;
+        public string AbnormalNode;
+        public DateTime AbnormalTime;
     }
 
     /// <summary>
@@ -300,11 +306,17 @@ namespace ACS.Elsa.Activities
                     }
                 }
 
-                // Abnormal 로깅
+                // Abnormal 로깅 + bundle 에 적재 → SendVehicleAbnormalActivity 가 RAIL-VEHICLEABNORMAL 메시지로 Trans 에 전송.
+                // 실제 도메인 처리(TC 삭제, Vehicle 상태 초기화)는 Trans 측 RailVehicleAbnormalWorkflow 의 책임.
                 if (status.Abnormal != null && !string.IsNullOrEmpty(status.Abnormal.Type))
                 {
                     logger.Warn($"AMR Abnormal: type={status.Abnormal.Type}, node={status.Abnormal.Node}, " +
                                 $"timestamp={status.Abnormal.Timestamp}, vehicleId={vehicleId}");
+
+                    bundle.AbnormalType = status.Abnormal.Type;
+                    bundle.AbnormalCode = MapAbnormalCode(status.Abnormal.Type);
+                    bundle.AbnormalNode = status.Abnormal.Node ?? "";
+                    bundle.AbnormalTime = status.Abnormal.Timestamp;
                 }
 
                 context.WorkflowExecutionContext.Properties[VehicleUpdateContext.PropertyKey] = bundle;
@@ -333,6 +345,17 @@ namespace ACS.Elsa.Activities
                 "Empty" => VehicleEx.FULLSTATE_EMPTY,
                 _ => null
             };
+        }
+
+        // AMR 이 type 으로 이름("OPERATOR_ABORT") 만 보내거나 코드("200") 만 보내는 경우 모두 대응.
+        // 알려진 매핑: OPERATOR_ABORT ↔ 200. 그 외 type 은 그대로 type 을 code 자리에도 둠(TS 에서 type 우선 분기).
+        private static string MapAbnormalCode(string abnormalType)
+        {
+            if (string.IsNullOrEmpty(abnormalType))
+                return "";
+            if (string.Equals(abnormalType, "OPERATOR_ABORT", StringComparison.OrdinalIgnoreCase))
+                return "200";
+            return abnormalType;
         }
     }
 
@@ -504,6 +527,82 @@ namespace ACS.Elsa.Activities
             catch (Exception e)
             {
                 logger.Error("SendVehicleAlarmActivity 오류", e);
+            }
+        }
+    }
+
+    /// <summary>
+    /// VehicleUpdateContext 의 AbnormalType 이 채워져 있을 때 RAIL-VEHICLEABNORMAL JSON 메시지를
+    /// 생성하여 Trans 에 전송한다. 실제 도메인 처리(TC 삭제, Vehicle 상태 초기화)는 Trans 측
+    /// RailVehicleAbnormalWorkflow 가 type 별 분기로 수행한다 (현재 OPERATOR_ABORT 대응).
+    /// </summary>
+    [Activity("ACS.Mqtt", "Send Vehicle Abnormal",
+        "AMR Abnormal 수신 시 RAIL-VEHICLEABNORMAL JSON을 Trans에 전송")]
+    public class SendVehicleAbnormalActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(SendVehicleAbnormalActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                if (!context.WorkflowExecutionContext.Properties.TryGetValue(VehicleUpdateContext.PropertyKey, out var raw)
+                    || raw is not VehicleUpdateContext bundle)
+                {
+                    logger.Warn("SendVehicleAbnormalActivity: VehicleUpdateContext가 없습니다 — Parse 단계 실패. 스킵.");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(bundle.AbnormalType))
+                {
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                if (accessor == null)
+                {
+                    logger.Error("SendVehicleAbnormalActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var abnormalMessage = new RailVehicleAbnormalMessage
+                {
+                    Header = new RailVehicleAbnormalHeader
+                    {
+                        MessageName = "RAIL-VEHICLEABNORMAL",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "EI"
+                    },
+                    Data = new RailVehicleAbnormalData
+                    {
+                        VehicleId = bundle.DbVehicleId,
+                        CommId = bundle.CommId,
+                        Type = bundle.AbnormalType,
+                        Code = bundle.AbnormalCode ?? "",
+                        Node = bundle.AbnormalNode ?? "",
+                        AbnormalTime = bundle.AbnormalTime,
+                        EventTime = DateTime.UtcNow
+                    }
+                };
+
+                string json = JsonSerializer.Serialize(abnormalMessage);
+
+                var messageManager = accessor.Resolve<IMessageManagerEx>();
+                if (messageManager == null)
+                {
+                    logger.Error("SendVehicleAbnormalActivity: IMessageManagerEx를 찾을 수 없습니다.");
+                    return;
+                }
+
+                messageManager.SendVehicleAbnormalJson(json);
+
+                logger.Info($"SendVehicleAbnormalActivity: RAIL-VEHICLEABNORMAL 전송 완료. " +
+                            $"vehicleId={bundle.DbVehicleId}, type={bundle.AbnormalType}, code={bundle.AbnormalCode}, node={bundle.AbnormalNode}");
+            }
+            catch (Exception e)
+            {
+                logger.Error("SendVehicleAbnormalActivity 오류", e);
             }
         }
     }

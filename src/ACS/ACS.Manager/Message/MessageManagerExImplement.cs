@@ -1652,8 +1652,19 @@ namespace ACS.Manager.Message
             this.tsAgent.Send((object)jsonMessage);
         }
 
+        public void SendVehicleAbnormalJson(string jsonMessage)
+        {
+            this.tsAgent.Send((object)jsonMessage);
+        }
+
         public void SendJobReportToHost(string reportType, string jobId, string amrId,
             string actionType, string materialType)
+        {
+            SendJobReportToHost(reportType, jobId, amrId, actionType, materialType, "", "");
+        }
+
+        public void SendJobReportToHost(string reportType, string jobId, string amrId,
+            string actionType, string materialType, string errCode, string errMsg)
         {
             if (this.hostAgent == null)
             {
@@ -1669,6 +1680,8 @@ namespace ACS.Manager.Message
             // HostJobReportWorkflow 를 라우팅한다. MES 용 XML 은 워크플로우 내부에서 재구성.
             // header.routedFrom: 발신 프로세스명. 라우팅 누수로 비-Host 프로세스가 워크플로우를 실행하게
             // 됐을 때 ForwardJobReportToMesActivity 가 hostAgent 로 한 번 재발행하는데, 그때 루프 차단용.
+            // ErrorCode/ErrorMsg: 5-arg 호출에선 빈 문자열. RailVehicleAbnormalActivity 처럼 abort-driven
+            // COMPLETE 인 경우 "200"/"OPERATOR_ABORT" 등을 채워 MES 가 정상/비정상 종료를 구분할 수 있게 한다.
             string transactionId = Guid.NewGuid().ToString("N");
             string routedFrom = Configuration?["Acs:Process:Name"] ?? "";
             var payload = new
@@ -1689,13 +1702,15 @@ namespace ACS.Manager.Message
                     ActionType = actionType ?? "",
                     JobID = jobId,
                     MaterialType = materialType ?? "",
-                    UserID = ""
+                    UserID = "",
+                    ErrorCode = errCode ?? "",
+                    ErrorMsg = errMsg ?? ""
                 }
             };
 
             string json = JsonSerializer.Serialize(payload);
             this.hostAgent.Send((object)json);
-            logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}, txn={transactionId}");
+            logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}, ErrorCode={errCode}, ErrorMsg={errMsg}, txn={transactionId}");
         }
 
         public void SendCarrierTransferJson(string jsonMessage)

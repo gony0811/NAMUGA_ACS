@@ -8,11 +8,12 @@ namespace ACS.Elsa.Workflows.Ei
     /// VEHICLE-STATUS 워크플로우.
     ///
     /// MQTT status 토픽으로 AMR 상태 메시지가 수신되면 MqttInterfaceManager에서 호출.
-    /// 다음 3단계 Activity를 순차 실행한다:
-    ///   1) ParseAmrStatus       — AmrStatusMessage 파싱 + Vehicle 조회 + 노드/AlarmState 계산
+    /// 다음 4단계 Activity를 순차 실행한다:
+    ///   1) ParseAmrStatus       — AmrStatusMessage 파싱 + Vehicle 조회 + 노드/AlarmState/Abnormal 계산
     ///   2) SendVehicleUpdate    — RAIL-VEHICLEUPDATE JSON을 Trans로 전송
     ///   3) SendVehicleAlarm     — AlarmState 전이가 있을 때만 RAIL-VEHICLEALARM(SET/RESET) 전송
-    /// DB 업데이트는 Trans 측 워크플로우(RAIL-VEHICLEUPDATE / RAIL-VEHICLEALARM)에서 수행.
+    ///   4) SendVehicleAbnormal  — Abnormal 블록이 있을 때만 RAIL-VEHICLEABNORMAL 전송 (OPERATOR_ABORT 등)
+    /// DB 업데이트는 Trans 측 워크플로우(RAIL-VEHICLEUPDATE / RAIL-VEHICLEALARM / RAIL-VEHICLEABNORMAL)에서 수행.
     /// </summary>
     public class VehicleStatusWorkflow : WorkflowBase
     {
@@ -29,6 +30,7 @@ namespace ACS.Elsa.Workflows.Ei
                     new ParseAmrStatusActivity(),
                     new SendVehicleUpdateActivity(),
                     new SendVehicleAlarmActivity(),
+                    new SendVehicleAbnormalActivity(),
                 }
             };
         }

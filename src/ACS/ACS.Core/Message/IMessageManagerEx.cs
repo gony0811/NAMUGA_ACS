@@ -263,10 +263,25 @@ namespace ACS.Core.Message
         void SendVehicleAlarmJson(string jsonMessage);
 
         /// <summary>
+        /// RAIL-VEHICLEABNORMAL JSON을 Trans 프로세스로 RabbitMQ 전송.
+        /// AMR abnormal 블록 수신 시 ES 가 type 무관하게 전송하며,
+        /// Trans 측 RailVehicleAbnormalWorkflow 가 type 별로 분기 처리한다.
+        /// </summary>
+        void SendVehicleAbnormalJson(string jsonMessage);
+
+        /// <summary>
         /// JOBREPORT XML을 빌드하여 Host 프로세스로 RabbitMQ 전송.
         /// </summary>
         void SendJobReportToHost(string reportType, string jobId, string amrId,
             string actionType, string materialType);
+
+        /// <summary>
+        /// errCode/errMsg 를 함께 실어 보내는 JOBREPORT 오버로드.
+        /// COMPLETE 와 함께 ErrorCode/ErrorMsg 가 채워지면 MES 측이 정상 종료 vs 비정상 종료
+        /// (예: OPERATOR_ABORT) 를 구분할 수 있다. 기존 5-arg 호출은 errCode/errMsg="" 위임.
+        /// </summary>
+        void SendJobReportToHost(string reportType, string jobId, string amrId,
+            string actionType, string materialType, string errCode, string errMsg);
 
         /// <summary>
         /// RAIL-CARRIERTRANSFER JSON을 EI 프로세스로 RabbitMQ 전송.
