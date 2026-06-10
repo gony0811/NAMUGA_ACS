@@ -25,6 +25,7 @@ bld/
 [Pp]ublish/
 [Dd]eploy/
 .publish-staging/
+.publish-ui-staging/
 .DS_Store
 
 # .NET Core

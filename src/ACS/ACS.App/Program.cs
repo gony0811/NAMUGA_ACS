@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using ACS.App.Web.Hubs;
 using ACS.Core.Host;
@@ -202,6 +203,20 @@ static class Program
         executor.OnContainerBuilt(container, startHostedServices: false);
 
         app.UseCors();
+
+        // ACS.UI Velopack 릴리스 피드 정적 서빙 — 클라이언트 PC가 이 경로에서
+        // Setup.exe 다운로드(최초 설치) 및 자동 업데이트 체크를 수행한다.
+        // 피드 파일(.nupkg, RELEASES, releases.win.json)은 기본 MIME 매핑에 없으므로 ServeUnknownFileTypes 필수.
+        string releasePath = configuration["Acs:Api:ClientReleasePath"] ?? @"C:\acs\releases\ui";
+        System.IO.Directory.CreateDirectory(releasePath);   // PhysicalFileProvider는 폴더 부재 시 예외
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(releasePath),
+            RequestPath = "/releases/ui",
+            ServeUnknownFileTypes = true,
+            DefaultContentType = "application/octet-stream"
+        });
+
         app.MapControllers();
         app.MapHub<VehicleHub>("/hubs/vehicle");
         app.MapHub<ACS.App.Web.Hubs.HostCommHub>("/hubs/hostcomm");

@@ -83,6 +83,15 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _lastUpdateTime = "-";
 
+    // 자동 업데이트: 다운로드 완료된 새 버전 (null이면 배너 숨김)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateReady))]
+    private string _updateReadyVersion;
+
+    public bool IsUpdateReady => !string.IsNullOrEmpty(UpdateReadyVersion);
+
+    private Action _applyUpdateAndRestart;
+
     // Ribbon tab selection
     [ObservableProperty]
     private bool _isTab0Selected = true; // Dashboard
@@ -223,6 +232,20 @@ public partial class MainWindowViewModel : ObservableObject
         if (viewName == "VehicleHistory")
             _ = VehicleHistoryViewModel.SearchCommand.ExecuteAsync(null);
     }
+
+    /// <summary>
+    /// 업데이트 다운로드 완료 알림 — 상태바 배너 표시.
+    /// 업데이트는 종료 시 자동 적용되며, "지금 재시작" 클릭 시 즉시 적용된다.
+    /// </summary>
+    public void NotifyUpdateReady(string version, Action applyAndRestart)
+    {
+        _applyUpdateAndRestart = applyAndRestart;
+        UpdateReadyVersion = version;
+    }
+
+    /// <summary>상태바 "지금 재시작" 버튼 → 업데이트 즉시 적용 후 재시작.</summary>
+    [RelayCommand]
+    private void RestartForUpdate() => _applyUpdateAndRestart?.Invoke();
 
     /// <summary>Log 리본 버튼 → Log Viewer 팝업 열기.</summary>
     [RelayCommand]

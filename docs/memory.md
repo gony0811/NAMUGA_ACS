@@ -997,3 +997,33 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **핵심 사실:** `transportCommandId` 는 `NA_T_TRANSPORTCMD.jobId` 값을 참조 저장하므로 길이 불일치 시 alarm/history/log 기록 시점에 동일 truncation 오류 발생. jobId 만 늘리면 안 됨.
 
 **검증:** `ACS.Elsa` 빌드 통과. 운영 적용은 `psql -h 10.0.26.2 -U acsuser -d acsdb -f docker/init/migration_jobid_256.sql` 후 `\d "<table>"` 로 타입 확인. 사고 메시지 재현 시 `TransportCommand created` + JOBREPORT `<ErrorCode>0</ErrorCode>` 예상.
+
+---
+
+## 37. ACS.UI 중앙 배포/자동 업데이트 (Velopack + CS 정적 릴리스 피드)
+
+**날짜:** 2026-06-10
+**작업:** 수동 exe 복사로 배포하던 ACS.UI를 외부(사내망/VPN) 클라이언트 PC가 CS에서 내려받아 설치하고 자동 업데이트 받도록 구현. 결정: **Velopack 1.2.0** + CS 웹 호스트(5100) 정적 서빙 + 사내망 전용(HTTP 무인증).
+
+**아키텍처:**
+- Pack ID `AcsUi`, 클라이언트 설치 위치 `%LocalAppData%\AcsUi\`. 최초 설치: `http://<CS>:5100/releases/ui/AcsUi-win-Setup.exe`.
+- 릴리스 피드: CS(control 프로세스)가 `Acs:Api:ClientReleasePath`(기본 `C:\acs\releases\ui`)를 `/releases/ui`로 정적 서빙 (`ServeUnknownFileTypes=true` 필수 — .nupkg/RELEASES/releases.win.json은 기본 MIME 매핑에 없음).
+- 업데이트 UX: 시작 직후 + 4시간 주기 백그라운드 체크 → 다운로드 완료 시 `WaitExitThenApplyUpdates`(종료 시 자동 적용) 예약 + 상태바 배너("지금 재시작" 버튼, 모달 없음). 서버 미접속/미설치(IDE 실행)는 전부 무시 — 오프라인 기동 보장(`UpdateManager.IsInstalled` 가드).
+- publish: **self-contained win-x64** (클라이언트 .NET 런타임 불필요, 델타로 갱신 용량 최소). **PublishSingleFile 금지**(Velopack 미지원).
+
+**변경:**
+- `ACS.UI.csproj`: `Velopack 1.2.0`, `<Version>1.0.0</Version>`(스크립트가 `-p:Version` 덮어씀), `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>`.
+- `ACS.UI/Program.cs`: `Main` 최상단 `VelopackApp.Build().Run()` — Avalonia 초기화보다 반드시 먼저(설치/업데이트 훅에서 즉시 종료 가능, vpk pack이 이 호출 존재를 정적 검증함).
+- 신규 `ACS.UI/Services/UpdateService.cs`: `UpdateManager`+`SimpleWebSource($"{baseUrl}/releases/ui")` 래핑, CheckAndDownload/ApplyAndRestart/ApplyOnExit.
+- `ACS.UI/App.axaml.cs`: ProgramData 설정 오버레이(`C:\ProgramData\ACS.UI\appsettings.json`, optional) — Velopack은 업데이트마다 `current\`를 통째로 교체하므로 사이트별 `Backend.Host`는 여기 1회 작성(업데이트에도 보존). + 백그라운드 업데이트 루프.
+- `MainWindowViewModel`: `UpdateReadyVersion`/`IsUpdateReady` + `NotifyUpdateReady(version, applyAndRestart)` + `RestartForUpdateCommand`. `MainWindow.axaml` 상태바 가운데 칼럼에 배너.
+- `ACS.App/Program.cs` RunWebHost: `UseStaticFiles(PhysicalFileProvider)` — `Directory.CreateDirectory` 가드 필수(PhysicalFileProvider는 폴더 부재 시 예외). `ACS.App/appsettings.json` `Acs:Api:ClientReleasePath` 추가.
+- 신규 `src/ACS/publish-ui.ps1`(UTF-8 BOM): `dotnet publish`(self-contained) → `vpk pack`(outputDir `src/ACS/releases/ui`, 회차 간 보존 시 델타 자동 생성) → `-ReleaseDir` 지정 시 robocopy `/E`(절대 `/MIR` 금지 — 이전 릴리스 누적 유지). 사전조건 `dotnet tool install -g vpk`.
+- `.gitignore`: `.publish-ui-staging/` 추가(`[Rr]eleases/`는 기존 패턴이 커버).
+
+**핵심 사실:**
+- 버전은 릴리스마다 SemVer 증가 필수(vpk가 중복 거부). 스크립트가 publish/pack 양쪽에 동일 `-Version` 전달.
+- 업데이트 동작은 Setup.exe로 설치된 상태에서만 테스트 가능(bin 직접 실행은 `IsInstalled=false`로 no-op).
+- 다른 PC에서 빌드 시 델타 생성용 이전 릴리스 복원: `vpk download http --url http://<CS>:5100/releases/ui`.
+
+**검증:** ACS.UI/ACS.App 빌드 0 오류. `publish-ui.ps1 -Version 1.0.0` 실제 실행 성공 — `AcsUi-win-Setup.exe`(50MB)/`AcsUi-1.0.0-full.nupkg`/`releases.win.json` 생성, vpk가 `VelopackApp.Run()` 호출 검증 통과. **런타임 미검증**: CS 기동 후 피드 URL 200 확인, 테스트 PC Setup.exe 설치, 1.0.1 발행 시 배너 표시→재시작 적용·델타 생성, ProgramData 설정 보존, CS 중지 상태 오프라인 기동.
