@@ -79,7 +79,7 @@
                 </Grid>
             </Border>
 
-            <!-- NIO 카테고리 -->
+            <!-- MQTT 카테고리 -->
             <Border Classes="ribbon-category" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="*,Auto">
                     <Button Grid.Row="0"
@@ -87,7 +87,7 @@
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             Padding="6"
                             Command="{Binding SelectMenuCommand}"
-                            CommandParameter="NIO">
+                            CommandParameter="MQTT">
                         <StackPanel HorizontalAlignment="Center" Spacing="3">
                             <!-- 테이블 아이콘 -->
                             <Grid Width="28" Height="28" HorizontalAlignment="Center">
@@ -120,7 +120,7 @@
 
                     <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
                             BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
-                        <TextBlock Text="NIO" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="MQTT" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource AcsTextPrimaryBrush}"
                                    HorizontalAlignment="Center" />
                     </Border>

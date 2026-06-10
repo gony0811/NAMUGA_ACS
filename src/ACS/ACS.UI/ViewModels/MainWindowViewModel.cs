@@ -39,7 +39,7 @@ public partial class MainWindowViewModel : ObservableObject
     private AppManagementViewModel _appManagementViewModel;
 
     [ObservableProperty]
-    private NioViewModel _nioViewModel;
+    private MqttViewModel _mqttViewModel;
 
     [ObservableProperty]
     private HostCommunicationViewModel _hostCommunicationViewModel;
@@ -122,7 +122,7 @@ public partial class MainWindowViewModel : ObservableObject
         _logViewModel = new LogViewModel(_apiService);
         _applicationViewModel = new ApplicationViewModel();
         _appManagementViewModel = new AppManagementViewModel(_apiService);
-        _nioViewModel = new NioViewModel();
+        _mqttViewModel = new MqttViewModel(_apiService);
         _hostCommunicationViewModel = new HostCommunicationViewModel(_apiService);
         _nodeViewModel = new NodeViewModel(_apiService) { MapViewModel = _mapViewModel };
         _stationViewModel = new StationViewModel(_apiService);
@@ -158,7 +158,7 @@ public partial class MainWindowViewModel : ObservableObject
         var (title, content) = viewName switch
         {
             "AppManagement" => ("Application Management", (Control)new AppManagementView { DataContext = AppManagementViewModel }),
-            "Nio" => ("NIO", (Control)new NioView { DataContext = NioViewModel }),
+            "Mqtt" => ("MQTT", (Control)new MqttView { DataContext = MqttViewModel }),
             "HostCommunication" => ("Host Communication - TCP", (Control)new HostCommunicationView { DataContext = HostCommunicationViewModel }),
             "Log" => ("Log Viewer", (Control)new LogView { DataContext = LogViewModel }),
             "Node" => ("Node", (Control)new NodeView { DataContext = NodeViewModel }),
@@ -204,6 +204,8 @@ public partial class MainWindowViewModel : ObservableObject
             _ = LinkViewModel.LoadLinksAsync();
         if (viewName == "Bay")
             _ = BayViewModel.LoadBaysAsync();
+        if (viewName == "Mqtt")
+            _ = MqttViewModel.LoadMqttConfigsAsync();
         if (viewName == "Zone")
             _ = ZoneViewModel.LoadZonesAsync();
         if (viewName == "Port")

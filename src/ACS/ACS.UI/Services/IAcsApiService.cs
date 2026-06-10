@@ -34,6 +34,10 @@ public interface IAcsApiService
     Task<bool> CreateBayAsync(BayDto bay);
     Task<bool> UpdateBayAsync(BayDto bay);
     Task<bool> DeleteBayAsync(string bayId);
+    Task<List<MqttConfigDto>> GetMqttConfigsAsync();
+    Task<bool> CreateMqttConfigAsync(MqttConfigDto config);
+    Task<bool> UpdateMqttConfigAsync(MqttConfigDto config);
+    Task<bool> DeleteMqttConfigAsync(int seq);
     Task<List<LocationDto>> GetLocationsAsync();
     Task<bool> CreateLocationAsync(LocationDto location);
     Task<bool> UpdateLocationAsync(LocationDto location);

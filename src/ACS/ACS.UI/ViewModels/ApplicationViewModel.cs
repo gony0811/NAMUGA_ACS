@@ -26,7 +26,7 @@ public partial class ApplicationViewModel : ObservableObject
         SelectedCategory = menu switch
         {
             "Application" => "Application",
-            "NIO" => "NIO",
+            "MQTT" => "MQTT",
             _ => ""
         };
 
@@ -34,7 +34,7 @@ public partial class ApplicationViewModel : ObservableObject
         var viewName = menu switch
         {
             "Application" => "AppManagement",
-            "NIO" => "Nio",
+            "MQTT" => "Mqtt",
             _ => "Map"
         };
         OnViewChangeRequested?.Invoke(viewName);

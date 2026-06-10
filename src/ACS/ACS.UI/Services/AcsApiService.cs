@@ -390,6 +390,62 @@ public class AcsApiService : IAcsApiService
         }
     }
 
+    public async Task<List<MqttConfigDto>> GetMqttConfigsAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<MqttConfigDto>>("/api/mqtt-configs", _jsonOptions)
+                   ?? new List<MqttConfigDto>();
+        }
+        catch
+        {
+            return new List<MqttConfigDto>();
+        }
+    }
+
+    public async Task<bool> CreateMqttConfigAsync(MqttConfigDto config)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(config);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/api/mqtt-configs", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> UpdateMqttConfigAsync(MqttConfigDto config)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(config);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PutAsync("/api/mqtt-configs", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteMqttConfigAsync(int seq)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"/api/mqtt-configs/{seq}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<List<LocationDto>> GetLocationsAsync()
     {
         return await _httpClient.GetFromJsonAsync<List<LocationDto>>("/api/locations", _jsonOptions)

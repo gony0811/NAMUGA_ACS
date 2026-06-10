@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace ACS.UI.Views;
 
-public partial class NioView : UserControl
+public partial class MqttView : UserControl
 {
-    public NioView()
+    public MqttView()
     {
         InitializeComponent();
     }

@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.MqttEditWindow"
+        Title="Modify MQTT Config"
+        Width="440" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="12">
+
+        <!-- Broker Info -->
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}"
+                BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Broker Info" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name *:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="NameTextBox"
+                             FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Application:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="ApplicationTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Workflow Mgr:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="WorkflowMgrTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Broker IP:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="BrokerIpTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Broker Port:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="4" Grid.Column="1" x:Name="BrokerPortNumeric"
+                                   Minimum="1" Maximum="65535" Increment="1"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Topic Prefix:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="5" Grid.Column="1" x:Name="TopicPrefixTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Auth & Tuning -->
+        <Border Grid.Row="1" Background="{StaticResource AcsSurfaceCardBrush}"
+                BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Auth &amp; Tuning" FontWeight="SemiBold" FontSize="11"
+                           Margin="0,0,0,6" />
+                <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" FontSize="11" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="ClientIdTextBox"
+                             FontSize="11" Height="28" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="User Name:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="UserNameTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Password:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="PasswordTextBox"
+                             PasswordChar="*"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="KeepAlive (sec):" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="KeepAliveNumeric"
+                                   Minimum="0" Maximum="86400" Increment="1"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Reconnect (ms):" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <NumericUpDown Grid.Row="4" Grid.Column="1" x:Name="ReconnectNumeric"
+                                   Minimum="0" Maximum="3600000" Increment="100"
+                                   FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="State:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <ComboBox Grid.Row="5" Grid.Column="1" x:Name="StateCombo"
+                              FontSize="11" Height="28" Margin="0,6,0,0"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="LOADED" />
+                        <ComboBoxItem Content="CONNECTING" />
+                        <ComboBoxItem Content="CONNECTED" />
+                        <ComboBoxItem Content="CLOSED" />
+                        <ComboBoxItem Content="DISCONNECTED" />
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Description:" VerticalAlignment="Center"
+                               FontSize="11" Margin="0,6,0,0" />
+                    <TextBox Grid.Row="6" Grid.Column="1" x:Name="DescriptionTextBox"
+                             FontSize="11" Height="28" Margin="0,6,0,0" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- OK / Cancel -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Content="OK" Width="80" Height="28" Click="OnOkClick" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

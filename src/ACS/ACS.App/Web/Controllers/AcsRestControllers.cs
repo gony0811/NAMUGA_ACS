@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ACS.Communication.Http.Models;
+using ACS.Communication.Mqtt.Model;
 using ACS.Core.History.Model;
 using ACS.Core.Logging.Model;
 using ACS.Core.Path.Model;
@@ -1310,6 +1311,134 @@ namespace ACS.App.Web.Controllers
                 });
             }
             return dtos;
+        }
+    }
+
+    /// <summary>
+    /// NA_C_MQTT 마스터 테이블 CRUD 엔드포인트. EF Core(AcsDbContext.MqttConfigs)를 직접 사용한다.
+    /// 식별자는 PK인 Seq(int, auto-generated).
+    /// </summary>
+    [ApiController]
+    [Route("api/mqtt-configs")]
+    public class MqttConfigsController : ControllerBase
+    {
+        private readonly ACS.Database.AcsDbContext _db;
+
+        public MqttConfigsController(ACS.Database.AcsDbContext db)
+        {
+            _db = db;
+        }
+
+        // GET /api/mqtt-configs
+        [HttpGet]
+        public ActionResult<List<MqttConfigDto>> Get()
+        {
+            var rows = _db.MqttConfigs.AsNoTracking()
+                .OrderBy(x => x.Seq)
+                .ToList();
+            return rows.Select(ToDto).ToList();
+        }
+
+        // POST /api/mqtt-configs
+        [HttpPost]
+        public ActionResult<MqttConfigDto> Create([FromBody] MqttConfigDto dto)
+        {
+            if (dto == null) return BadRequest(new { error = "body is required" });
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return BadRequest(new { error = "Name is required" });
+
+            var entity = new MqttConfig();
+            ApplyDtoToEntity(dto, entity);
+            var nowUtc = DateTime.UtcNow;
+            entity.CreateTime = nowUtc;
+            entity.EditTime = nowUtc;
+            entity.Creator = string.IsNullOrWhiteSpace(dto.Creator) ? "UI" : dto.Creator;
+            entity.Editor = entity.Creator;
+
+            _db.MqttConfigs.Add(entity);
+            _db.SaveChanges();
+            return ToDto(entity);
+        }
+
+        // PUT /api/mqtt-configs
+        [HttpPut]
+        public ActionResult<MqttConfigDto> Update([FromBody] MqttConfigDto dto)
+        {
+            if (dto == null) return BadRequest(new { error = "body is required" });
+            if (dto.Seq <= 0) return BadRequest(new { error = "Seq is required" });
+
+            var entity = _db.MqttConfigs.FirstOrDefault(x => x.Seq == dto.Seq);
+            if (entity == null) return NotFound();
+
+            ApplyDtoToEntity(dto, entity);
+            entity.EditTime = DateTime.UtcNow;
+            entity.Editor = string.IsNullOrWhiteSpace(dto.Editor) ? "UI" : dto.Editor;
+
+            _db.SaveChanges();
+            return ToDto(entity);
+        }
+
+        // DELETE /api/mqtt-configs/{seq}
+        [HttpDelete("{seq:int}")]
+        public ActionResult Delete(int seq)
+        {
+            var entity = _db.MqttConfigs.FirstOrDefault(x => x.Seq == seq);
+            if (entity == null) return NotFound();
+
+            _db.MqttConfigs.Remove(entity);
+            _db.SaveChanges();
+            return NoContent();
+        }
+
+        private static MqttConfigDto ToDto(MqttConfig x) => new MqttConfigDto
+        {
+            Seq = x.Seq,
+            Name = x.Name,
+            ApplicationName = x.ApplicationName,
+            WorkflowManagerName = x.WorkflowManagerName,
+            BrokerIp = x.BrokerIp,
+            BrokerPort = x.BrokerPort,
+            TopicPrefix = x.TopicPrefix,
+            ClientId = x.ClientId,
+            UserName = x.UserName,
+            Password = x.Password,
+            KeepAliveSeconds = x.KeepAliveSeconds,
+            ReconnectDelayMs = x.ReconnectDelayMs,
+            State = x.State,
+            Description = x.Description,
+            CreateTime = NormalizeUtc(x.CreateTime),
+            EditTime = NormalizeUtc(x.EditTime),
+            Creator = x.Creator,
+            Editor = x.Editor
+        };
+
+        // Seq/timestamps/creator/editor 외의 사용자 편집 필드만 dto → entity 로 반영.
+        private static void ApplyDtoToEntity(MqttConfigDto dto, MqttConfig entity)
+        {
+            entity.Name = dto.Name;
+            entity.ApplicationName = dto.ApplicationName;
+            entity.WorkflowManagerName = dto.WorkflowManagerName;
+            entity.BrokerIp = dto.BrokerIp;
+            entity.BrokerPort = dto.BrokerPort;
+            entity.TopicPrefix = dto.TopicPrefix;
+            entity.ClientId = dto.ClientId;
+            entity.UserName = dto.UserName;
+            entity.Password = dto.Password;
+            entity.KeepAliveSeconds = dto.KeepAliveSeconds;
+            entity.ReconnectDelayMs = dto.ReconnectDelayMs;
+            entity.State = string.IsNullOrWhiteSpace(dto.State) ? MqttConfig.STATE_LOADED : dto.State;
+            entity.Description = dto.Description;
+        }
+
+        private static DateTime? NormalizeUtc(DateTime? t)
+        {
+            if (t is not { } v) return null;
+            return v.Kind switch
+            {
+                DateTimeKind.Utc => v,
+                DateTimeKind.Local => v.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            };
         }
     }
 }
