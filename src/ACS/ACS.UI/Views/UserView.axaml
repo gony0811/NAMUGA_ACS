@@ -1,23 +1,21 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
-             xmlns:svc="using:ACS.UI.Services"
-             x:Class="ACS.UI.Views.TransferCommandView"
-             x:DataType="vm:TransferCommandViewModel">
+             x:Class="ACS.UI.Views.UserView"
+             x:DataType="vm:UserViewModel">
 
     <Grid RowDefinitions="Auto,Auto,*">
 
-        <!-- Row 0: Toolbar — 타이틀 + 행 수 + 아이콘 버튼 -->
+        <!-- Row 0: Toolbar -->
         <Border Grid.Row="0" Background="{StaticResource AcsTabBarBrush}"
                 BorderBrush="{StaticResource AcsSectionBorderBrush}"
                 BorderThickness="0,0,0,1" Padding="6,4">
             <DockPanel>
-                <!-- 왼쪽: 아이콘 + 타이틀 + 행 수 -->
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="&#x1F4E6;" FontSize="14"
+                    <TextBlock Text="&#x1F465;" FontSize="14"
                                Foreground="{StaticResource AcsPrimaryBlueBrush}"
                                VerticalAlignment="Center" />
-                    <TextBlock Text="Transfer Command" FontSize="13" FontWeight="SemiBold"
+                    <TextBlock Text="User Management" FontSize="13" FontWeight="SemiBold"
                                Foreground="{StaticResource AcsPrimaryBlueBrush}"
                                VerticalAlignment="Center" />
                     <TextBlock Text="{Binding TotalCount, StringFormat='[{0}] Rows'}"
@@ -26,24 +24,25 @@
                                VerticalAlignment="Center" Margin="4,0,0,0" />
                 </StackPanel>
 
-                <!-- 오른쪽: 툴바 버튼 -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4"
                             VerticalAlignment="Center" Margin="0,0,4,0">
                     <StackPanel.Styles>
                         <Style Selector="Button">
                             <Setter Property="Padding" Value="12,5" />
                             <Setter Property="FontSize" Value="12" />
-                            <Setter Property="HorizontalContentAlignment" Value="Center" />
-                            <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="Delete" ToolTip.Tip="선택 행 삭제" Command="{Binding DeleteCommand}"
-                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
-                    <Button Content="초기화" ToolTip.Tip="선택 행 초기화 (State → QUEUED, VehicleId 비움)"
-                            Command="{Binding ResetCommand}"
-                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Add" ToolTip.Tip="Add User" Command="{Binding AddUserCommand}" />
+                    <Button Content="Edit" ToolTip.Tip="Edit User" Command="{Binding EditUserCommand}" />
+                    <Button Content="Reset PW" ToolTip.Tip="비밀번호 리셋"
+                            Command="{Binding ResetPasswordCommand}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete User"
+                            Command="{Binding DeleteUserCommand}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
-                    <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadTransferCommandsCommand}" />
+                    <Button Content="Change My PW" ToolTip.Tip="내 비밀번호 변경"
+                            Command="{Binding ChangeMyPasswordCommand}" />
+                    <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
+                    <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadUsersCommand}" />
                 </StackPanel>
 
                 <Panel />
@@ -57,22 +56,19 @@
             <StackPanel>
                 <TextBlock Text="&#x25BC; Table Option" FontSize="11"
                            Foreground="{StaticResource AcsTextPrimaryBrush}" />
-                <TextBlock Text="NA_T_TRANSPORTCMD" FontSize="11" Margin="12,2,0,0"
+                <TextBlock Text="NA_X_USER" FontSize="11" Margin="12,2,0,0"
                            Foreground="{StaticResource AcsPrimaryBlueBrush}" />
             </StackPanel>
         </Border>
 
-        <!-- Row 2: Transfer Command DataGrid -->
+        <!-- Row 2: DataGrid (PasswordHash 절대 노출 안 함) -->
         <DataGrid Grid.Row="2"
-                  Name="TransferCommandDataGrid"
-                  ItemsSource="{Binding TransferCommands}"
-                  SelectedItem="{Binding SelectedCommand}"
-                  SelectionMode="Extended"
+                  ItemsSource="{Binding Users}"
+                  SelectedItem="{Binding SelectedUser}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True"
-                  CanUserReorderColumns="True"
                   GridLinesVisibility="All"
                   BorderThickness="0"
                   Background="{StaticResource AcsSurfaceCardBrush}"
@@ -89,24 +85,15 @@
             </DataGrid.Styles>
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header="JOB ID" Binding="{Binding JobId}" Width="140" />
-                <DataGridTextColumn Header="PRIORITY" Binding="{Binding Priority}" Width="80" />
-                <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="120" />
-                <DataGridTextColumn Header="VEHICLE" Binding="{Binding VehicleId}" Width="100" />
-                <DataGridTextColumn Header="CARRIER" Binding="{Binding CarrierId}" Width="100" />
-                <DataGridTextColumn Header="SOURCE" Binding="{Binding Source}" Width="100" />
-                <DataGridTextColumn Header="DEST" Binding="{Binding Dest}" Width="100" />
-                <DataGridTextColumn Header="BAY" Binding="{Binding BayId}" Width="80" />
-                <DataGridTextColumn Header="JOB TYPE" Binding="{Binding JobType}" Width="100" />
-                <DataGridTextColumn Header="CREATE TIME"
-                                    Binding="{Binding CreateTime, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                    Width="150" />
-                <DataGridTextColumn Header="ASSIGNED TIME"
-                                    Binding="{Binding AssignedTime, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                    Width="150" />
-                <DataGridTextColumn Header="COMPLETED TIME"
-                                    Binding="{Binding CompletedTime, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                    Width="*" />
+                <DataGridTextColumn Header="SEQ" Binding="{Binding Seq}" Width="60" />
+                <DataGridTextColumn Header="USER ID" Binding="{Binding UserId}" Width="140" />
+                <DataGridTextColumn Header="ROLE" Binding="{Binding Role}" Width="100" />
+                <DataGridCheckBoxColumn Header="ACTIVE" Binding="{Binding IsActive}" Width="80" />
+                <DataGridCheckBoxColumn Header="MUST CHG PW" Binding="{Binding MustChangePassword}" Width="110" />
+                <DataGridTextColumn Header="LAST LOGIN" Binding="{Binding LastLoginTime}" Width="160" />
+                <DataGridTextColumn Header="CREATED" Binding="{Binding CreateTime}" Width="160" />
+                <DataGridTextColumn Header="EDITOR" Binding="{Binding Editor}" Width="100" />
+                <DataGridTextColumn Header="DESCRIPTION" Binding="{Binding Description}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

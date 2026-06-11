@@ -56,4 +56,15 @@ public interface IAcsApiService
     // 히스토리 조회 (NA_T_TRANSPORTCMD_HISTORY / NA_T_VEHICLE_HISTORY)
     Task<List<TransportCommandHistoryDto>> GetTransportCmdHistoriesAsync(TransportCmdHistoryQueryFilter filter);
     Task<List<VehicleHistoryDto>> GetVehicleHistoriesAsync(VehicleHistoryQueryFilter filter);
+
+    // 인증/세션
+    Task<LoginResult?> LoginAsync(string userId, string password);
+    Task LogoutAsync();
+    Task<bool> ChangePasswordAsync(string currentPassword, string newPassword);
+
+    // 사용자 관리 (Admin)
+    Task<List<UserDto>> GetUsersAsync();
+    Task<bool> CreateUserAsync(UserDto user);
+    Task<bool> UpdateUserAsync(UserDto user);
+    Task<bool> DeleteUserAsync(int seq);
 }

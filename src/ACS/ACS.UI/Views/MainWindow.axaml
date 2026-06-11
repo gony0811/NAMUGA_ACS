@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ACS.UI.ViewModels"
         xmlns:views="using:ACS.UI.Views"
+        xmlns:svc="using:ACS.UI.Services"
 
         x:Class="ACS.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -201,7 +202,7 @@
                                FontSize="11" />
                 </StackPanel>
 
-                <!-- 자동 업데이트 배너: 새 버전 다운로드 완료 시에만 표시 (종료 시 자동 적용, 버튼으로 즉시 재시작) -->
+                <!-- 자동 업데이트 배너: 새 버전 다운로드 완료 시에만 표시 (Viewer 권한은 다운로드 자체가 차단됨) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             IsVisible="{Binding IsUpdateReady}">
@@ -211,11 +212,22 @@
                                FontSize="11" />
                     <Button Content="지금 재시작"
                             Command="{Binding RestartForUpdateCommand}"
-                            Height="22" Padding="8,0" FontSize="11" />
+                            Height="22" Padding="8,0" FontSize="11"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanUpdateUi, FallbackValue=False}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
                             VerticalAlignment="Center">
+                    <!-- 현재 로그인 사용자 + 로그아웃 -->
+                    <Border Background="{StaticResource AcsActiveTabBrush}" CornerRadius="3" Padding="8,2">
+                        <TextBlock Text="{Binding Source={x:Static svc:UserSession.Current}, Path=DisplayName}"
+                                   FontSize="11" Foreground="White" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <Button Content="Logout" ToolTip.Tip="로그아웃 후 종료 — 재로그인 시 다시 실행하세요"
+                            Command="{Binding LogoutCommand}"
+                            Height="22" Padding="8,0" FontSize="11" />
+                    <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,2" />
                     <TextBlock Text="{Binding LastUpdateTime, StringFormat='Last Update: {0}'}"
                                Foreground="{StaticResource AcsTextSecondaryBrush}"
                                VerticalAlignment="Center"

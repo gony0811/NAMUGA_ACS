@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:svc="using:ACS.UI.Services"
              x:Class="ACS.UI.Views.ZoneView"
              x:DataType="vm:ZoneViewModel">
 
@@ -34,9 +35,12 @@
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="Add" ToolTip.Tip="Add Zone" Command="{Binding AddZoneCommand}" />
-                    <Button Content="Delete" ToolTip.Tip="Delete Zone" Command="{Binding DeleteZoneCommand}" />
-                    <Button Content="Edit" ToolTip.Tip="Modify Zone" Command="{Binding EditZoneCommand}" />
+                    <Button Content="Add" ToolTip.Tip="Add Zone" Command="{Binding AddZoneCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete Zone" Command="{Binding DeleteZoneCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Edit" ToolTip.Tip="Modify Zone" Command="{Binding EditZoneCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadZonesCommand}" />
                 </StackPanel>

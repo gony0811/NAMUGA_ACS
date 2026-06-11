@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:svc="using:ACS.UI.Services"
              x:Class="ACS.UI.Views.StationView"
              x:DataType="vm:StationViewModel">
 
@@ -34,9 +35,12 @@
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="Add" ToolTip.Tip="Add Station" Command="{Binding AddStationCommand}" />
-                    <Button Content="Delete" ToolTip.Tip="Delete Station" Command="{Binding DeleteStationCommand}" />
-                    <Button Content="Edit" ToolTip.Tip="Modify Station" Command="{Binding EditStationCommand}" />
+                    <Button Content="Add" ToolTip.Tip="Add Station" Command="{Binding AddStationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete Station" Command="{Binding DeleteStationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Edit" ToolTip.Tip="Modify Station" Command="{Binding EditStationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadStationsCommand}" />
                 </StackPanel>

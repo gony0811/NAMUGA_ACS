@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.LoginWindow"
+        Title="ACS Login"
+        Width="380" Height="280"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="{StaticResource AcsSurfaceBaseBrush}"
+        Foreground="{StaticResource AcsTextPrimaryBrush}">
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="ACS GUI"
+                   FontSize="20" FontWeight="SemiBold"
+                   Foreground="{StaticResource AcsLightBlueBrush}"
+                   HorizontalAlignment="Center" Margin="0,0,0,4" />
+        <TextBlock Grid.Row="1" Text="사용자 로그인"
+                   FontSize="12"
+                   Foreground="{StaticResource AcsTextSecondaryBrush}"
+                   HorizontalAlignment="Center" Margin="0,0,0,16" />
+
+        <Grid Grid.Row="2" ColumnDefinitions="80,*" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="User ID:"
+                       VerticalAlignment="Center" FontSize="12" />
+            <TextBox Grid.Row="0" Grid.Column="1" x:Name="UserIdTextBox"
+                     FontSize="12" Height="30" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Password:"
+                       VerticalAlignment="Center" FontSize="12" Margin="0,8,0,0" />
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="PasswordTextBox"
+                     PasswordChar="*"
+                     FontSize="12" Height="30" Margin="0,8,0,0" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" x:Name="ErrorText"
+                   Foreground="#D14343" FontSize="11"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   IsVisible="False" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal"
+                    HorizontalAlignment="Center" Spacing="12" Margin="0,12,0,0">
+            <Button Content="로그인" x:Name="LoginButton" Width="100" Height="30"
+                    Click="OnLoginClick" IsDefault="True"
+                    Background="{StaticResource AcsPrimaryBlueBrush}"
+                    Foreground="White" />
+            <Button Content="종료" Width="100" Height="30"
+                    Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

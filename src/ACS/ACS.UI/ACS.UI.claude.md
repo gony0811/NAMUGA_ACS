@@ -26,6 +26,15 @@ MVVM 패턴 (CommunityToolkit.Mvvm):
 - **MapCanvas**: 노드/링크/차량을 렌더링하는 커스텀 컨트롤 (줌/팬 지원)
 - **VehicleListView**: DataGrid로 차량 상태, 배터리, 현재 노드 등 표시
 - 1초 주기 폴링으로 동적 데이터(차량/명령) 갱신
+- **로그인/권한 관리**: 시작 시 `LoginWindow` 모달 → 백엔드 인증(Bearer 토큰). Admin/Operator/Viewer 3단계 역할.
+
+## 인증/권한 패턴
+
+- `Services/UserSession.cs` — `UserSession.Current` 정적 인스턴스(재할당 없이 상태만 갱신). XAML에서 `{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit}` 형태로 권한 게이트 바인딩.
+- `Services/AuthHeaderHandler.cs` — `AcsApiService` 의 HttpClient에 부착되어 모든 요청에 `Authorization: Bearer <token>` 자동 부착.
+- `Views/LoginWindow` — 시작 직후 표시. 성공 시 `MustChangePassword=true` 이면 `ChangePasswordWindow` 강제.
+- `Views/UserView` — Application 탭 USER 메뉴(Admin 가시성). MQTT CRUD 와 동일 패턴으로 사용자 등록/수정/삭제/비밀번호 리셋.
+- 권한 매트릭스: Admin = 모든 권한 / Operator = 데이터 CRUD + UI 업데이트 / Viewer = 조회 전용.
 
 ## 의존성
 

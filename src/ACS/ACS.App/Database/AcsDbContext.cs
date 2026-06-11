@@ -21,6 +21,8 @@ using ACS.Core.Material.Model;
 // Communication domain
 using ACS.Communication.Socket.Model;
 using ACS.Communication.Mqtt.Model;
+// User domain
+using ACS.Core.User.Model;
 
 namespace ACS.Database
 {
@@ -91,6 +93,9 @@ namespace ACS.Database
         // ===== Communication Domain =====
         public DbSet<Nio> Nios { get; set; }
         public DbSet<MqttConfig> MqttConfigs { get; set; }
+
+        // ===== User Domain =====
+        public DbSet<User> Users { get; set; }
 
         private readonly IConfiguration _configuration;
 
@@ -864,6 +869,27 @@ namespace ACS.Database
                 e.Property(x => x.KeepAliveSeconds).HasColumnName("keepAliveSeconds");
                 e.Property(x => x.ReconnectDelayMs).HasColumnName("reconnectDelayMs");
                 e.Property(x => x.State).HasColumnName("state").HasMaxLength(20);
+                e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
+                e.Property(x => x.CreateTime).HasColumnName("createTime");
+                e.Property(x => x.Creator).HasColumnName("creator").HasMaxLength(45);
+                e.Property(x => x.Editor).HasColumnName("editor").HasMaxLength(45);
+                e.Property(x => x.EditTime).HasColumnName("editTime");
+            });
+
+            // ===== User Domain =====
+            modelBuilder.Entity<User>(e =>
+            {
+                e.ToTable("NA_X_USER");
+                e.HasKey(x => x.Seq);
+                e.Property(x => x.Seq).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Ignore(x => x.Id);
+                e.Property(x => x.UserId).HasColumnName("userId").HasMaxLength(64).IsRequired();
+                e.HasIndex(x => x.UserId).IsUnique();
+                e.Property(x => x.PasswordHash).HasColumnName("passwordHash").HasMaxLength(255);
+                e.Property(x => x.Role).HasColumnName("role").HasMaxLength(20);
+                e.Property(x => x.MustChangePassword).HasColumnName("mustChangePassword");
+                e.Property(x => x.IsActive).HasColumnName("isActive");
+                e.Property(x => x.LastLoginTime).HasColumnName("lastLoginTime");
                 e.Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
                 e.Property(x => x.CreateTime).HasColumnName("createTime");
                 e.Property(x => x.Creator).HasColumnName("creator").HasMaxLength(45);

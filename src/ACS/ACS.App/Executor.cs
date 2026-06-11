@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Autofac;
 using Microsoft.Extensions.Configuration;
 using ACS.App.Modules;
@@ -194,6 +195,8 @@ namespace ACS.App
                 MigrateZoneTable(dbContext);
                 MigrateMqttTable(dbContext);
                 MigrateLogMessageTable(dbContext);
+                MigrateUserTable(dbContext);
+                SeedAdminUser(dbContext);
             }
             catch (Exception ex)
             {
@@ -632,6 +635,87 @@ END $$;
         /// 보존 만료 파티션은 AwakeLogPartitionMaintenanceJob이 DROP TABLE로 제거(스캔/bloat 없음).
         /// 컬럼 정의는 docker/init/01_init_acsdb.sql 과 동일.
         /// </summary>
+        /// <summary>
+        /// NA_X_USER 테이블이 없으면 생성한다 (멱등). EF Core EnsureCreated() 는 기존 DB에서 no-op 이라
+        /// 신규 추가된 테이블이 자동 생성되지 않으므로 명시적 마이그레이션 필요.
+        /// docker/init/01_init_acsdb.sql 의 NA_X_USER CREATE TABLE 정의와 동일한 컬럼/타입을 사용.
+        /// 신규 docker 설치 경로에서는 init.sql 이 먼저 생성하므로 이 메서드는 'already exists' 만 로그.
+        /// </summary>
+        private void MigrateUserTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relname = 'NA_X_USER'
+    ) THEN
+        CREATE TABLE public.""NA_X_USER"" (
+            id SERIAL NOT NULL PRIMARY KEY,
+            ""userId"" character varying(64) NOT NULL,
+            ""passwordHash"" character varying(255),
+            role character varying(20) DEFAULT 'Viewer'::character varying,
+            ""mustChangePassword"" boolean NOT NULL DEFAULT false,
+            ""isActive"" boolean NOT NULL DEFAULT true,
+            ""lastLoginTime"" timestamp with time zone,
+            description character varying(255),
+            ""createTime"" timestamp with time zone,
+            creator character varying(45),
+            editor character varying(45),
+            ""editTime"" timestamp with time zone,
+            CONSTRAINT ""UQ_NA_X_USER_userId"" UNIQUE (""userId"")
+        );
+        RAISE NOTICE 'NA_X_USER table created';
+    ELSE
+        RAISE NOTICE 'NA_X_USER table already exists';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("User table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "User table migration skipped or failed.");
+            }
+        }
+
+        /// <summary>
+        /// NA_X_USER 테이블이 비어 있으면 기본 Admin(admin/admin) 계정을 시드한다.
+        /// MustChangePassword=true 로 둬서 최초 로그인 시 UI가 비밀번호 변경을 강제한다.
+        /// </summary>
+        private void SeedAdminUser(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                if (dbContext.Users.Any()) return;
+
+                var nowUtc = DateTime.UtcNow;
+                dbContext.Users.Add(new ACS.Core.User.Model.User
+                {
+                    UserId = "admin",
+                    PasswordHash = ACS.App.Web.Auth.PasswordHasher.Hash("admin"),
+                    Role = ACS.Core.User.Model.User.ROLE_ADMIN,
+                    MustChangePassword = true,
+                    IsActive = true,
+                    Description = "Initial bootstrap administrator",
+                    CreateTime = nowUtc,
+                    EditTime = nowUtc,
+                    Creator = "SYSTEM",
+                    Editor = "SYSTEM"
+                });
+                dbContext.SaveChanges();
+                logger.Information("Seeded initial admin user (admin/admin). MustChangePassword=true.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "SeedAdminUser skipped or failed.");
+            }
+        }
+
         private void MigrateLogMessageTable(ACS.Database.AcsDbContext dbContext)
         {
             ConvertLogTableToPartitioned(

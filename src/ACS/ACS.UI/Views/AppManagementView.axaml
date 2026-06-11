@@ -3,6 +3,7 @@
              xmlns:vm="using:ACS.UI.ViewModels"
              xmlns:models="using:ACS.UI.Models"
              xmlns:conv="using:ACS.UI.Converters"
+             xmlns:svc="using:ACS.UI.Services"
              x:Class="ACS.UI.Views.AppManagementView"
              x:DataType="vm:AppManagementViewModel">
 
@@ -85,19 +86,37 @@
                                                VerticalAlignment="Center" />
                                     <Button Content="실행"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanStart}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StartCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanStart" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                     <Button Content="정지"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanStop}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StopCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanStop" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                     <Button Content="강제종료"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanForceKill}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).ForceKillCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanForceKill" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                 </StackPanel>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
@@ -142,19 +161,37 @@
                                                VerticalAlignment="Center" />
                                     <Button Content="실행"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanStart}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StartCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanStart" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                     <Button Content="정지"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanStop}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).StopCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanStop" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                     <Button Content="강제종료"
                                             IsVisible="{Binding IsApplication}"
-                                            IsEnabled="{Binding CanForceKill}"
                                             Command="{Binding $parent[TreeView].((vm:AppManagementViewModel)DataContext).ForceKillCommand}"
-                                            CommandParameter="{Binding}" />
+                                            CommandParameter="{Binding}">
+                                        <Button.IsEnabled>
+                                            <MultiBinding Converter="{StaticResource BoolAnd}">
+                                                <Binding Path="CanForceKill" />
+                                                <Binding Source="{x:Static svc:UserSession.Current}" Path="CanEdit" />
+                                            </MultiBinding>
+                                        </Button.IsEnabled>
+                                    </Button>
                                 </StackPanel>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
@@ -269,7 +306,8 @@
 
                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                             <Button Content="💾 저장" Command="{Binding SaveHeartbeatSettingsCommand}"
-                                    FontSize="11" Padding="10,4" />
+                                    FontSize="11" Padding="10,4"
+                                    IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
                             <Button Content="🔄 불러오기" Command="{Binding LoadHeartbeatSettingsCommand}"
                                     FontSize="11" Padding="10,4" />
                         </StackPanel>

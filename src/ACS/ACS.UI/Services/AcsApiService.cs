@@ -10,19 +10,103 @@ namespace ACS.UI.Services;
 public class AcsApiService : IAcsApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly UserSession _session;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public AcsApiService(string baseUrl)
+    public AcsApiService(string baseUrl, UserSession session = null)
     {
-        _httpClient = new HttpClient
+        _session = session ?? new UserSession();
+        // Bearer 토큰을 매 요청마다 자동 부착하기 위한 핸들러
+        var handler = new AuthHeaderHandler(_session, new HttpClientHandler());
+        _httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri(baseUrl),
             Timeout = TimeSpan.FromSeconds(5)
         };
+    }
+
+    // ===== 인증 =====
+    public async Task<LoginResult?> LoginAsync(string userId, string password)
+    {
+        try
+        {
+            var resp = await _httpClient.PostAsJsonAsync("/api/auth/login",
+                new LoginRequest { UserId = userId, Password = password });
+            if (!resp.IsSuccessStatusCode) return null;
+            var result = await resp.Content.ReadFromJsonAsync<LoginResult>(_jsonOptions);
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task LogoutAsync()
+    {
+        try { await _httpClient.PostAsync("/api/auth/logout", null); } catch { }
+    }
+
+    public async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        try
+        {
+            var resp = await _httpClient.PostAsJsonAsync("/api/auth/change-password",
+                new ChangePasswordRequest { CurrentPassword = currentPassword, NewPassword = newPassword });
+            return resp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // ===== 사용자 관리 =====
+    public async Task<List<UserDto>> GetUsersAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<UserDto>>("/api/users", _jsonOptions)
+                   ?? new List<UserDto>();
+        }
+        catch
+        {
+            return new List<UserDto>();
+        }
+    }
+
+    public async Task<bool> CreateUserAsync(UserDto user)
+    {
+        try
+        {
+            var resp = await _httpClient.PostAsJsonAsync("/api/users", user);
+            return resp.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> UpdateUserAsync(UserDto user)
+    {
+        try
+        {
+            var resp = await _httpClient.PutAsJsonAsync($"/api/users/{user.Seq}", user);
+            return resp.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeleteUserAsync(int seq)
+    {
+        try
+        {
+            var resp = await _httpClient.DeleteAsync($"/api/users/{seq}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     public async Task<List<VehicleDto>> GetVehiclesAsync()

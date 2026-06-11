@@ -27,6 +27,7 @@ public partial class ApplicationViewModel : ObservableObject
         {
             "Application" => "Application",
             "MQTT" => "MQTT",
+            "USER" => "USER",
             _ => ""
         };
 
@@ -35,6 +36,7 @@ public partial class ApplicationViewModel : ObservableObject
         {
             "Application" => "AppManagement",
             "MQTT" => "Mqtt",
+            "USER" => "UserManagement",
             _ => "Map"
         };
         OnViewChangeRequested?.Invoke(viewName);

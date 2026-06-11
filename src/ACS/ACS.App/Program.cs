@@ -185,6 +185,9 @@ static class Program
 
         builder.Services.AddSignalR();
 
+        // 로그인 세션 보관소 — 메모리 기반 토큰 스토어 (싱글톤)
+        builder.Services.AddSingleton<ACS.App.Web.Auth.SessionStore>();
+
         // Autofac을 ASP.NET Core DI에 통합
         // (PoseTelemetrySubscriber/HostCommSubscriber는 ControlModule에서 IHostedService로 등록되어 Generic Host가 자동 기동)
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());

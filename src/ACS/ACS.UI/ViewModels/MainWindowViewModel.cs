@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,7 +13,14 @@ namespace ACS.UI.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IAcsApiService _apiService;
+    private readonly UserSession _userSession;
     private readonly Dictionary<string, Window> _popupWindows = new();
+
+    public UserSession Session => _userSession;
+    public string CurrentUserDisplay => _userSession?.DisplayName ?? "";
+    public bool CanEdit => _userSession?.CanEdit ?? false;
+    public bool CanManageUsers => _userSession?.CanManageUsers ?? false;
+    public bool CanUpdateUi => _userSession?.CanUpdateUi ?? false;
 
     [ObservableProperty]
     private MapViewModel _mapViewModel;
@@ -78,6 +86,9 @@ public partial class MainWindowViewModel : ObservableObject
     private VehicleHistoryViewModel _vehicleHistoryViewModel;
 
     [ObservableProperty]
+    private UserViewModel _userViewModel;
+
+    [ObservableProperty]
     private string _connectionStatus = "Disconnected";
 
     [ObservableProperty]
@@ -120,9 +131,10 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTab8Selected; // Preference
 
-    public MainWindowViewModel(IAcsApiService apiService)
+    public MainWindowViewModel(IAcsApiService apiService, UserSession userSession = null)
     {
         _apiService = apiService;
+        _userSession = userSession;
         _mapViewModel = new MapViewModel();
         _vehicleListViewModel = new VehicleListViewModel();
         _dashboardViewModel = new DashboardViewModel();
@@ -144,6 +156,7 @@ public partial class MainWindowViewModel : ObservableObject
         _vehicleViewModel = new VehicleViewModel(_apiService);
         _transportCmdHistoryViewModel = new TransportCmdHistoryViewModel(_apiService);
         _vehicleHistoryViewModel = new VehicleHistoryViewModel(_apiService);
+        _userViewModel = new UserViewModel(_apiService, _userSession);
 
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
@@ -181,6 +194,7 @@ public partial class MainWindowViewModel : ObservableObject
             "Vehicle" => ("Vehicle", (Control)new VehicleView { DataContext = VehicleViewModel }),
             "TransportCmdHistory" => ("TrCmd History", (Control)new TransportCmdHistoryView { DataContext = TransportCmdHistoryViewModel }),
             "VehicleHistory" => ("Vehicle History", (Control)new VehicleHistoryView { DataContext = VehicleHistoryViewModel }),
+            "UserManagement" => ("User Management", (Control)new UserView { DataContext = UserViewModel }),
             _ => ((string)null, (Control)null)
         };
         if (content == null) return;
@@ -231,6 +245,32 @@ public partial class MainWindowViewModel : ObservableObject
             _ = TransportCmdHistoryViewModel.SearchCommand.ExecuteAsync(null);
         if (viewName == "VehicleHistory")
             _ = VehicleHistoryViewModel.SearchCommand.ExecuteAsync(null);
+        if (viewName == "UserManagement")
+            _ = UserViewModel.LoadUsersAsync();
+    }
+
+    /// <summary>
+    /// App.axaml.cs 가 주입하는 로그아웃 후속 처리 콜백. 보통 새 LoginWindow 표시 + MainWindow 닫기.
+    /// 미주입 시 fallback 으로 앱 종료 (단위 테스트 환경 등).
+    /// </summary>
+    public Func<Task> LogoutRequested { get; set; }
+
+    /// <summary>상태바 Logout 버튼 → 백엔드 세션 종료 + 세션 클리어 + 로그인 창 복귀.</summary>
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        try { await _apiService.LogoutAsync(); } catch { }
+        _userSession?.Clear();
+
+        if (LogoutRequested != null)
+        {
+            await LogoutRequested.Invoke();
+        }
+        else if (Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+        }
     }
 
     /// <summary>

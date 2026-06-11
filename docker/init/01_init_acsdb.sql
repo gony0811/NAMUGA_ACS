@@ -17,6 +17,8 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 ALTER TABLE IF EXISTS ONLY public."NA_R_LOCATION" DROP CONSTRAINT IF EXISTS "uq_location_locationId";
+ALTER TABLE IF EXISTS ONLY public."NA_X_USER" DROP CONSTRAINT IF EXISTS "UQ_NA_X_USER_userId";
+ALTER TABLE IF EXISTS ONLY public."NA_X_USER" DROP CONSTRAINT IF EXISTS "PK_NA_X_USER";
 ALTER TABLE IF EXISTS ONLY public."NA_X_OPTION" DROP CONSTRAINT IF EXISTS "PK_NA_X_OPTION";
 ALTER TABLE IF EXISTS ONLY public."NA_X_APPLICATION_MANAGER" DROP CONSTRAINT IF EXISTS "PK_NA_X_APPLICATION_MANAGER";
 ALTER TABLE IF EXISTS ONLY public."NA_X_APPLICATION" DROP CONSTRAINT IF EXISTS "PK_NA_X_APPLICATION";
@@ -62,6 +64,7 @@ ALTER TABLE IF EXISTS public."NA_R_ZONE" ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public."NA_R_VEHICLE" ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public."NA_R_LOCATION" ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public."NA_R_BAY" ALTER COLUMN id DROP DEFAULT;
+DROP TABLE IF EXISTS public."NA_X_USER";
 DROP TABLE IF EXISTS public."NA_X_OPTION";
 DROP TABLE IF EXISTS public."NA_X_APPLICATION_MANAGER";
 DROP TABLE IF EXISTS public."NA_X_APPLICATION";
@@ -958,6 +961,26 @@ CREATE TABLE public."NA_X_OPTION" (
 
 
 --
+-- Name: NA_X_USER; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."NA_X_USER" (
+    id SERIAL NOT NULL,
+    "userId" character varying(64) NOT NULL,
+    "passwordHash" character varying(255),
+    role character varying(20) DEFAULT 'Viewer'::character varying,
+    "mustChangePassword" boolean NOT NULL DEFAULT false,
+    "isActive" boolean NOT NULL DEFAULT true,
+    "lastLoginTime" timestamp with time zone,
+    description character varying(255),
+    "createTime" timestamp with time zone,
+    creator character varying(45),
+    editor character varying(45),
+    "editTime" timestamp with time zone
+);
+
+
+--
 -- Name: NA_R_BAY id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1775,6 +1798,17 @@ ALTER TABLE ONLY public."NA_X_APPLICATION_MANAGER"
 
 ALTER TABLE ONLY public."NA_X_OPTION"
     ADD CONSTRAINT "PK_NA_X_OPTION" PRIMARY KEY (id);
+
+
+--
+-- Name: NA_X_USER PK_NA_X_USER; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."NA_X_USER"
+    ADD CONSTRAINT "PK_NA_X_USER" PRIMARY KEY (id);
+
+ALTER TABLE ONLY public."NA_X_USER"
+    ADD CONSTRAINT "UQ_NA_X_USER_userId" UNIQUE ("userId");
 
 
 --

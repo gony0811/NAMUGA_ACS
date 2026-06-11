@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:svc="using:ACS.UI.Services"
              x:Class="ACS.UI.Views.PortView"
              x:DataType="vm:PortViewModel">
 
@@ -34,9 +35,12 @@
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
                     </StackPanel.Styles>
-                    <Button Content="Add" ToolTip.Tip="Add Location" Command="{Binding AddLocationCommand}" />
-                    <Button Content="Delete" ToolTip.Tip="Delete Location" Command="{Binding DeleteLocationCommand}" />
-                    <Button Content="Edit" ToolTip.Tip="Modify Location" Command="{Binding EditLocationCommand}" />
+                    <Button Content="Add" ToolTip.Tip="Add Location" Command="{Binding AddLocationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Delete" ToolTip.Tip="Delete Location" Command="{Binding DeleteLocationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
+                    <Button Content="Edit" ToolTip.Tip="Modify Location" Command="{Binding EditLocationCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadLocationsCommand}" />
                 </StackPanel>

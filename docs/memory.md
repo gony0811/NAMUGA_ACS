@@ -1027,3 +1027,40 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 - 다른 PC에서 빌드 시 델타 생성용 이전 릴리스 복원: `vpk download http --url http://<CS>:5100/releases/ui`.
 
 **검증:** ACS.UI/ACS.App 빌드 0 오류. `publish-ui.ps1 -Version 1.0.0` 실제 실행 성공 — `AcsUi-win-Setup.exe`(50MB)/`AcsUi-1.0.0-full.nupkg`/`releases.win.json` 생성, vpk가 `VelopackApp.Run()` 호출 검증 통과. **런타임 미검증**: CS 기동 후 피드 URL 200 확인, 테스트 PC Setup.exe 설치, 1.0.1 발행 시 배너 표시→재시작 적용·델타 생성, ProgramData 설정 보존, CS 중지 상태 오프라인 기동.
+
+---
+
+## 38. ACS.UI 사용자 로그인/권한 관리 (NA_X_USER + 3단계 역할)
+
+**날짜:** 2026-06-10
+**작업:** UI 실행 시 누구나 모든 CRUD/업데이트 가능했던 무인증 상태를 제거. Admin/Operator/Viewer 3단계 역할 기반 권한 + BCrypt 해시 비밀번호 + 메모리 세션(12h 슬라이딩) 도입. 초기 부트스트랩 `admin/admin` 시드 후 최초 로그인 시 강제 변경.
+
+**아키텍처:**
+- 사용자 데이터: ACS.App 의 PostgreSQL `NA_X_USER` (Seq SERIAL, UserId UNIQUE, PasswordHash, Role, MustChangePassword, IsActive, LastLoginTime + TimedEntity 표준 컬럼).
+- 인증: REST `POST /api/auth/login` → GUID 토큰 + 역할. `Authorization: Bearer <token>` 헤더로 보호된 엔드포인트(`/api/users`, `/api/auth/logout`, `/api/auth/change-password`) 호출. 세션 저장소는 메모리(`ConcurrentDictionary`) — 재시작 시 전부 무효화(UI는 401 → 재로그인).
+- 권한 매트릭스: **Admin** = 사용자 관리 + 데이터 CRUD + 업데이트 적용 / **Operator** = 데이터 CRUD + 업데이트 적용 / **Viewer** = 조회 전용.
+- UI 시작 시퀀스: `LoginWindow` 모달 → 인증 실패 → 종료. `mustChangePassword=true` → `ChangePasswordWindow` 강제(취소 시 로그아웃·종료) → `MainWindow` + SignalR/UpdateService 기동. `ShowDialog(null)` 미지원이라 LoginWindow를 임시 MainWindow로 띄우고 Closed 이벤트에서 실제 MainWindow로 교체.
+- 권한 게이트 바인딩: `UserSession.Current` 정적 인스턴스(재할당 없이 상태만 갱신 — INPC 발생) 를 XAML에서 `{x:Static svc:UserSession.Current}` 로 직접 바인딩. CRUD View(Mqtt/Node/Station/Link/Bay/Zone/Port/TransferCommand/Vehicle) 의 Add/Edit/Delete 버튼에 `IsEnabled="{Binding ... Path=CanEdit}"` 추가. USER 메뉴는 `CanManageUsers` 로 가시성 제어. 상태바 업데이트 배너 버튼은 `CanUpdateUi` 로 제어 + `App.axaml.cs` 백그라운드 루프에서 Viewer 시 다운로드 자체 생략.
+
+**변경:**
+- 신규 `ACS.Core/User/Model/User.cs` (NamedEntity 아닌 TimedEntity 상속).
+- `ACS.App/Database/AcsDbContext.cs`: `DbSet<User> Users` + `NA_X_USER` Fluent 매핑.
+- `ACS.App/Executor.cs`: `SeedAdminUser(dbContext)` — User 테이블 비어있으면 admin/admin + MustChangePassword=true 삽입.
+- `ACS.App/ACS.App.csproj`: `BCrypt.Net-Next 4.0.3` 추가.
+- 신규 `ACS.App/Web/Auth/{PasswordHasher,SessionStore,AcsAuthorizeAttribute}.cs`. `Program.cs` 에 `SessionStore` 싱글톤 DI 등록.
+- 신규 `ACS.App/Web/Controllers/{AuthController,UsersController}.cs`. `ACS.Core.User.Model.User` 가 `ControllerBase.User` 와 충돌 → `using UserEntity = ACS.Core.User.Model.User;` 별칭 사용.
+- 신규 `ACS.Communication/Http/Models/UserDto.cs` (UserDto + LoginRequestDto + LoginResponseDto + ChangePasswordRequestDto).
+- 신규 `ACS.UI/Services/{UserSession,AuthHeaderHandler}.cs`. `AcsApiService` 생성자에 `UserSession` 주입 + `DelegatingHandler` 로 Bearer 자동 부착. `IAcsApiService` 에 Login/Logout/ChangePassword/Users CRUD 추가.
+- 신규 `ACS.UI/Views/{LoginWindow,ChangePasswordWindow,UserView,UserEditWindow,ResetPasswordDialog}.axaml(.cs)` + `ViewModels/UserViewModel.cs`. `ApplicationRibbonView` 에 USER 카테고리(Admin 가시성) 추가, `ApplicationViewModel` 의 SelectMenu switch 에 `USER → UserManagement` 매핑 추가.
+- `MainWindowViewModel`: `UserSession` 의존성 + `UserViewModel` 추가 + `OpenPopupView` switch + `LogoutCommand` 추가. `MainWindow.axaml` 상태바에 사용자 표시(`UserSession.Current.DisplayName`) + Logout 버튼.
+- `App.axaml.cs`: `UserSession.Current` 단일 인스턴스 사용. LoginWindow를 desktop.MainWindow 로 임시 지정 → Closed 핸들러에서 인증 결과에 따라 처리.
+
+**핵심 사실:**
+- `UserSession.Current` 는 재할당하지 않고 상태만 갱신 — XAML x:Static 바인딩이 끊어지지 않는다. CommunityToolkit.Mvvm 의 `[ObservableProperty]` + `[NotifyPropertyChangedFor]` 로 권한 플래그가 즉시 전파.
+- `ControllerBase.User` 속성과 `ACS.Core.User.Model.User` 가 동일 이름 — Controller에서는 `UserEntity` 별칭 필수.
+- 데이터 CRUD 백엔드 엔드포인트(`/api/nodes` 등) 의 서버측 인가는 이번 PR 범위에 없음 (UI 버튼 비활성화로 1차 통제). 향후 별도 작업으로 `[AcsAuthorize(Role="Admin,Operator")]` 부착 필요.
+- 사용자 관리 화면에서 본인 삭제 / 마지막 활성 Admin 강등·비활성화·삭제는 백엔드가 거부 (lock-out 방지).
+- 부트스트랩 admin 의 MustChangePassword=true 는 시드 시점에만 설정 — 이후 admin 본인이 변경하면 false.
+- **NA_X_USER 테이블 생성 갭 보완**: `EnsureCreated()` 는 비어 있지 않은 DB 에서는 no-op 이라 EF Fluent 매핑만으로는 기존 acsdb 에 신규 테이블이 생기지 않는다. 두 경로 모두 명시적 DDL 추가 — (i) `docker/init/01_init_acsdb.sql` 의 상단 DROP CONSTRAINT 블록 / DROP TABLE 블록 / NA_X_OPTION 다음 CREATE TABLE / 하단 ALTER ADD CONSTRAINT 블록 4곳에 NA_X_USER 항목 삽입(신규 docker 설치 경로), (ii) `Executor.MigrateUserTable` 가 `pg_class` 조회 → 없으면 멱등 `CREATE TABLE` 실행하여 `MigrateLogMessageTable` 다음, `SeedAdminUser` 직전에 호출(기존 DB 업그레이드 경로). 두 DDL 의 컬럼명/타입/PK/UNIQUE 가 EF 매핑(`AcsDbContext.cs` 의 NA_X_USER 블록) 과 정확히 일치해야 한다.
+
+**검증:** `dotnet build ACS.sln` 0 오류(경고 19, 모두 무관한 기존 nullable/legacy 경고). **런타임 미검증**: ACS.App 최초 실행 후 `NA_X_USER` 자동 생성 + `admin/admin` 시드 (psql 확인), UI 실행 → LoginWindow → admin/admin → 강제 변경 다이얼로그 → MainWindow 진입. Admin 로그인 시 Application 탭에 USER 메뉴 + CRUD 버튼 활성, Operator는 USER 메뉴 숨김·CRUD 활성·업데이트 가능, Viewer는 USER 메뉴 숨김·CRUD 버튼 비활성·업데이트 배너 버튼 비활성. 백엔드 재시작 후 401 → 자동 재로그인 유도.

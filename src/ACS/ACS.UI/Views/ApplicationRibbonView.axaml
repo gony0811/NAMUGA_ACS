@@ -2,7 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
              x:Class="ACS.UI.Views.ApplicationRibbonView"
-             x:DataType="vm:ApplicationViewModel">
+             x:DataType="vm:ApplicationViewModel"
+             x:Name="RibbonRoot">
 
     <!-- Application 리본 - Application Management 카테고리 -->
     <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
@@ -121,6 +122,37 @@
                     <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
                             BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
                         <TextBlock Text="MQTT" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsTextPrimaryBrush}"
+                                   HorizontalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- USER 카테고리 (Admin 전용 — DataContext가 ApplicationViewModel이므로
+                 MainWindow의 CanManageUsers를 ancestor 바인딩으로 참조) -->
+            <Border Classes="ribbon-category" BorderThickness="0,0,1,0"
+                    IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CanManageUsers, FallbackValue=False}">
+                <Grid RowDefinitions="*,Auto">
+                    <Button Grid.Row="0"
+                            Background="Transparent" BorderThickness="0"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Padding="6"
+                            Command="{Binding SelectMenuCommand}"
+                            CommandParameter="USER">
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <Border Background="{StaticResource AcsPrimaryBlueBrush}"
+                                        CornerRadius="2" Opacity="0.15" />
+                                <TextBlock Text="&#x1F465;" FontSize="20"
+                                           Foreground="{StaticResource AcsPrimaryBlueBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,0" Padding="0,3,0,0" Margin="0,2,0,0">
+                        <TextBlock Text="USER" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource AcsTextPrimaryBrush}"
                                    HorizontalAlignment="Center" />
                     </Border>

@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACS.UI.Views.UserEditWindow"
+        Title="Edit User"
+        Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,Auto" Margin="14">
+
+        <Border Grid.Row="0" Background="{StaticResource AcsSurfaceCardBrush}"
+                BorderBrush="{StaticResource AcsBorderStrongBrush}" BorderThickness="1" CornerRadius="3"
+                Padding="10,8" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="User ID *:" VerticalAlignment="Center" FontSize="11" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="UserIdTextBox"
+                         FontSize="11" Height="28" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" x:Name="PasswordLabel"
+                           Text="Initial Password *:" VerticalAlignment="Center"
+                           FontSize="11" Margin="0,6,0,0" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="PasswordTextBox"
+                         PasswordChar="*" FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Role:" VerticalAlignment="Center"
+                           FontSize="11" Margin="0,6,0,0" />
+                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="RoleCombo"
+                          FontSize="11" Height="28" Margin="0,6,0,0"
+                          HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Admin" />
+                    <ComboBoxItem Content="Operator" />
+                    <ComboBoxItem Content="Viewer" />
+                </ComboBox>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Active:" VerticalAlignment="Center"
+                           FontSize="11" Margin="0,6,0,0" />
+                <CheckBox Grid.Row="3" Grid.Column="1" x:Name="ActiveCheck"
+                          Content="비활성 시 로그인 차단" FontSize="11" Margin="0,6,0,0" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Description:" VerticalAlignment="Center"
+                           FontSize="11" Margin="0,6,0,0" />
+                <TextBox Grid.Row="4" Grid.Column="1" x:Name="DescriptionTextBox"
+                         FontSize="11" Height="28" Margin="0,6,0,0" />
+
+                <TextBlock Grid.Row="5" Grid.ColumnSpan="2" x:Name="HintText"
+                           Text="* 신규 사용자는 최초 로그인 시 비밀번호 변경이 강제됩니다."
+                           FontSize="10"
+                           Foreground="{StaticResource AcsTextMutedBrush}"
+                           Margin="0,8,0,0" TextWrapping="Wrap" />
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Content="OK" Width="80" Height="28" Click="OnOkClick" IsDefault="True" />
+            <Button Content="Cancel" Width="80" Height="28" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

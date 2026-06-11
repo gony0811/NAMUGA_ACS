@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
+             xmlns:svc="using:ACS.UI.Services"
              x:Class="ACS.UI.Views.VehicleView"
              x:DataType="vm:VehicleViewModel">
 
@@ -33,7 +34,8 @@
                         </Style>
                     </StackPanel.Styles>
                     <Button Content="초기화" ToolTip.Tip="선택 차량 초기화 (ProcessingState=IDLE, TransferState=NOTASSIGNED, TransportCommandId 비움; 묶인 TransportCommand는 QUEUED로 환원)"
-                            Command="{Binding ResetVehicleCommand}" />
+                            Command="{Binding ResetVehicleCommand}"
+                            IsEnabled="{Binding Source={x:Static svc:UserSession.Current}, Path=CanEdit, FallbackValue=True}" />
                     <Border Width="1" Background="{StaticResource AcsSectionBorderBrush}" Margin="4,4" />
                     <Button Content="Refresh" ToolTip.Tip="Refresh" Command="{Binding LoadVehiclesCommand}" />
                 </StackPanel>
