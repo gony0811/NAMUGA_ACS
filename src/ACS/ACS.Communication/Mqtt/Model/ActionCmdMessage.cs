@@ -48,6 +48,9 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("materialType")]
         public string MaterialType { get; set; }
 
+        [JsonPropertyName("model")]
+        public string Model { get; set; }
+
         [JsonPropertyName("actionType")]
         public string ActionType { get; set; }
 

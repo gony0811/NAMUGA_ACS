@@ -69,6 +69,10 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("portType")]
         public string PortType { get; set; }
 
+        /// <summary>모델명 (MOVECMD.MODEL 값). 비어있을 수 있음.</summary>
+        [JsonPropertyName("model")]
+        public string Model { get; set; }
+
         /// <summary>결과 코드 (초기 전송 시 빈 문자열)</summary>
         [JsonPropertyName("resultCode")]
         public string ResultCode { get; set; }

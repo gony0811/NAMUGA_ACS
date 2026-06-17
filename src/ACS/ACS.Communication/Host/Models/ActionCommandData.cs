@@ -22,6 +22,9 @@ namespace ACS.Communication.Host.Models
         [XmlElement("MaterialType")]
         public string MaterialType { get; set; } = "";
 
+        [XmlElement("MODEL")]
+        public string MODEL { get; set; } = "";
+
         [XmlElement("ActionType")]
         public string ActionType { get; set; } = "";
 

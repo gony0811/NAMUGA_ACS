@@ -32,6 +32,10 @@ namespace ACS.Communication.Mqtt.Model
         [JsonPropertyName("portType")]
         public string PortType { get; set; }
 
+        /// <summary>모델명 (MOVECMD.MODEL 값). 비어있을 수 있음.</summary>
+        [JsonPropertyName("model")]
+        public string Model { get; set; }
+
         /// <summary>AMR 슬롯 번호 (1~4, 기본 1)</summary>
         [JsonPropertyName("amrSlot")]
         public int AmrSlot { get; set; } = 1;

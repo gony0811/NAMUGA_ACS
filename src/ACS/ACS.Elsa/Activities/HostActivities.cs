@@ -292,7 +292,7 @@ namespace ACS.Elsa.Activities
     ///   - SourceLoc:SourcePort → TransportCommandEx.Source
     ///   - DestLoc:DestPort → TransportCommandEx.Dest
     ///   - ActionType → TransportCommandEx.JobType
-    ///   - MaterialType → TransportCommandEx.Description
+    ///   - MODEL → TransportCommandEx.Description (포맷: MODEL='&lt;value&gt;')
     ///   - AcsId → TransportCommandEx.EqpId
     /// </summary>
     [Activity("ACS.Host", "Create Transport Command",
@@ -359,6 +359,9 @@ namespace ACS.Elsa.Activities
                                  ?? ExtractValue(moveCmdXml, "//ActionType") ?? "";
                 string materialType = ExtractValue(moveCmdXml, "//DataLayer/MaterialType")
                                    ?? ExtractValue(moveCmdXml, "//MaterialType") ?? "";
+                string model = ExtractValue(moveCmdXml, "//DataLayer/MODEL")
+                            ?? ExtractValue(moveCmdXml, "//MODEL") ?? "";
+                string descriptionValue = $"MODEL='{model}'";
                 string acsId = ExtractValue(moveCmdXml, "//DataLayer/AcsId")
                             ?? ExtractValue(moveCmdXml, "//AcsId") ?? "";
 
@@ -568,7 +571,7 @@ namespace ACS.Elsa.Activities
                             matched.Source      = source;
                             matched.Dest        = dest;
                             matched.JobType     = actionType;
-                            matched.Description = materialType;
+                            matched.Description = descriptionValue;
                             matched.EqpId       = acsId;
                             matched.BayId       = sameBayId;
                             transferManager.UpdateTransportCommand(matched);
@@ -614,7 +617,7 @@ namespace ACS.Elsa.Activities
                     State = TransportCommandEx.STATE_QUEUED,
                     JobType = actionType,
                     EqpId = acsId,
-                    Description = materialType,
+                    Description = descriptionValue,
                     CreateTime = DateTime.Now,
                     QueuedTime = DateTime.Now,
                     // 나머지 시간 필드 null로 초기화
@@ -902,7 +905,7 @@ namespace ACS.Elsa.Activities
     /// 검증 항목:
     ///   1. JobID로 TransportCommandEx 존재 여부 확인
     ///   2. JOBREPORT Type vs TC State 정합성 (이미 완료/취소된 건에 대한 중복 보고 차단)
-    ///   3. 데이터 일치 확인 (MaterialType↔Description, ActionType↔JobType) — 불일치 시 경고 로그
+    ///   3. 데이터 일치 확인 (MODEL↔Description, ActionType↔JobType) — 불일치 시 경고 로그
     /// </summary>
     [Activity("ACS.Host", "Validate Job Report",
         "JOBREPORT 데이터를 DB의 TransportCommandEx와 대조 검증합니다.")]
@@ -942,7 +945,7 @@ namespace ACS.Elsa.Activities
 
                 string jobId = data.JobID;
                 string type = data.Type;
-                string materialType = data.MaterialType;
+                string model = data.MODEL;
                 string actionType = data.ActionType;
                 string amrId = data.AmrId;
 
@@ -984,10 +987,15 @@ namespace ACS.Elsa.Activities
                 }
 
                 // 데이터 일치 확인 (경고 로그, 전달은 진행)
-                if (!string.IsNullOrEmpty(materialType) && !string.IsNullOrEmpty(tc.Description) &&
-                    !string.Equals(materialType, tc.Description, StringComparison.OrdinalIgnoreCase))
+                // TC.Description 은 "MODEL='<value>'" 포맷. MES 가 JOBREPORT.MODEL 을 보낸 경우에만 비교한다.
+                if (!string.IsNullOrEmpty(model))
                 {
-                    logger.Warn($"ValidateJobReportActivity: MaterialType mismatch - Message={materialType}, TC.Description={tc.Description}");
+                    string tcModel = tc.GetModel();
+                    if (!string.IsNullOrEmpty(tcModel) &&
+                        !string.Equals(model, tcModel, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.Warn($"ValidateJobReportActivity: MODEL mismatch - Message={model}, TC.Model={tcModel}");
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(actionType) && !string.IsNullOrEmpty(tc.JobType) &&
@@ -1414,6 +1422,7 @@ namespace ACS.Elsa.Activities
                 string targetPort = ExtractValue(actionCmdXml, "//DataLayer/TargetPort") ?? ExtractValue(actionCmdXml, "//TargetPort") ?? "";
                 string jobId = ExtractValue(actionCmdXml, "//DataLayer/JobID") ?? ExtractValue(actionCmdXml, "//JobID") ?? "";
                 string materialType = ExtractValue(actionCmdXml, "//DataLayer/MaterialType") ?? ExtractValue(actionCmdXml, "//MaterialType") ?? "";
+                string model = ExtractValue(actionCmdXml, "//DataLayer/MODEL") ?? ExtractValue(actionCmdXml, "//MODEL") ?? "";
                 string actionType = ExtractValue(actionCmdXml, "//DataLayer/ActionType") ?? ExtractValue(actionCmdXml, "//ActionType") ?? "";
                 string userId = ExtractValue(actionCmdXml, "//DataLayer/UserID") ?? ExtractValue(actionCmdXml, "//UserID") ?? "";
 
@@ -1433,6 +1442,7 @@ namespace ACS.Elsa.Activities
                         TargetPort = targetPort,
                         JobId = jobId,
                         MaterialType = materialType,
+                        Model = model,
                         ActionType = actionType,
                         UserId = userId
                     }
@@ -1441,7 +1451,7 @@ namespace ACS.Elsa.Activities
                 string json = System.Text.Json.JsonSerializer.Serialize(message);
                 hostAgentSender.Send((object)json);
 
-                logger.Info($"SendActionCmdJsonToTransActivity: sent ACTIONCMD JSON to Trans - jobId={jobId}, targetLoc={targetLoc}, actionType={actionType}");
+                logger.Info($"SendActionCmdJsonToTransActivity: sent ACTIONCMD JSON to Trans - jobId={jobId}, targetLoc={targetLoc}, actionType={actionType}, model={model}");
                 context.Set(Result, true);
             }
             catch (Exception ex)

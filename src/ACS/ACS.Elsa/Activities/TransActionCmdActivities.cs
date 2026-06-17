@@ -165,7 +165,9 @@ namespace ACS.Elsa.Activities
                         Port = targetPort,
                         ActionType = msg.Data.ActionType ?? "",
                         JobType = tc.JobType ?? msg.Data.ActionType ?? "",
-                        PortType = portType
+                        PortType = portType,
+                        // ACTIONCMD 가 명시한 MODEL 을 우선 사용. 비어있을 때만 TC.Description 의 MODEL 로 폴백.
+                        Model = !string.IsNullOrEmpty(msg.Data.Model) ? msg.Data.Model : (tc.GetModel() ?? "")
                     }
                 };
 

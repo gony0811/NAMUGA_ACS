@@ -60,5 +60,9 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>포트 종류 (LocationEx.Type: EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER)</summary>
         [JsonPropertyName("portType")]
         public string PortType { get; set; }
+
+        /// <summary>모델명 (MOVECMD.MODEL 값). TC.Description 에서 추출. 비어있을 수 있음.</summary>
+        [JsonPropertyName("model")]
+        public string Model { get; set; }
     }
 }

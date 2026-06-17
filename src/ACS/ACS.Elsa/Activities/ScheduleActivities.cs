@@ -487,6 +487,7 @@ namespace ACS.Elsa.Activities
                         Port = unitName ?? "",
                         JobType = string.IsNullOrEmpty(jobType) ? (tc.JobType ?? "") : jobType,
                         PortType = portType,
+                        Model = tc.GetModel() ?? "",
                         ResultCode = ""
                     }
                 };

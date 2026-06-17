@@ -269,7 +269,7 @@ namespace ACS.Activity.Activities
     ///   - SourceLoc:SourcePort → TransportCommandEx.Source
     ///   - DestLoc:DestPort → TransportCommandEx.Dest
     ///   - ActionType → TransportCommandEx.JobType
-    ///   - MaterialType → TransportCommandEx.Description
+    ///   - MODEL → TransportCommandEx.Description (포맷: MODEL='&lt;value&gt;')
     ///   - AcsId → TransportCommandEx.EqpId
     /// </summary>
     [Activity("ACS.Host", "Create Transport Command",
@@ -324,6 +324,9 @@ namespace ACS.Activity.Activities
                                  ?? ExtractValue(moveCmdXml, "//ActionType") ?? "";
                 string materialType = ExtractValue(moveCmdXml, "//DataLayer/MaterialType")
                                    ?? ExtractValue(moveCmdXml, "//MaterialType") ?? "";
+                string model = ExtractValue(moveCmdXml, "//DataLayer/MODEL")
+                            ?? ExtractValue(moveCmdXml, "//MODEL") ?? "";
+                string descriptionValue = $"MODEL='{model}'";
                 string acsId = ExtractValue(moveCmdXml, "//DataLayer/AcsId")
                             ?? ExtractValue(moveCmdXml, "//AcsId") ?? "";
                 string userId = ExtractValue(moveCmdXml, "//DataLayer/UserID")
@@ -352,7 +355,7 @@ namespace ACS.Activity.Activities
                     State = TransportCommandEx.STATE_QUEUED,
                     JobType = actionType,
                     EqpId = acsId,
-                    Description = materialType,
+                    Description = descriptionValue,
                     CreateTime = DateTime.Now,
                     // 나머지 시간 필드 null로 초기화
                     AssignedTime = null,

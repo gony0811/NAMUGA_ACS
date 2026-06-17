@@ -498,7 +498,7 @@ namespace ACS.Communication.Mqtt
         /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// portType은 LocationEx.Type 값을 그대로 통과시킨다 (EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER).
         /// </summary>
-        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string portType = null, int amrSlot = 1)
+        public async Task<bool> SendDestination(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string portType = null, int amrSlot = 1, string model = null)
         {
             var command = new AmrCommandMessage
             {
@@ -508,6 +508,7 @@ namespace ACS.Communication.Mqtt
                 Port = port ?? "",
                 JobType = jobType ?? "",
                 PortType = portType ?? "",
+                Model = model ?? "",
                 AmrSlot = amrSlot
             };
 
@@ -518,7 +519,7 @@ namespace ACS.Communication.Mqtt
         /// AMR에 액션 명령을 전송한다 (actionCmd).
         /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// </summary>
-        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null)
+        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string model = null)
         {
             var command = new AmrCommandMessage
             {
@@ -526,7 +527,8 @@ namespace ACS.Communication.Mqtt
                 Command = "actionCmd",
                 NodeId = nodeId,
                 Port = port ?? "",
-                JobType = jobType ?? ""
+                JobType = jobType ?? "",
+                Model = model ?? ""
             };
 
             return await SendCommand(vehicleId, command);

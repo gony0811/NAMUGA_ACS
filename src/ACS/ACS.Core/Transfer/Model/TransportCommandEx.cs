@@ -2,12 +2,24 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace ACS.Core.Transfer.Model
 {
     public class TransportCommandEx
     {
+        // MOVECMD 의 <MODEL> 값은 Description 에 "MODEL='<value>'" 포맷으로 저장된다.
+        private static readonly Regex ModelRegex = new Regex(@"MODEL='([^']*)'", RegexOptions.Compiled);
+
+        /// <summary>Description 에 담긴 MODEL 값을 추출. 포맷이 아니면 null.</summary>
+        public string GetModel()
+        {
+            if (string.IsNullOrEmpty(Description)) return null;
+            var m = ModelRegex.Match(Description);
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
         public static int DEFAULT_PRIORITY = 3;
         public static String STATE_CREATED = "CREATED";
         public static String STATE_QUEUED = "QUEUED";
