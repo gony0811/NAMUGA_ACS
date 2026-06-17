@@ -1064,3 +1064,16 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 - **NA_X_USER 테이블 생성 갭 보완**: `EnsureCreated()` 는 비어 있지 않은 DB 에서는 no-op 이라 EF Fluent 매핑만으로는 기존 acsdb 에 신규 테이블이 생기지 않는다. 두 경로 모두 명시적 DDL 추가 — (i) `docker/init/01_init_acsdb.sql` 의 상단 DROP CONSTRAINT 블록 / DROP TABLE 블록 / NA_X_OPTION 다음 CREATE TABLE / 하단 ALTER ADD CONSTRAINT 블록 4곳에 NA_X_USER 항목 삽입(신규 docker 설치 경로), (ii) `Executor.MigrateUserTable` 가 `pg_class` 조회 → 없으면 멱등 `CREATE TABLE` 실행하여 `MigrateLogMessageTable` 다음, `SeedAdminUser` 직전에 호출(기존 DB 업그레이드 경로). 두 DDL 의 컬럼명/타입/PK/UNIQUE 가 EF 매핑(`AcsDbContext.cs` 의 NA_X_USER 블록) 과 정확히 일치해야 한다.
 
 **검증:** `dotnet build ACS.sln` 0 오류(경고 19, 모두 무관한 기존 nullable/legacy 경고). **런타임 미검증**: ACS.App 최초 실행 후 `NA_X_USER` 자동 생성 + `admin/admin` 시드 (psql 확인), UI 실행 → LoginWindow → admin/admin → 강제 변경 다이얼로그 → MainWindow 진입. Admin 로그인 시 Application 탭에 USER 메뉴 + CRUD 버튼 활성, Operator는 USER 메뉴 숨김·CRUD 활성·업데이트 가능, Viewer는 USER 메뉴 숨김·CRUD 버튼 비활성·업데이트 배너 버튼 비활성. 백엔드 재시작 후 401 → 자동 재로그인 유도.
+
+---
+
+## 39. ACS.UI 배포 절차 문서화 (deploy-ui.md 신설)
+
+**날짜:** 2026-06-12
+**작업:** 섹션 37의 Velopack 자동 업데이트 체계에 대한 **회차 배포 운영 절차서**를 `docs/deploy-ui.md`로 신설. 코드/스크립트 변경 없음(문서화만).
+
+**배경:** 배포 절차가 `publish-ui.ps1` 주석과 `ACS.App/Program.cs`·`UpdateService.cs` 코드에만 흩어져 있어 운영자 참조용 독립 문서가 부재했음.
+
+**문서 내용:** 구성 요소 표(스크립트/피드 경로·URL/버전 규칙/권한), 사전 준비(.NET 8 SDK + `vpk` CLI), 델타 원리, **절차 A**(CS에서 직접 빌드 — `publish-ui.ps1 -Version <v> -ReleaseDir C:\acs\releases\ui` 한 줄), **절차 B**(빌드 PC≠CS — `vpk download`로 피드 동기화 → pack → 누적 복사), 클라이언트 반영, 흔한 실수, 검증 체크리스트.
+
+**핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).

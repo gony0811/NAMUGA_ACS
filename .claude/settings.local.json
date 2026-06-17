@@ -10,7 +10,9 @@
       "Bash(Get-ChildItem -Path \"D:\\\\github\\\\NAMUGA_ACS\" -Directory)",
       "Bash(Select-Object -First 20)",
       "Bash(Format-Table Name)",
-      "Bash(git -C \"D:\\\\github\\\\NAMUGA_ACS\" log --oneline --all)"
+      "Bash(git -C \"D:\\\\github\\\\NAMUGA_ACS\" log --oneline --all)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --oneline --all -- \"*Velopack*\" \"*publish-ui*\" \"*release*\")",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)"
     ]
   }
 }
