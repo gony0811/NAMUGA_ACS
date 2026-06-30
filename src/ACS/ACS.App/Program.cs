@@ -210,7 +210,18 @@ static class Program
         // ACS.UI Velopack 릴리스 피드 정적 서빙 — 클라이언트 PC가 이 경로에서
         // Setup.exe 다운로드(최초 설치) 및 자동 업데이트 체크를 수행한다.
         // 피드 파일(.nupkg, RELEASES, releases.win.json)은 기본 MIME 매핑에 없으므로 ServeUnknownFileTypes 필수.
-        string releasePath = configuration["Acs:Api:ClientReleasePath"] ?? @"C:\acs\releases\ui";
+        string releasePath = configuration["Acs:Api:ClientReleasePath"];
+        // 비 Windows(개발용 macOS/Linux)에서는 Windows 절대경로(C:\...)가 유효하지 않으므로 로컬 기본값으로 대체.
+        // PhysicalFileProvider는 반드시 절대경로를 요구하므로 마지막에 GetFullPath로 정규화한다.
+        if (string.IsNullOrWhiteSpace(releasePath)
+            || (!OperatingSystem.IsWindows()
+                && System.Text.RegularExpressions.Regex.IsMatch(releasePath, @"^[A-Za-z]:\\")))
+        {
+            releasePath = OperatingSystem.IsWindows()
+                ? @"C:\acs\releases\ui"
+                : System.IO.Path.Combine(AppContext.BaseDirectory, "releases", "ui");
+        }
+        releasePath = System.IO.Path.GetFullPath(releasePath);
         System.IO.Directory.CreateDirectory(releasePath);   // PhysicalFileProvider는 폴더 부재 시 예외
         app.UseStaticFiles(new StaticFileOptions
         {
