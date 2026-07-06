@@ -49,6 +49,51 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty] private bool _showLinks = true;
     partial void OnShowLinksChanged(bool value) => DataChanged?.Invoke();
 
+    // ── Edit 모드 (엔티티 클릭 선택 + Del 삭제) ──
+    // API 가 없으므로 실제 삭제는 DeleteEntityRequested 이벤트를 구독하는 MainWindowViewModel 가 처리한다.
+    [ObservableProperty] private bool _isEditMode;
+    partial void OnIsEditModeChanged(bool value)
+    {
+        if (!value) ClearSelection();
+        DataChanged?.Invoke();
+    }
+
+    // 선택된 엔티티 유형("Node"/"Link"/"Station"/"Port")과 식별자
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedEntitySummary))]
+    private string? _selectedEntityType;
+    partial void OnSelectedEntityTypeChanged(string? value) => DataChanged?.Invoke();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedEntitySummary))]
+    private string? _selectedEntityId;
+    partial void OnSelectedEntityIdChanged(string? value) => DataChanged?.Invoke();
+
+    /// <summary>Option 패널 표시용 선택 요약 (예: "Node  N001").</summary>
+    public string SelectedEntitySummary =>
+        string.IsNullOrEmpty(SelectedEntityId) ? "(없음)" : $"{SelectedEntityType}  {SelectedEntityId}";
+
+    /// <summary>Del 삭제 요청. (유형, 식별자) — 실제 삭제/확인은 구독자가 수행.</summary>
+    public event Action<string, string>? DeleteEntityRequested;
+
+    public void SelectEntity(string type, string id)
+    {
+        SelectedEntityType = type;
+        SelectedEntityId = id;
+    }
+
+    public void ClearSelection()
+    {
+        SelectedEntityType = null;
+        SelectedEntityId = null;
+    }
+
+    public void RequestDeleteSelected()
+    {
+        if (!string.IsNullOrEmpty(SelectedEntityType) && !string.IsNullOrEmpty(SelectedEntityId))
+            DeleteEntityRequested?.Invoke(SelectedEntityType, SelectedEntityId);
+    }
+
     // ── Node 배치 모드 ──
     [ObservableProperty] private bool _isNodePlacementMode;
     public List<(double X, double Y)> PendingPlacementNodes { get; } = new();

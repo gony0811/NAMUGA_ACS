@@ -1,7 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ACS.UI.Models;
@@ -161,6 +165,131 @@ public partial class MainWindowViewModel : ObservableObject
         // 메뉴 선택 시 팝업 윈도우 열기 연결
         _applicationViewModel.OnViewChangeRequested = OpenPopupView;
         _dataViewViewModel.OnViewChangeRequested = OpenPopupView;
+
+        // 맵 Edit 모드에서 Del 키로 요청된 엔티티 삭제 처리 연결
+        _mapViewModel.DeleteEntityRequested += OnMapEntityDeleteRequested;
+    }
+
+    /// <summary>
+    /// 맵 Edit 모드에서 Del 키로 요청된 엔티티 삭제 처리.
+    /// 서버가 계층 cascade 삭제를 수행하므로 유형별 Delete API 만 호출하면 된다
+    /// (Node→Link/Station/Port, Link→Station/Port, Station→Port, Port→자기 자신).
+    /// 삭제 전 현재 로드된 목록으로 cascade 영향 개수를 계산해 확인 다이얼로그를 표시한다.
+    /// </summary>
+    private async void OnMapEntityDeleteRequested(string type, string id)
+    {
+        try
+        {
+            var links = MapViewModel.Links;
+            var stations = MapViewModel.Stations;
+            var locations = MapViewModel.Locations;
+
+            int linkCount = 0, stationCount = 0, portCount = 0;
+            switch (type)
+            {
+                case "Node":
+                    var nodeLinkIds = links
+                        .Where(l => l.FromNodeId == id || l.ToNodeId == id)
+                        .Select(l => l.Id).ToHashSet();
+                    linkCount = nodeLinkIds.Count;
+                    var nodeStationIds = stations
+                        .Where(s => nodeLinkIds.Contains(s.LinkId))
+                        .Select(s => s.Id).ToHashSet();
+                    stationCount = nodeStationIds.Count;
+                    portCount = locations.Count(loc => nodeStationIds.Contains(loc.StationId));
+                    break;
+                case "Link":
+                    var linkStationIds = stations
+                        .Where(s => s.LinkId == id)
+                        .Select(s => s.Id).ToHashSet();
+                    stationCount = linkStationIds.Count;
+                    portCount = locations.Count(loc => linkStationIds.Contains(loc.StationId));
+                    break;
+                case "Station":
+                    portCount = locations.Count(loc => loc.StationId == id);
+                    break;
+                case "Port":
+                    break;
+                default:
+                    return;
+            }
+
+            string cascadeMsg = type switch
+            {
+                "Node" => $"연결된 Link {linkCount}개, Station {stationCount}개, Port {portCount}개도 함께 삭제됩니다.",
+                "Link" => $"연결된 Station {stationCount}개, Port {portCount}개도 함께 삭제됩니다. (양끝 Node는 유지)",
+                "Station" => $"연결된 Port {portCount}개도 함께 삭제됩니다.",
+                _ => "이 Port만 삭제됩니다."
+            };
+
+            bool confirmed = await ShowDeleteConfirmAsync(type, id, cascadeMsg);
+            if (!confirmed) return;
+
+            bool success = type switch
+            {
+                "Node" => await _apiService.DeleteNodeAsync(id),
+                "Link" => await _apiService.DeleteLinkAsync(id),
+                "Station" => await _apiService.DeleteStationAsync(id),
+                "Port" => await _apiService.DeleteLocationAsync(id),
+                _ => false
+            };
+
+            if (success)
+            {
+                MapViewModel.ClearSelection();
+                await RefreshAsync();   // 노드/링크/스테이션/로케이션 재조회 → 맵 갱신
+            }
+        }
+        catch
+        {
+            // 삭제 실패 시 무시 (다음 Refresh에서 상태 정합성 복원)
+        }
+    }
+
+    /// <summary>
+    /// 삭제 확인 다이얼로그. cascade 영향 내용을 함께 안내한다.
+    /// </summary>
+    private static async Task<bool> ShowDeleteConfirmAsync(string type, string id, string cascadeMsg)
+    {
+        var owner = Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (owner == null) return false;
+
+        var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"{type} '{id}' 을(를) 삭제하시겠습니까?\n{cascadeMsg}",
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var btnPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Spacing = 12
+        };
+        var okBtn = new Button { Content = "삭제", Width = 90, Height = 28 };
+        var cancelBtn = new Button { Content = "취소", Width = 90, Height = 28 };
+        okBtn.Click += (s, _) => (s as Visual)?.FindAncestorOfType<Window>()?.Close(true);
+        cancelBtn.Click += (s, _) => (s as Visual)?.FindAncestorOfType<Window>()?.Close(false);
+        btnPanel.Children.Add(okBtn);
+        btnPanel.Children.Add(cancelBtn);
+        panel.Children.Add(btnPanel);
+
+        var dialog = new Window
+        {
+            Title = $"Delete {type}",
+            Width = 420,
+            Height = 190,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Content = panel
+        };
+
+        var result = await dialog.ShowDialog<bool?>(owner);
+        return result == true;
     }
 
     /// <summary>

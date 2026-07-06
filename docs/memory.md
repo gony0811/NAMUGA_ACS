@@ -1077,3 +1077,28 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **문서 내용:** 구성 요소 표(스크립트/피드 경로·URL/버전 규칙/권한), 사전 준비(.NET 8 SDK + `vpk` CLI), 델타 원리, **절차 A**(CS에서 직접 빌드 — `publish-ui.ps1 -Version <v> -ReleaseDir C:\acs\releases\ui` 한 줄), **절차 B**(빌드 PC≠CS — `vpk download`로 피드 동기화 → pack → 누적 복사), 클라이언트 반영, 흔한 실수, 검증 체크리스트.
 
 **핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).
+
+---
+
+## 40. ACS.UI 맵 기반 Edit 모드 (엔티티 클릭 선택 + Del cascade 삭제)
+
+**날짜:** 2026-07-06
+**작업:** DataView 레이아웃(Node→Link→Station→Port)의 복잡한 계층 구조를 개별 그리드/다이얼로그를 오가지 않고 **항상 표시되는 중앙 Map 위에서 직접 클릭 선택 후 Del 키로 삭제**할 수 있는 Edit 모드 추가. 순수 UI 작업(백엔드 무변경).
+
+**배경:** 기존에는 Node/Link/Station/Port 각각 별도 그리드 뷰 + Edit 다이얼로그에서만 삭제 가능했고, 상위 엔티티를 지우려면 유형별 뷰를 오가야 했음. cascade 삭제 자체는 서버에 이미 구현되어 있었음 (`AcsRestControllers.ResourceCascade.DeleteLinkCascade/DeleteStationCascade` + 각 `HttpDelete`: Node→Link/Station/Port, Link→Station/Port(Node 유지), Station→Port, Port→자기 자신). `IAcsApiService`의 `DeleteNode/Link/Station/LocationAsync`도 그대로 활용.
+
+**동작:** Option 패널(OptionView, MapViewModel 바인딩)의 **Edit Mode** 토글 ON → 맵에서 좌클릭으로 엔티티 선택(우선순위 **Port→Station→Node→Link**), 선택 하이라이트(sky-400) 표시 → Del 키 → cascade 영향 개수 안내 확인 다이얼로그 → OK 시 유형별 Delete API 호출(서버가 cascade) → 전체 재조회로 맵 갱신. 좌클릭은 이동량 4px 미만이면 "클릭=선택", 이상이면 기존 팬으로 처리(우클릭 회전 유지).
+
+**변경:**
+- `ACS.UI/ViewModels/MapViewModel.cs`: `IsEditMode`, `SelectedEntityType/Id`, `SelectedEntitySummary`(표시용), `SelectEntity/ClearSelection/RequestDeleteSelected`, `event Action<string,string> DeleteEntityRequested`. MapViewModel은 API가 없어 실제 삭제는 이벤트로 위임.
+- `ACS.UI/Controls/MapCanvas.cs`: Link 히트테스트 신규(`FindLinkAtScreen` + `_cachedLinkScreenSegments` + 점-선분거리 `DistancePointToSegment`, Render의 노드 화면좌표 캐시 재사용), Port 마커 렌더 + 히트테스트 신규(`FindPortAtScreen` + `_cachedPortScreenPositions`, Edit 모드에서만 `DrawStations` 내 `locationsByStation`로 Station 하위에 작은 사각형 렌더). Node/Station은 기존 `FindNodeAtScreen(15px)`/`FindStationAtScreen(12px)` 재사용. `OnPointerPressed/Released`에 Edit 클릭-vs-팬 구분(`_editClickCandidate`/`_pressScreenPos`), `SelectAtScreen` 우선순위 히트테스트, `OnKeyDown`의 Del 분기(IsEditMode 우선), `Render`에서 Edit 모드 포커스 확보, `DrawNodes/DrawLinks/DrawStations`에 선택 하이라이트.
+- `ACS.UI/Views/OptionView.axaml`: 기존 Show Links 토글 아래 "Edit Mode" 섹션(토글 + 안내문 + `Selected: {SelectedEntitySummary}`) 추가.
+- `ACS.UI/ViewModels/MainWindowViewModel.cs`: 생성자에서 `_mapViewModel.DeleteEntityRequested += OnMapEntityDeleteRequested`. 핸들러가 현재 로드된 `MapViewModel.Links/Stations/Locations`로 서버와 동일 규칙(`FromNodeId||ToNodeId==id`, `LinkId==linkId`, `StationId==stationId`)의 cascade 개수 계산 → `ShowDeleteConfirmAsync` 확인 → 유형별 Delete API → 성공 시 `RefreshAsync()`로 맵 재조회. `LinkViewModel.CreateDeleteConfirmContent` 패턴을 헬퍼로 재현.
+
+**핵심 사실:**
+- Map은 `MainWindow.axaml` Grid.Column=2로 상시 표시, OptionView가 같은 `MapViewModel` 인스턴스에 바인딩 → 토글/선택표시가 즉시 반영.
+- 삭제 오케스트레이션은 API·MapViewModel을 모두 소유하고 이미 `UpdateNodes/Links/Stations/Locations`를 호출하는 `MainWindowViewModel`에 둠(MapViewModel은 표시 전용).
+- Link 하이라이트는 `ShowLinks=false`면 그려지지 않지만 히트테스트(`_cachedLinkScreenSegments`)는 ShowLinks와 무관하게 채워져 선택은 가능.
+- MapCanvas는 기존 상호작용 모드(placement/link-selection)와 동일하게 Render에서 `Focus()` 호출로 Del 키 수신 확보.
+
+**검증:** `dotnet build ACS.sln` 0 오류(경고 22, 모두 기존 nullable/legacy). **런타임 미검증** — ACS.App 백엔드 + UI 실행 후 수동 확인 필요: Edit Mode ON → Station 클릭→Del→하위 Port 동반 삭제 / Link 클릭→Station·Port 삭제·Node 유지 / Node 클릭→Link·Station·Port 개수 안내 후 전체 삭제 / Port 마커 클릭→해당 Port만 삭제 / Edit Mode OFF 시 팬·회전 복귀.

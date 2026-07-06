@@ -28,6 +28,16 @@ public class MapCanvas : Control
     private Dictionary<string, Point> _cachedVehicleScreenPositions = new();
     private string? _hoveredVehicleId;
 
+    // Link 히트테스트용 캐시 (화면 좌표 선분, 회전 포함) — Render 시 갱신
+    private readonly List<(string Id, Point From, Point To)> _cachedLinkScreenSegments = new();
+
+    // Port(Location) 히트테스트용 캐시 (Edit 모드에서만 채워짐)
+    private Dictionary<string, Point> _cachedPortScreenPositions = new();
+
+    // Edit 모드 좌클릭: 드래그(팬)인지 클릭(선택)인지 구분용
+    private Point _pressScreenPos;
+    private bool _editClickCandidate;
+
     // Node 드래그 이동
     private string? _draggingNodeId;
     private bool _isDraggingNode;
@@ -79,6 +89,11 @@ public class MapCanvas : Control
     // Link 선택 모드
     private static readonly IPen NodeHoverPen = new Pen(Brushes.White, 3);
     private static readonly IPen NodeSelectedFromPen = new Pen(new SolidColorBrush(Color.FromRgb(248, 113, 113)), 3);
+
+    // Edit 모드: 선택 하이라이트 + Port 마커
+    private static readonly IBrush SelectionBrush = new SolidColorBrush(Color.FromRgb(56, 189, 248)); // sky-400
+    private static readonly IBrush PortFillBrush = new SolidColorBrush(Color.FromRgb(45, 212, 191));  // teal-400
+    private static readonly IPen PortPen = new Pen(new SolidColorBrush(Color.FromRgb(13, 148, 136)), 1.2);
 
     /// <summary>
     /// 현재 유효 스케일 (px per meter). baseScale * zoom.
@@ -212,6 +227,17 @@ public class MapCanvas : Control
             return;
         }
 
+        if (_viewModel?.IsEditMode == true && point.Properties.IsLeftButtonPressed)
+        {
+            // 좌클릭: 우선 팬 후보로 두고, release 시 이동량이 작으면 "클릭=선택"으로 처리.
+            _isPanning = true;
+            _lastMousePos = e.GetPosition(this);
+            _pressScreenPos = _lastMousePos;
+            _editClickCandidate = true;
+            e.Handled = true;
+            return;
+        }
+
         if (point.Properties.IsLeftButtonPressed)
         {
             _isPanning = true;
@@ -315,8 +341,43 @@ public class MapCanvas : Control
             return;
         }
 
+        // Edit 모드 좌클릭 선택: 이동량이 임계값 미만이면 클릭으로 간주, 이상이면 팬으로 처리.
+        if (_editClickCandidate && _viewModel?.IsEditMode == true)
+        {
+            _editClickCandidate = false;
+            var relPos = e.GetPosition(this);
+            double moved = Math.Sqrt(
+                Math.Pow(relPos.X - _pressScreenPos.X, 2) +
+                Math.Pow(relPos.Y - _pressScreenPos.Y, 2));
+            if (moved < 4)
+                SelectAtScreen(relPos);
+        }
+
         _isPanning = false;
         _isRotating = false;
+    }
+
+    /// <summary>
+    /// Edit 모드 히트테스트: Port → Station → Node → Link 우선순위로 최초 히트 엔티티를 선택.
+    /// (작은 마커/구체적 대상 우선. 아무것도 없으면 선택 해제.)
+    /// </summary>
+    private void SelectAtScreen(Point screenPos)
+    {
+        if (_viewModel == null) return;
+
+        var portId = FindPortAtScreen(screenPos);
+        if (portId != null) { _viewModel.SelectEntity("Port", portId); return; }
+
+        var stationId = FindStationAtScreen(screenPos);
+        if (stationId != null) { _viewModel.SelectEntity("Station", stationId); return; }
+
+        var nodeId = FindNodeAtScreen(screenPos);
+        if (nodeId != null) { _viewModel.SelectEntity("Node", nodeId); return; }
+
+        var linkId = FindLinkAtScreen(screenPos);
+        if (linkId != null) { _viewModel.SelectEntity("Link", linkId); return; }
+
+        _viewModel.ClearSelection();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -339,7 +400,13 @@ public class MapCanvas : Control
         }
         else if (e.Key == Key.Delete)
         {
-            if (_viewModel?.IsNodePlacementMode == true)
+            if (_viewModel?.IsEditMode == true && _viewModel.SelectedEntityId != null)
+            {
+                // 실제 삭제/확인은 MainWindowViewModel(DeleteEntityRequested 구독) 가 처리.
+                _viewModel.RequestDeleteSelected();
+                e.Handled = true;
+            }
+            else if (_viewModel?.IsNodePlacementMode == true)
             {
                 _viewModel.RemoveLastPendingNode();
                 e.Handled = true;
@@ -397,6 +464,12 @@ public class MapCanvas : Control
             Focusable = true;
             Focus();
         }
+        else if (_viewModel.IsEditMode)
+        {
+            // Del 키 수신을 위해 포커스 확보
+            Focusable = true;
+            Focus();
+        }
 
         var nodes = _viewModel.Nodes;
         var links = _viewModel.Links;
@@ -443,6 +516,16 @@ public class MapCanvas : Control
                 double rx = (sx - cx) * cos - (sy - cy) * sin + cx;
                 double ry = (sx - cx) * sin + (sy - cy) * cos + cy;
                 _cachedNodeScreenPositions[id] = new Point(rx, ry);
+            }
+
+            // Link 화면 선분 캐싱 (히트테스트용) — 노드 화면 좌표(회전 포함) 기준
+            _cachedLinkScreenSegments.Clear();
+            foreach (var link in links)
+            {
+                if (string.IsNullOrEmpty(link.Id)) continue;
+                if (_cachedNodeScreenPositions.TryGetValue(link.FromNodeId ?? "", out var lf) &&
+                    _cachedNodeScreenPositions.TryGetValue(link.ToNodeId ?? "", out var lt))
+                    _cachedLinkScreenSegments.Add((link.Id, lf, lt));
             }
 
             // Link lookup 사전 계산
@@ -764,6 +847,69 @@ public class MapCanvas : Control
     }
 
     /// <summary>
+    /// 화면 좌표에서 가장 가까운 Link ID를 찾음 (점-선분 거리 6px 이내).
+    /// </summary>
+    private string? FindLinkAtScreen(Point screenPos)
+    {
+        const double hitThreshold = 6;
+        string? closest = null;
+        double closestDist = double.MaxValue;
+
+        foreach (var (id, from, to) in _cachedLinkScreenSegments)
+        {
+            double dist = DistancePointToSegment(screenPos, from, to);
+            if (dist < hitThreshold && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = id;
+            }
+        }
+        return closest;
+    }
+
+    /// <summary>
+    /// 화면 좌표에서 가장 가까운 Port(LocationId)를 찾음 (반경 10px 이내, Edit 모드에서만 캐시됨).
+    /// </summary>
+    private string? FindPortAtScreen(Point screenPos)
+    {
+        const double hitRadius = 10;
+        string? closest = null;
+        double closestDist = double.MaxValue;
+
+        foreach (var (portId, portScreenPos) in _cachedPortScreenPositions)
+        {
+            double dx = screenPos.X - portScreenPos.X;
+            double dy = screenPos.Y - portScreenPos.Y;
+            double dist = Math.Sqrt(dx * dx + dy * dy);
+            if (dist < hitRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = portId;
+            }
+        }
+        return closest;
+    }
+
+    /// <summary>점 p 와 선분 a-b 사이 최단 거리.</summary>
+    private static double DistancePointToSegment(Point p, Point a, Point b)
+    {
+        double vx = b.X - a.X, vy = b.Y - a.Y;
+        double wx = p.X - a.X, wy = p.Y - a.Y;
+        double c1 = vx * wx + vy * wy;
+        if (c1 <= 0) return Math.Sqrt(wx * wx + wy * wy);
+        double c2 = vx * vx + vy * vy;
+        if (c2 <= c1)
+        {
+            double dxb = p.X - b.X, dyb = p.Y - b.Y;
+            return Math.Sqrt(dxb * dxb + dyb * dyb);
+        }
+        double t = c1 / c2;
+        double projX = a.X + t * vx, projY = a.Y + t * vy;
+        double ddx = p.X - projX, ddy = p.Y - projY;
+        return Math.Sqrt(ddx * ddx + ddy * ddy);
+    }
+
+    /// <summary>
     /// 화면 좌표를 월드 좌표(m)로 역변환. rotation/zoom/pan 보정 포함.
     /// </summary>
     private (double X, double Y) ScreenToWorld(Point screenPoint)
@@ -787,18 +933,24 @@ public class MapCanvas : Control
     private void DrawLinks(DrawingContext context, IReadOnlyList<LinkDto> links,
         Dictionary<string, Point> nodePositions, double linkWidth)
     {
+        bool editSel = _viewModel?.IsEditMode == true && _viewModel.SelectedEntityType == "Link";
+        string? selId = _viewModel?.SelectedEntityId;
+
         foreach (var link in links)
         {
             if (!nodePositions.TryGetValue(link.FromNodeId ?? "", out var from)) continue;
             if (!nodePositions.TryGetValue(link.ToNodeId ?? "", out var to)) continue;
 
+            bool isSelected = editSel && link.Id == selId;
             IBrush brush = link.Availability switch
             {
                 "1" => LinkUnavailableBrush,
                 "2" => LinkBannedBrush,
                 _ => LinkAvailableBrush
             };
-            var pen = new Pen(brush, linkWidth);
+            var pen = isSelected
+                ? new Pen(SelectionBrush, linkWidth * 3)
+                : new Pen(brush, linkWidth);
 
             context.DrawLine(pen, from, to);
         }
@@ -813,6 +965,8 @@ public class MapCanvas : Control
         bool isLinkMode = _viewModel?.IsLinkSelectionMode == true;
         string? hoveredId = _viewModel?.HoveredNodeId;
         string? fromId = _viewModel?.SelectedFromNodeId;
+        bool editNodeSel = _viewModel?.IsEditMode == true && _viewModel.SelectedEntityType == "Node";
+        string? editSelId = _viewModel?.SelectedEntityId;
         double penWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);
 
         foreach (var node in nodes)
@@ -821,9 +975,11 @@ public class MapCanvas : Control
 
             bool isHovered = isLinkMode && node.Id == hoveredId;
             bool isSelectedFrom = isLinkMode && node.Id == fromId;
+            bool isEditSelected = editNodeSel && node.Id == editSelId;
 
-            // border 색상: 타입별 색상 또는 하이라이트
-            IPen borderPen = isSelectedFrom ? new Pen(NodeSelectedFromPen.Brush, penWidth * 2)
+            // border 색상: Edit 선택 > Link 모드 하이라이트 > 타입별 색상
+            IPen borderPen = isEditSelected ? new Pen(SelectionBrush, penWidth * 2.5)
+                           : isSelectedFrom ? new Pen(NodeSelectedFromPen.Brush, penWidth * 2)
                            : isHovered ? new Pen(Brushes.White, penWidth * 2)
                            : new Pen(GetNodeBrush(node.Type), penWidth);
 
@@ -938,7 +1094,12 @@ public class MapCanvas : Control
         double penWidth = Math.Clamp(1.5 / _zoom, 0.05, 100);
         double gap = penWidth;
 
+        bool editMode = _viewModel?.IsEditMode == true;
+        string? selType = _viewModel?.SelectedEntityType;
+        string? selId = _viewModel?.SelectedEntityId;
+
         _cachedStationScreenPositions.Clear();
+        _cachedPortScreenPositions.Clear();
 
         foreach (var link in links)
         {
@@ -1031,11 +1192,48 @@ public class MapCanvas : Control
                 }
 
                 bool isHovered = station.Id == _hoveredStationId;
+                bool isEditSelected = editMode && selType == "Station" && station.Id == selId;
 
-                // 사각형 마커
-                context.DrawRectangle(Brushes.White,
-                    isHovered ? new Pen(StationBrush, penWidth * 1.7) : new Pen(StationPen.Brush, penWidth),
+                // 사각형 마커 (Edit 선택 > hover > 기본)
+                IPen stationPen = isEditSelected ? new Pen(SelectionBrush, penWidth * 2.5)
+                                : isHovered ? new Pen(StationBrush, penWidth * 1.7)
+                                : new Pen(StationPen.Brush, penWidth);
+                context.DrawRectangle(Brushes.White, stationPen,
                     new Rect(stX - size, stY - size, size * 2, size * 2));
+
+                // Edit 모드: Station 하위 Port(Location) 를 개별 마커로 렌더 + 히트테스트 캐시
+                if (editMode &&
+                    locationsByStation.TryGetValue(station.Id, out var portIds) && portIds.Count > 0)
+                {
+                    double portSize = size * 0.62;
+                    double portGap = portSize * 2 + gap;
+                    for (int pi = 0; pi < portIds.Count; pi++)
+                    {
+                        // Station 아래쪽에 가로로 나란히 배치 (중앙 정렬)
+                        double pX = stX + (pi - (portIds.Count - 1) / 2.0) * portGap;
+                        double pY = stY + size + portSize + gap;
+
+                        // 화면 좌표 캐싱 (회전 포함) — Station 캐싱과 동일 변환
+                        {
+                            double psx = pX * _zoom + _pan.X;
+                            double psy = pY * _zoom + _pan.Y;
+                            double cos = Math.Cos(_rotation);
+                            double sin = Math.Sin(_rotation);
+                            double scx = Bounds.Width / 2;
+                            double scy = Bounds.Height / 2;
+                            _cachedPortScreenPositions[portIds[pi]] = new Point(
+                                (psx - scx) * cos - (psy - scy) * sin + scx,
+                                (psx - scx) * sin + (psy - scy) * cos + scy);
+                        }
+
+                        bool portSelected = selType == "Port" && portIds[pi] == selId;
+                        IPen portMarkerPen = portSelected
+                            ? new Pen(SelectionBrush, penWidth * 2.5)
+                            : new Pen(PortPen.Brush, penWidth);
+                        context.DrawRectangle(PortFillBrush, portMarkerPen,
+                            new Rect(pX - portSize, pY - portSize, portSize * 2, portSize * 2));
+                    }
+                }
 
                 // Hover 시 Port ID (LocationId) 라벨 표시
                 if (isHovered)

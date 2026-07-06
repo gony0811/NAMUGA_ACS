@@ -35,6 +35,42 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Edit Mode Section -->
+                <Border BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                        BorderThickness="0,0,0,1" Padding="10,8">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Edit Mode" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AcsActiveTabBrush}" />
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <TextBlock Grid.Column="0" Text="Enable Edit"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding IsEditMode}"
+                                          OnContent="" OffContent="" />
+                        </Grid>
+
+                        <TextBlock Text="클릭하여 선택, Del 키로 삭제 (하위 항목도 함께 삭제)"
+                                   FontSize="10" TextWrapping="Wrap"
+                                   IsVisible="{Binding IsEditMode}"
+                                   Foreground="{StaticResource AcsTextMutedBrush}" />
+
+                        <Grid ColumnDefinitions="Auto,*" Margin="0,2,0,0"
+                              IsVisible="{Binding IsEditMode}">
+                            <TextBlock Grid.Column="0" Text="Selected: "
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextMutedBrush}" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedEntitySummary}"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource AcsTextPrimaryBrush}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Border>
