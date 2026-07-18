@@ -40,6 +40,9 @@ namespace ACS.Core.Transfer.Model
         public static String STATE_COMPLETEFAILED = "COMPLETEFAILED";
         public static String STATE_CHARGE_COMPLETED = "CHARGECOMPLETED";
         public static String STATE_CHANGE_VEHICLE = "CHANGEVEHICLE";
+        // EXCHANGE(v2): 기존 스케줄러(State="QUEUED" 조회)에서 배제되는 EXCHANGE 전용 대기 상태.
+        // 참조: ACS_EXCHANGE_구현사양서.md §2.4 (D5). 14자 — varchar(20) 내.
+        public static String STATE_EXCHANGE_QUEUED = "EXCHANGE_QUEUED";
         public static String TYPE_CMDREPLY = "MOVECMD_REP";
         public static String TYPE_CMDUPDATEREPLY = "MOVEUPDATE_REP";
         public static String TYPE_JOBSTART = "JOBSTART";
@@ -59,6 +62,8 @@ namespace ACS.Core.Transfer.Model
         public static String JOBTYPE_STOCK_STATION = "STOCKSTATION";
         public static String JOBTYPE_LOAD = "LOAD";
         public static String JOBTYPE_UNLOAD = "UNLOAD";
+        // EXCHANGE(v2): 1-TC 3-waypoint(Origin→Mid→Dest) 매거진 교환 Job.
+        public static String JOBTYPE_EXCHANGE = "EXCHANGE";
         public static String CAUSE_REQ_TIMEOUT = "TRANSPORTCOMMANDREQUESTTIMEOUT";
         public static String CAUSE_MOVECANCEL = "MOVECANCEL";
         public static String CAUSE_COMPLETE = "COMPLETE";
