@@ -1077,3 +1077,24 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **문서 내용:** 구성 요소 표(스크립트/피드 경로·URL/버전 규칙/권한), 사전 준비(.NET 8 SDK + `vpk` CLI), 델타 원리, **절차 A**(CS에서 직접 빌드 — `publish-ui.ps1 -Version <v> -ReleaseDir C:\acs\releases\ui` 한 줄), **절차 B**(빌드 PC≠CS — `vpk download`로 피드 동기화 → pack → 누적 복사), 클라이언트 반영, 흔한 실수, 검증 체크리스트.
 
 **핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).
+
+---
+
+## 40. CS 기동 시 UI 릴리스 피드 자동 부트스트랩
+
+**날짜:** 2026-08-10
+**작업:** CS(control) 기동 시 릴리스 피드(`Acs:Api:ClientReleasePath`)가 **완전히 비어 있으면** 자동으로 채우는 부트스트랩 추가.
+
+**구현:**
+- 신규 `ACS.App/Web/ReleaseFeedBootstrapper.cs` — `Program.cs` RunWebHost의 `Directory.CreateDirectory(releasePath)` 직후 `Bootstrap(releasePath)` 호출.
+- 우선순위: (1) 배포본 시드 `{BaseDirectory}\releases-seed\ui\`에 `releases.win.json` 존재 → 동기 복사, (2) 상위 디렉토리에서 `publish-ui.ps1` 탐색(소스 실행 감지) 후 그 옆 `releases\ui\`에 기존 산출물 존재 → 동기 복사, (3) 산출물 없음 + `vpk --help` 실행 가능 → `Task.Run`으로 `publish-ui.ps1 -Version <v> -ReleaseDir <피드>` 백그라운드 실행, (4) 모두 불가 → 경고 로그만.
+- 버전은 `ACS.UI.csproj`의 `<Version>` XDocument 파싱(실패 시 1.0.0). 스크립트 stdout/stderr는 Serilog `[ReleaseFeed]` 로 중계.
+
+**핵심 사실:**
+- 피드에 파일이 하나라도 있으면 아무것도 안 함 — 델타 체인 보호.
+- **vpk 중복 버전 거부는 피드가 아니라 출력 폴더(`src/ACS/releases/ui`) 기준** — 출력 폴더에 산출물이 남아 있으면(예: v1.2.3) 빈 피드라도 재패키징이 실패한다. 그래서 (2) 기존 산출물 복사 단계가 필수. csproj `<Version>`(1.0.0)은 스크립트 `-p:Version` 덮어쓰기 방식이라 실제 릴리스 버전과 다를 수 있음.
+- ACS.UI는 ACS.App의 ProjectReference가 아니므로 `dotnet watch`로 CS 실행 중 백그라운드 UI publish가 watch 재시작을 유발하지 않음.
+- 런타임 자동 빌드는 소스 트리 + .NET SDK + vpk가 있는 개발 머신 전용. 프로덕션 CS는 시드 복사 경로 사용(배포본 제작 시 `src/ACS/releases/ui` → `releases-seed\ui` 동봉).
+- 모든 실패는 `Log.Warning`으로만 처리 — CS 기동 비차단.
+
+**검증:** `dotnet build ACS.App.csproj` 0 오류. **런타임 미검증**: 빈 피드 + 소스 실행 → 백그라운드 패키징 → `releases.win.json` 생성, 시드 복사 경로, vpk 부재 시 경고 로그 (docs/deploy-ui.md "피드 자동 부트스트랩" 섹션 참조).

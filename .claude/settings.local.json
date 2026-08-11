@@ -12,7 +12,9 @@
       "Bash(Format-Table Name)",
       "Bash(git -C \"D:\\\\github\\\\NAMUGA_ACS\" log --oneline --all)",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --oneline --all -- \"*Velopack*\" \"*publish-ui*\" \"*release*\")",
-      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)"
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(netstat -ano)"
     ]
   }
 }
