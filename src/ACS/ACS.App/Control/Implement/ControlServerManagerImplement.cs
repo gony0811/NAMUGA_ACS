@@ -849,11 +849,30 @@ namespace ACS.Control
 
         public bool Start(string applicationName, string applicationType)
         {
+            // 1순위: appsettings Acs:Control:Scripts 명시 경로 (사이트별 override).
+            // 2순위: 경로 미설정/파일 없음 → CS 자신의 실행 위치 기준 형제 폴더에서
+            //        <applicationName>.exe 를 convention 으로 탐색 (배포 경로 자동 정합).
             string script = GetStartScript(applicationType);
+
+            if (!string.IsNullOrEmpty(script) && !System.IO.File.Exists(script))
+            {
+                logger.Warn("configured start script not found on disk{" + script + "}, trying convention lookup");
+                script = null;
+            }
 
             if (string.IsNullOrEmpty(script))
             {
-                logger.Error("Start script not found for applicationType: " + applicationType);
+                script = ResolveStartScriptByConvention(applicationName);
+                if (!string.IsNullOrEmpty(script))
+                {
+                    logger.Info("start script resolved by convention: " + applicationName + " -> " + script);
+                }
+            }
+
+            if (string.IsNullOrEmpty(script))
+            {
+                logger.Error("Start script not found for applicationType: " + applicationType
+                    + " (no Acs:Control:Scripts entry, convention lookup failed for " + applicationName + ".exe)");
                 return false;
             }
 
@@ -977,6 +996,66 @@ namespace ACS.Control
                 //logger.error("failed to get start script, please check applicationType{" + applicationType + "}");
             }
             return script;
+        }
+
+        /// <summary>
+        /// Scripts 설정이 없을 때 CS 자신의 실행 폴더(AppContext.BaseDirectory)를 기준으로
+        /// 형제 폴더에서 {applicationName}.exe 를 탐색한다. 두 가지 배포 레이아웃을 지원:
+        ///   deploy\CS01_P\      형제: deploy\TS01_P\TS01_P.exe        (publish-deploy.ps1)
+        ///   C:\acs\cs\net8.0\ 형제: C:\acs\ts\net8.0\TS01_P.exe   (deploy.ps1)
+        /// baseDir 에서 최대 2단계 상위로 올라가며, 각 레벨의 하위 폴더에 대해
+        /// {폴더}\{이름}.exe → {폴더}\net8.0\{이름}.exe 순으로 존재 여부를 검사한다.
+        /// 배포 스크립트가 어느 레이아웃으로 밀어 넣든 CS 재설정 없이 기동 경로가 자동으로 맞는다.
+        /// </summary>
+        protected virtual string ResolveStartScriptByConvention(string applicationName)
+        {
+            if (string.IsNullOrEmpty(applicationName))
+            {
+                return null;
+            }
+
+            string exeName = applicationName + ".exe";
+            string dir = AppContext.BaseDirectory;
+            if (string.IsNullOrEmpty(dir))
+            {
+                return null;
+            }
+            dir = dir.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+
+            for (int depth = 0; depth < 2; depth++)
+            {
+                string parent = System.IO.Path.GetDirectoryName(dir);
+                if (string.IsNullOrEmpty(parent))
+                {
+                    break;
+                }
+
+                try
+                {
+                    foreach (string sibling in System.IO.Directory.GetDirectories(parent))
+                    {
+                        string direct = System.IO.Path.Combine(sibling, exeName);
+                        if (System.IO.File.Exists(direct))
+                        {
+                            return direct;
+                        }
+
+                        string nested = System.IO.Path.Combine(sibling, "net8.0", exeName);
+                        if (System.IO.File.Exists(nested))
+                        {
+                            return nested;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.Warn("convention lookup failed under {" + parent + "}: " + e.Message);
+                }
+
+                dir = parent;
+            }
+
+            return null;
         }
 
         public bool SystemCheck(ControlMessage controlMessage)
