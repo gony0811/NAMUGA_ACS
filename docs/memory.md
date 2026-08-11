@@ -1098,3 +1098,18 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 - 모든 실패는 `Log.Warning`으로만 처리 — CS 기동 비차단.
 
 **검증:** `dotnet build ACS.App.csproj` 0 오류. **런타임 미검증**: 빈 피드 + 소스 실행 → 백그라운드 패키징 → `releases.win.json` 생성, 시드 복사 경로, vpk 부재 시 경고 로그 (docs/deploy-ui.md "피드 자동 부트스트랩" 섹션 참조).
+
+---
+
+## 41. Edge의 Setup.exe 다운로드 차단 대응 (Setup.zip 동봉)
+
+**날짜:** 2026-08-11
+**작업:** 운영 PC에서 Edge가 피드의 `AcsUi-win-Setup.exe` 다운로드를 차단하는 문제 대응.
+
+**원인:** 피드가 평문 HTTP(5100)로 서빙되는데 Edge는 HTTP로 전송되는 .exe를 "안전하지 않은 다운로드"로 차단. 폐쇄망이라 SmartScreen 평판 조회도 실패해 추가 경고.
+
+**구현:**
+- `publish-ui.ps1`에 [3/4] 단계 추가 — vpk pack 후 `AcsUi-win-Setup.exe`를 `Compress-Archive`로 `AcsUi-win-Setup.zip` 생성. 출력 폴더에 만들어지므로 robocopy 피드 복사·ReleaseFeedBootstrapper·디렉토리 브라우저에 자동 포함(다른 코드 수정 없음).
+- `docs/deploy-ui.md` — 신규 설치 안내를 zip 경로로 변경, "Edge 다운로드 차단 대응" 섹션 신설(수동 우회 Keep-anyway, `ExemptDomainFileTypePairsFromFileTypeDownloadWarnings` + `SmartScreenAllowListDomains` 레지스트리 정책 .reg 예시).
+
+**미완료:** 기존 피드에는 zip이 없음 — 다음 회차 배포 시 자동 포함되거나, 즉시 필요하면 CS 피드 폴더에서 수동으로 Setup.exe를 zip으로 압축해 두면 됨.
