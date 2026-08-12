@@ -12,7 +12,11 @@
       "Bash(Format-Table Name)",
       "Bash(git -C \"D:\\\\github\\\\NAMUGA_ACS\" log --oneline --all)",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --oneline --all -- \"*Velopack*\" \"*publish-ui*\" \"*release*\")",
-      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)"
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)",
+      "Read(//c/acs/deploy/HS01_P/**)",
+      "Read(//c/acs/deploy/HS01_P/logs/**)",
+      "Read(//c/Users/user/Downloads/ACS프로그램 테스트/Namuga_ACS_MES_IF_Validator_Deploy_20260806_151023/**)",
+      "Bash(PGPASSWORD=1234 psql -h localhost -U postgres -d acsdb -t -c \"SELECT location_id, station_id FROM na_r_location ORDER BY location_id LIMIT 40;\")"
     ]
   }
 }
