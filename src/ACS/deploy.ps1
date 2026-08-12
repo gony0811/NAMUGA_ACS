@@ -14,7 +14,7 @@
 param(
     [string]$Source  = "$PSScriptRoot\ACS.App\bin\Debug\net8.0",
     [string]$Root    = "C:\acs",
-    [string[]]$Targets = @('ds', 'es', 'ts', 'ts02', 'host'),
+    [string[]]$Targets = @('ds', 'es', 'ts', 'cs', 'host'),
     [switch]$NoPdb
 )
 
