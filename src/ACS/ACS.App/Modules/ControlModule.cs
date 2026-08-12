@@ -132,6 +132,9 @@ namespace ACS.App.Modules
                     // 스크립트 경로는 appsettings.json의 Acs:Control:Scripts 섹션에서 로드.
                     // (예: "TS-START": "D:\\ACS\\deploy\\TS01_P\\TS01_P.exe")
                     // 키는 ControlServerManagerImplement.SCRIPT_*_START 상수와 일치해야 함.
+                    // 미설정(또는 경로에 파일 없음) 시 ControlServerManagerImplement가 CS 실행 위치
+                    // 기준 형제 폴더에서 <이름>.exe 를 convention 으로 탐색하므로 생략 가능
+                    // (ResolveStartScriptByConvention 참고). Scripts 명시는 override 용도.
                     var scripts = new System.Collections.Hashtable();
                     var scriptsSection = mgr.Configuration?.GetSection("Acs:Control:Scripts");
                     if (scriptsSection != null)
