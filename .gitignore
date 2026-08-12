@@ -48,8 +48,12 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# Visual Studio IDE 캐시 (실행 중 VS 가 파일을 잠가 커밋 실패 유발)
+.vs/
+
 # DB 마스터 데이터 백업물 (docker/scripts/backup-master.ps1 출력)
 docker/backups/
+docker/backup/
 
 # MSBuild Binary and Structured Log
 *.binlog
