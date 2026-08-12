@@ -1124,3 +1124,39 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **검증:** `dotnet build ACS.sln` 오류 0, `dotnet test ACS.Core.Tests` 64건 전체 통과. E2E(배포 후 Validator EXCHANGE 시나리오: START Step=10 XML + NA_T_TRANSPORTCMD state=EXCHANGE_ASSIGNED + NA_R_VEHICLE_SLOT 예약 확인)는 미실시 — 다음 배포 테스트에서 확인 필요. DS/TS/HS 가 공유 어셈블리를 쓰므로 동시 재배포 필요.
 
 **현재 상태:** S4 코드 완성. 다음 슬라이스(S5)는 Origin 도착/픽업 완료 → MOVE_TO_EQUIP(Step=20) 진행 — RailVehicleDestArrived/AcquireCompleted 계열에 EXCHANGE 분기 필요.
+
+---
+
+## 42. ACS.UI v1.0.0 최초 실배포 (CS 서버, 절차 A)
+
+**날짜:** 2026-08-12
+
+**작업:** `publish-ui.ps1 -Version 1.0.0 -ReleaseDir C:\acs\releases\ui`로 이 PC(CS 서버)에서 ACS.UI 최초 릴리스 실배포. 코드 변경 없음(운영 작업).
+
+**수행 내역:**
+- `vpk` CLI 1.2.0 신규 설치 (`dotnet tool install -g vpk` — 이 PC에 미설치 상태였음).
+- 스크립트 3단계 모두 성공: publish → vpk pack(`AcsUi-1.0.0-full.nupkg` 46MB, `AcsUi-win-Setup.exe` 50.2MB, `releases.win.json`) → `C:\acs\releases\ui` 피드 복사.
+- 피드 검증: `http://192.168.0.55:5100/releases/ui/releases.win.json` HTTP 200 (버전 1.0.0), Setup.exe HEAD 200.
+
+**핵심 발견 — localhost 로 피드 검증 시 404 (함정):**
+- 이 PC의 5100 포트에 두 프로세스 공존: **HD.Acs.App**(별도 프로젝트 `D:\Github\HD_ACS`, 루프백 `127.0.0.1`/`::1`만 바인딩)과 **CS01_P**(이 저장소의 ACS.App 배포본 `D:\ACS\deploy\CS01_P`, 와일드카드 `::` 바인딩).
+- `localhost:5100` 요청은 루프백을 선점한 HD.Acs.App 이 받아 404 — **피드 검증은 반드시 LAN IP(`192.168.0.55`)로 할 것**. 외부 클라이언트는 LAN IP 로 접속하므로 영향 없음.
+- CS01_P 의 appsettings 에 `ClientReleasePath` 항목이 없으나 코드 기본값이 `C:\acs\releases\ui` 라 정상 동작.
+
+**다음 회차:** 버전 증가(예: 1.0.1) 필수. `src/ACS/releases/ui` 출력 폴더 보존됨(델타 생성용). 클라이언트 최초 설치는 `http://192.168.0.55:5100/releases/ui/AcsUi-win-Setup.exe`, 사이트별 백엔드 주소는 클라이언트 PC `C:\ProgramData\ACS.UI\appsettings.json` 에 1회 작성.
+
+---
+
+## 43. 로컬 acsdb 에 운영 덤프 복원 (dev-postgres, PG17→PG16 호환 이슈)
+
+**날짜:** 2026-08-12
+
+**작업:** `docker/backup/acs-local-20260812-175841.sql`(pg_dump 17.9, 스키마+데이터, NA_H_*/NA_L_* 제외, namuga.rackinfo 포함)을 이 PC의 `dev-postgres` 컨테이너(postgres:16, localhost:5432) `acsdb` 에 `restore-prod-dump.ps1` 로 복원. 코드 변경 없음(운영 작업).
+
+**핵심 발견:**
+- **PG17 덤프 → PG16 복원 실패 함정**: pg_dump 17 이 넣는 `SET transaction_timeout = 0;` 은 PG16 에 없는 GUC → `ON_ERROR_STOP` 으로 전체 롤백. 해당 라인만 제거한 사본으로 복원하면 성공. `\restrict` 지시자는 psql 16.14 가 지원(16.10+ 백패치)하므로 문제 없음.
+- **이 PC 의 로컬 Postgres 는 `dev-postgres`** (repo docker-compose 의 `acs-postgres-db` 아님), postgres 비번 `postgres`(compose 기본 `1234` 아님) → 스크립트에 `-Container dev-postgres -Password postgres` 오버라이드 필요.
+- 복원 후 CS01_P 재기동 시 앱 DB-init 이 NA_H_*/NA_L_*(12개)·NA_R_VEHICLE_SLOT 을 자동 재생성 — 덤프에 없어도 정상.
+- **Claude Code 셸에서 `Start-Process` 로 띄운 CS01_P 는 툴 세션 정리 시 함께 종료됨** (기동 후 ~30초 뒤 예외 없이 사망). `Invoke-CimMethod Win32_Process Create` 로 띄우면 독립 프로세스로 생존.
+
+**검증:** 마스터 데이터 적재 확인(NA_R_NODE 15 / NA_R_LINK 19 / NA_R_STATION 14 / NA_R_VEHICLE 1 / NA_X_OPTION 49 / NA_X_USER 1), CS01_P(WMI 기동) 생존 + `GET /api/vehicles` 200 에 덤프 차량(AMR001) 반환.
