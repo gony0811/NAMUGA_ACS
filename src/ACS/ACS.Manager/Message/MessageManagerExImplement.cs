@@ -1713,6 +1713,57 @@ namespace ACS.Manager.Message
             logger.Info($"SendJobReportToHost: Type={reportType}, JobID={jobId}, AmrId={amrId}, ErrorCode={errCode}, ErrorMsg={errMsg}, txn={transactionId}");
         }
 
+        // EXCHANGE(v2) S4: Step/StepName/CarrierSlot 을 포함한 EXCHANGE 전용 JOBREPORT 릴레이.
+        // 기존 JOBREPORT JSON/파서/XML 빌더는 해당 필드가 없어 무수정 유지(D4) — messageName 을
+        // "EXCHANGE-JOBREPORT" 로 분리해 host 측 ExchangeJobReportWorkflow 가 라우팅받는다.
+        public void SendExchangeJobReportToHost(string reportType, string jobId, string amrId,
+            string step, string stepName, string carrierSlot,
+            string actionType, string materialType, string errCode, string errMsg)
+        {
+            if (this.hostAgent == null)
+            {
+                logger.Error("SendExchangeJobReportToHost: hostAgent is not wired");
+                return;
+            }
+
+            string acsId = Configuration?["Acs:Process:Name"] ?? "ACS01";
+            string destSubject = Configuration?["Acs:Host:DestSubject"] ?? "/HQ/MES01";
+            string replySubject = Configuration?["Acs:Host:ReplySubject"] ?? "/HQ/ACS01";
+
+            string transactionId = Guid.NewGuid().ToString("N");
+            string routedFrom = Configuration?["Acs:Process:Name"] ?? "";
+            var payload = new
+            {
+                header = new
+                {
+                    messageName = "EXCHANGE-JOBREPORT",
+                    transactionId = transactionId,
+                    destSubject = destSubject,
+                    replySubject = replySubject,
+                    routedFrom = routedFrom
+                },
+                data = new
+                {
+                    AcsId = acsId,
+                    Type = reportType,
+                    Step = step ?? "",
+                    StepName = stepName ?? "",
+                    AmrId = amrId ?? "",
+                    ActionType = actionType ?? "",
+                    JobID = jobId,
+                    CarrierSlot = carrierSlot ?? "",
+                    MaterialType = materialType ?? "",
+                    UserID = "",
+                    ErrorCode = errCode ?? "",
+                    ErrorMsg = errMsg ?? ""
+                }
+            };
+
+            string json = JsonSerializer.Serialize(payload);
+            this.hostAgent.Send((object)json);
+            logger.Info($"SendExchangeJobReportToHost: Type={reportType}, Step={step}, JobID={jobId}, AmrId={amrId}, CarrierSlot={carrierSlot}, ErrorCode={errCode}, txn={transactionId}");
+        }
+
         public void SendCarrierTransferJson(string jsonMessage)
         {
             if (this.esAgent == null)

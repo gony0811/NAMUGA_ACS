@@ -1099,3 +1099,28 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 - 단위 테스트 52건 통과 (`dotnet test ACS.Core.Tests`)
 
 **현재 상태:** S3 검증점("TC 1행 + RECEIVE 회신")까지 동작. `EXCHANGE_QUEUED` TC 를 집어가는 스케줄러(S4 배차)는 미착수라 TC 는 의도적으로 대기 상태에 머무름.
+
+## 41. EXCHANGE S4 배차 — SCHEDULE-EXCHANGEJOB 신설
+
+**날짜:** 2026-08-12
+**작업:** `EXCHANGE_QUEUED` TC 를 AMR 에 배차하는 S4 슬라이스. 범위는 배차까지 — 조회 → 적격 차량(IDLE+CONNECT+기할당없음+**4슬롯 전부 EMPTY**) → 슬롯 페어 예약 → RAIL-CARRIERTRANSFER(Origin행) → JOBREPORT(START, Step=10, PICKUP_NEW). 도착 이후는 다음 슬라이스. 기존 MOVECMD 배차 경로는 0줄 수정 (D4/D5 유지 — 전부 additive/신규 파일).
+
+**설계 결정:**
+- `STATE_EXCHANGE_ASSIGNED`("EXCHANGE_ASSIGNED", 17자) 신설 — 기존 ASSIGNED 계열 워크플로우와 상태 격리.
+- **EXCHANGE-JOBREPORT 병렬 릴레이 신설**: 기존 TS→HS JOBREPORT 릴레이(JobReportData/ExtractJobReportFromInput/ForwardJobReportToMesActivity/IHostMessageService.BuildJobReport 4곳)에는 Step/StepName/CarrierSlot 필드가 없어, 기존 경로 수정 대신 messageName="EXCHANGE-JOBREPORT" 를 신설. HS 의 리스너는 header.messageName 라우팅이므로 elsa-migration 등록만으로 분기됨.
+- RAIL-CARRIERTRANSFER 는 기존 `SendCarrierTransferWithRetryActivity` 재사용 (`UseSource=true` + `JOBTYPE_UNLOAD` = Origin 픽업 지시, EXCHANGE TC 의 Source=OriginLoc 이므로 그대로 동작).
+- TRIP 은 배칭 미도입이라 빈 값 유지, STEP 은 도착 전이므로 10 유지. AdditionalInfo 에 LOADSLOT/UNLOADSLOT 기록.
+- 롤백은 EXCHANGE 전용(`RollbackExchangeAssignmentActivity`): `ReleaseAllByJobId` 로 슬롯 예약 해제 후 EXCHANGE_ASSIGNED 인 경우에만 EXCHANGE_QUEUED/Vehicle IDLE 복원 + LOADSLOT/UNLOADSLOT 초기화.
+
+**신규 파일:**
+- `ACS.App/Scheduling/Awake/AwakeExchangeTransportJob.cs` — 10초 주기, Bay 순회, EXCHANGE_QUEUED 존재 시 SCHEDULE-EXCHANGEJOB 발행. **namespace 는 폴더와 다른 `ACS.Scheduling`** (SchedulingModule 이 Type.GetType 문자열 로딩 — 불일치 시 조용히 미등록).
+- `ACS.Elsa/Activities/ScheduleExchangeActivities.cs` — 액티비티 5종 (Get/Find/Assign/Rollback/SendStart).
+- `ACS.Elsa/Workflows/Trans/ScheduleExchangeJobWorkflow.cs` — DefinitionId=SCHEDULE-EXCHANGEJOB.
+- `ACS.Elsa/Workflows/Host/ExchangeJobReportWorkflow.cs` — DefinitionId=EXCHANGE-JOBREPORT (TS JSON → MES XML 전달).
+- `ACS.Core.Tests/Exchange/TransportCommandExDescriptionTests.cs`
+
+**수정 파일(additive):** TransportCommandEx(STATE_EXCHANGE_ASSIGNED, GetMaterialType), ITransferManagerEx/TransferManagerExImplement(GetExchangeQueuedTransportCommandsByBayId), IMessageManagerEx/MessageManagerExImplement(SendExchangeJobReportToHost), HostExchangeActivities.cs 말미(ExchangeJobReportData/Extract/Forward), SchedulingModule(등록 1줄), elsa-migration.json(SCHEDULE-EXCHANGEJOB·EXCHANGE-JOBREPORT 추가, deploy 5부 동기화), ExchangeConstantsTests/ExchangeInfoTests 확장.
+
+**검증:** `dotnet build ACS.sln` 오류 0, `dotnet test ACS.Core.Tests` 64건 전체 통과. E2E(배포 후 Validator EXCHANGE 시나리오: START Step=10 XML + NA_T_TRANSPORTCMD state=EXCHANGE_ASSIGNED + NA_R_VEHICLE_SLOT 예약 확인)는 미실시 — 다음 배포 테스트에서 확인 필요. DS/TS/HS 가 공유 어셈블리를 쓰므로 동시 재배포 필요.
+
+**현재 상태:** S4 코드 완성. 다음 슬라이스(S5)는 Origin 도착/픽업 완료 → MOVE_TO_EQUIP(Step=20) 진행 — RailVehicleDestArrived/AcquireCompleted 계열에 EXCHANGE 분기 필요.

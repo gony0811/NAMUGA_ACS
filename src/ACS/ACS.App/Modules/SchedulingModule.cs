@@ -64,6 +64,7 @@ namespace ACS.App.Modules
             {
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeChargeTransportJob, ACS.App");
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeQueueTransportJob, ACS.App");
+                RegisterHostedService(builder, "ACS.Scheduling.AwakeExchangeTransportJob, ACS.App");
                 //RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckCrossNodeJob, ACS.App");
                 RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckVehiclesJob, ACS.App");
                 //RegisterHostedService(builder, "ACS.Scheduling.AwakeCheckServerTimeJob, ACS.App");

@@ -196,6 +196,7 @@ namespace ACS.App
                 MigrateMqttTable(dbContext);
                 MigrateLogMessageTable(dbContext);
                 MigrateUserTable(dbContext);
+                MigrateVehicleSlotTable(dbContext);
                 SeedAdminUser(dbContext);
             }
             catch (Exception ex)
@@ -636,6 +637,49 @@ END $$;
         /// 컬럼 정의는 docker/init/01_init_acsdb.sql 과 동일.
         /// </summary>
         /// <summary>
+        /// NA_R_VEHICLE_SLOT 테이블이 없으면 생성한다 (멱등). 기존 DB 업데이트 경로 대응.
+        /// docker/init/01_init_acsdb.sql 과 동일한 컬럼/타입.
+        /// </summary>
+        private void MigrateVehicleSlotTable(ACS.Database.AcsDbContext dbContext)
+        {
+            try
+            {
+                const string migrationSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relname = 'NA_R_VEHICLE_SLOT'
+    ) THEN
+        CREATE SEQUENCE IF NOT EXISTS public.""NA_R_VEHICLE_SLOT_id_seq"" AS bigint;
+        CREATE TABLE public.""NA_R_VEHICLE_SLOT"" (
+            id bigint NOT NULL DEFAULT nextval('public.""NA_R_VEHICLE_SLOT_id_seq""') PRIMARY KEY,
+            ""vehicleId"" character varying(64) NOT NULL,
+            ""slotNo"" integer NOT NULL,
+            role character varying(10),
+            state character varying(10),
+            ""jobId"" character varying(256),
+            phase character varying(5),
+            ""updatedTime"" timestamp with time zone
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_VEHICLE_SLOT_VEH_NO""
+            ON public.""NA_R_VEHICLE_SLOT"" (""vehicleId"", ""slotNo"");
+        RAISE NOTICE 'NA_R_VEHICLE_SLOT table created';
+    ELSE
+        RAISE NOTICE 'NA_R_VEHICLE_SLOT table already exists';
+    END IF;
+END $$;
+";
+                dbContext.Database.ExecuteSqlRaw(migrationSql);
+                logger.Information("VehicleSlot table migration check completed.");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "VehicleSlot table migration skipped or failed.");
+            }
+        }
+
         /// NA_X_USER 테이블이 없으면 생성한다 (멱등). EF Core EnsureCreated() 는 기존 DB에서 no-op 이라
         /// 신규 추가된 테이블이 자동 생성되지 않으므로 명시적 마이그레이션 필요.
         /// docker/init/01_init_acsdb.sql 의 NA_X_USER CREATE TABLE 정의와 동일한 컬럼/타입을 사용.

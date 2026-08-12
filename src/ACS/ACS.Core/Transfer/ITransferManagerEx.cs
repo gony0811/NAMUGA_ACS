@@ -42,6 +42,9 @@ namespace ACS.Core.Transfer
         IList GetQueuedUiTransportCommands();
         IList GetQueuedTransportCommandsByBayId(String paramString);
 
+        /// <summary>EXCHANGE(v2) S4: state=EXCHANGE_QUEUED + BayId, VehicleId 빈 것만 (배차 대기 EXCHANGE TC).</summary>
+        IList GetExchangeQueuedTransportCommandsByBayId(String bayId);
+
         IList GetTransportCommandsByStateAndBayId(String paramString1, String paramString2);
 
         int GetTransportCommandCount();

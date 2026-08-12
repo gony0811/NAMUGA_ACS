@@ -271,6 +271,17 @@ namespace ACS.Manager.Transfer
             return FilterUnassignedTransportCommands(transportCommands);
         }
 
+        // EXCHANGE(v2) S4: 배차 대기 EXCHANGE TC 조회 — 기존 QUEUED 조회와 상태 격리 (D5).
+        public IList GetExchangeQueuedTransportCommandsByBayId(String bayId)
+        {
+            var attributes = new Dictionary<string, object>();
+            attributes.Add("State", TransportCommandEx.STATE_EXCHANGE_QUEUED);
+            attributes.Add("BayId", bayId);
+
+            IList transportCommands = this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
+            return FilterUnassignedTransportCommands(transportCommands);
+        }
+
         // Rollback 잘못된 발동/EF silent drop 등으로 만들어진 좀비 TC (state=QUEUED 이지만 VehicleId 가
         // 남아있는 경우) 가 다음 사이클에서 다시 잡혀 잘못된 재할당을 일으키지 않도록 메모리에서 한 번 더 필터.
         private static IList FilterUnassignedTransportCommands(IList transportCommands)

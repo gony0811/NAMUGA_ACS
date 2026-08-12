@@ -284,6 +284,14 @@ namespace ACS.Core.Message
             string actionType, string materialType, string errCode, string errMsg);
 
         /// <summary>
+        /// EXCHANGE(v2) S4: Step/StepName/CarrierSlot 을 포함한 EXCHANGE JOBREPORT JSON 을
+        /// messageName="EXCHANGE-JOBREPORT" 로 Host 프로세스에 발행 (기존 JOBREPORT 릴레이와 병렬 경로, D4).
+        /// </summary>
+        void SendExchangeJobReportToHost(string reportType, string jobId, string amrId,
+            string step, string stepName, string carrierSlot,
+            string actionType, string materialType, string errCode, string errMsg);
+
+        /// <summary>
         /// RAIL-CARRIERTRANSFER JSON을 EI 프로세스로 RabbitMQ 전송.
         /// </summary>
         void SendCarrierTransferJson(string jsonMessage);

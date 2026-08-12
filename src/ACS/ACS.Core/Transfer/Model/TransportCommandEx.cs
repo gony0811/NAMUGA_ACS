@@ -20,6 +20,17 @@ namespace ACS.Core.Transfer.Model
             return m.Success ? m.Groups[1].Value : null;
         }
 
+        // EXCHANGE(v2): Description 은 "MODEL='<value>';<MaterialType>" 포맷으로 저장된다 (S3 TC 생성 규약).
+        /// <summary>Description 에 담긴 MaterialType 값을 추출. 포맷이 아니면 null.</summary>
+        public string GetMaterialType()
+        {
+            if (string.IsNullOrEmpty(Description)) return null;
+            int idx = Description.LastIndexOf(';');
+            if (idx < 0 || idx >= Description.Length - 1) return null;
+            var value = Description.Substring(idx + 1).Trim();
+            return value.Length > 0 ? value : null;
+        }
+
         public static int DEFAULT_PRIORITY = 3;
         public static String STATE_CREATED = "CREATED";
         public static String STATE_QUEUED = "QUEUED";
@@ -43,6 +54,8 @@ namespace ACS.Core.Transfer.Model
         // EXCHANGE(v2): 기존 스케줄러(State="QUEUED" 조회)에서 배제되는 EXCHANGE 전용 대기 상태.
         // 참조: ACS_EXCHANGE_구현사양서.md §2.4 (D5). 14자 — varchar(20) 내.
         public static String STATE_EXCHANGE_QUEUED = "EXCHANGE_QUEUED";
+        // EXCHANGE(v2) S4: 배차 완료 상태. 기존 스케줄러(State="ASSIGNED" 계열 조회)와 격리 (D5). 17자 — varchar(20) 내.
+        public static String STATE_EXCHANGE_ASSIGNED = "EXCHANGE_ASSIGNED";
         public static String TYPE_CMDREPLY = "MOVECMD_REP";
         public static String TYPE_CMDUPDATEREPLY = "MOVEUPDATE_REP";
         public static String TYPE_JOBSTART = "JOBSTART";

@@ -33,6 +33,32 @@ namespace ACS.Core.Tests.Exchange
         }
 
         [Fact]
+        public void StateExchangeAssigned_HasContractValue()
+        {
+            Assert.Equal("EXCHANGE_ASSIGNED", TransportCommandEx.STATE_EXCHANGE_ASSIGNED);
+        }
+
+        [Fact]
+        public void StateExchangeAssigned_FitsVarchar20()
+        {
+            Assert.True(TransportCommandEx.STATE_EXCHANGE_ASSIGNED.Length <= 20,
+                $"state value too long: {TransportCommandEx.STATE_EXCHANGE_ASSIGNED.Length}");
+        }
+
+        [Fact]
+        public void StateExchangeAssigned_IsNotLegacyAssigned()
+        {
+            // D5 가드: 값이 "ASSIGNED" 와 같아지면 기존 진행/롤백 워크플로우가 EXCHANGE TC 를 오인한다.
+            Assert.NotEqual(TransportCommandEx.STATE_ASSIGNED, TransportCommandEx.STATE_EXCHANGE_ASSIGNED);
+        }
+
+        [Fact]
+        public void StateExchangeAssigned_IsNotExchangeQueued()
+        {
+            Assert.NotEqual(TransportCommandEx.STATE_EXCHANGE_QUEUED, TransportCommandEx.STATE_EXCHANGE_ASSIGNED);
+        }
+
+        [Fact]
         public void JobTypeExchange_HasContractValue()
         {
             // AMR MQTT 규약(moveCmd.jobType)과 RAIL-CARRIERTRANSFER.jobType 이 이 값을 그대로 사용한다.

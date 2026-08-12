@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Xml;
+using Microsoft.Extensions.Configuration;
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
+using ACS.Communication.Msb;
 using ACS.Core.Host;
 using ACS.Core.Logging;
 using ACS.Core.Base;
@@ -430,6 +433,250 @@ namespace ACS.Elsa.Activities
             catch (Exception ex)
             {
                 logger.Error($"SendExchangeJobReportActivity: {ex.Message}", ex);
+                context.Set(Result, false);
+            }
+        }
+
+        private static void Append(XmlDocument doc, XmlElement parent, string name, string value)
+        {
+            var el = doc.CreateElement(name);
+            el.InnerText = value ?? "";
+            parent.AppendChild(el);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  EXCHANGE-JOBREPORT 릴레이 수신 (S4) — TS 발신 JSON → MES XML 전달
+    //  기존 JOBREPORT 릴레이(JobReportData/ExtractJobReportFromInput/
+    //  ForwardJobReportToMesActivity)에는 Step/StepName/CarrierSlot 필드가
+    //  없어 무수정 유지(D4), messageName="EXCHANGE-JOBREPORT" 병렬 경로 신설.
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>EXCHANGE JOBREPORT 릴레이 데이터 (기존 JobReportData + Step/StepName/CarrierSlot).</summary>
+    public class ExchangeJobReportData
+    {
+        public string AcsId { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Step { get; set; } = "";
+        public string StepName { get; set; } = "";
+        public string AmrId { get; set; } = "";
+        public string ActionType { get; set; } = "";
+        public string JobID { get; set; } = "";
+        public string CarrierSlot { get; set; } = "";
+        public string MaterialType { get; set; } = "";
+        public string UserID { get; set; } = "";
+        public string ErrorCode { get; set; } = "";
+        public string ErrorMsg { get; set; } = "";
+        public string RoutedFrom { get; set; } = "";
+    }
+
+    /// <summary>
+    /// 워크플로우 Input(Arguments)에서 EXCHANGE-JOBREPORT JSON 을 파싱해 ExchangeJobReportData 로 추출.
+    /// ExtractJobReportFromInput 미러 + Step/StepName/CarrierSlot 필드 추가.
+    /// </summary>
+    [Activity("ACS.Host", "Extract Exchange JobReport JSON",
+        "워크플로우 입력에서 EXCHANGE-JOBREPORT JSON 을 파싱하여 추출합니다.")]
+    public class ExtractExchangeJobReportFromInput : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Output(Description = "추출된 EXCHANGE JOBREPORT 데이터")]
+        public Output<ExchangeJobReportData> OutputData { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            string json = null;
+            var input = context.WorkflowExecutionContext.Input;
+            if (input != null && input.TryGetValue("Arguments", out var args))
+            {
+                if (args is object[] argsArray && argsArray.Length > 0)
+                    json = argsArray[0] as string;
+                else if (args is string s)
+                    json = s;
+            }
+
+            var data = new ExchangeJobReportData();
+            if (string.IsNullOrEmpty(json))
+            {
+                logger.Warn("ExtractExchangeJobReportFromInput: No JSON found in input, returning empty data");
+                context.Set(OutputData, data);
+                return;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Object)
+                {
+                    data.AcsId = ReadString(d, "AcsId");
+                    data.Type = ReadString(d, "Type");
+                    data.Step = ReadString(d, "Step");
+                    data.StepName = ReadString(d, "StepName");
+                    data.AmrId = ReadString(d, "AmrId");
+                    data.ActionType = ReadString(d, "ActionType");
+                    data.JobID = ReadString(d, "JobID");
+                    data.CarrierSlot = ReadString(d, "CarrierSlot");
+                    data.MaterialType = ReadString(d, "MaterialType");
+                    data.UserID = ReadString(d, "UserID");
+                    data.ErrorCode = ReadString(d, "ErrorCode");
+                    data.ErrorMsg = ReadString(d, "ErrorMsg");
+                }
+
+                if (root.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object)
+                {
+                    data.RoutedFrom = ReadString(h, "routedFrom");
+                }
+
+                context.Set(OutputData, data);
+                logger.Info($"ExtractExchangeJobReportFromInput: parsed - JobID={data.JobID}, Type={data.Type}, Step={data.Step}, AmrId={data.AmrId}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"ExtractExchangeJobReportFromInput: JSON parse 실패 - {ex.Message}", ex);
+                context.Set(OutputData, data);
+            }
+        }
+
+        private static string ReadString(JsonElement obj, string name)
+        {
+            if (obj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String)
+                return v.GetString() ?? "";
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// EXCHANGE JOBREPORT 를 MES TCP 로 전달.
+    /// MES XML DataLayer 레이아웃은 SendExchangeJobReportActivity 와 동일
+    /// (AcsId/Type/Step/StepName/AmrId/ActionType/JobID/CarrierSlot/MaterialType/UserID/ErrorCode/ErrorMsg).
+    /// 비-Host 프로세스로 라우팅 누수 시 ForwardJobReportToMesActivity 와 동일하게
+    /// routedFrom 루프 차단 후 host 큐 재발행.
+    /// </summary>
+    [Activity("ACS.Host", "Forward Exchange JobReport to MES",
+        "EXCHANGE JOBREPORT 를 MES 로 TCP 전달합니다 (JSON → XML 변환 후 송신).")]
+    public class ForwardExchangeJobReportToMesActivity : CodeActivity<bool>
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "전달할 EXCHANGE JOBREPORT 데이터")]
+        public Input<ExchangeJobReportData> JobReportData { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var data = JobReportData?.Get(context);
+                if (data == null)
+                {
+                    logger.Error("ForwardExchangeJobReportToMesActivity: JobReportData is null");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var hostMessageService = accessor?.ResolveOptional<IHostMessageService>();
+                if (hostMessageService != null)
+                {
+                    // === Host 프로세스: 정상 경로 — MES TCP 송신 ===
+                    var configuration = accessor.ResolveOptional<IConfiguration>();
+                    string acsId = data.AcsId;
+                    if (string.IsNullOrEmpty(acsId))
+                        acsId = configuration?["Acs:Process:Name"] ?? "ACS01";
+                    string destSubject = configuration?["Acs:Host:DestSubject"] ?? "/HQ/MES01";
+                    string replySubject = configuration?["Acs:Host:ReplySubject"] ?? $"/HQ/{acsId}";
+
+                    var doc = new XmlDocument();
+                    var decl = doc.CreateXmlDeclaration("1.0", "utf-8", null);
+                    doc.AppendChild(decl);
+                    var msg = doc.CreateElement("Msg");
+                    doc.AppendChild(msg);
+                    Append(doc, msg, "Command", "JOBREPORT");
+
+                    var header = doc.CreateElement("Header");
+                    msg.AppendChild(header);
+                    Append(doc, header, "DestSubject", destSubject);
+                    Append(doc, header, "ReplySubject", replySubject);
+
+                    var dataLayer = doc.CreateElement("DataLayer");
+                    msg.AppendChild(dataLayer);
+                    Append(doc, dataLayer, "AcsId", acsId);
+                    Append(doc, dataLayer, "Type", data.Type);
+                    Append(doc, dataLayer, "Step", data.Step);
+                    Append(doc, dataLayer, "StepName", data.StepName);
+                    Append(doc, dataLayer, "AmrId", data.AmrId);
+                    Append(doc, dataLayer, "ActionType", data.ActionType);
+                    Append(doc, dataLayer, "JobID", data.JobID);
+                    Append(doc, dataLayer, "CarrierSlot", data.CarrierSlot);
+                    Append(doc, dataLayer, "MaterialType", data.MaterialType);
+                    Append(doc, dataLayer, "UserID", data.UserID);
+                    Append(doc, dataLayer, "ErrorCode", data.ErrorCode);
+                    Append(doc, dataLayer, "ErrorMsg", data.ErrorMsg);
+
+                    hostMessageService.SendToHost("JOBREPORT", doc);
+                    context.Set(Result, true);
+                    logger.Info($"ForwardExchangeJobReportToMesActivity: forwarded to MES - JobID={data.JobID}, Type={data.Type}, Step={data.Step}");
+                    return;
+                }
+
+                // === 비-Host 프로세스: 라우팅 누수 — host 큐 재발행 (routedFrom 루프 차단) ===
+                string currentProcess = "";
+                try { currentProcess = accessor?.Resolve<IConfiguration>()?["Acs:Process:Name"] ?? ""; }
+                catch { /* IConfiguration 미등록 — currentProcess 빈 문자열 유지 */ }
+
+                bool alreadyReRouted =
+                    !string.IsNullOrEmpty(data.RoutedFrom) &&
+                    !string.IsNullOrEmpty(currentProcess) &&
+                    data.RoutedFrom.Equals(currentProcess, StringComparison.OrdinalIgnoreCase);
+
+                IMessageAgent hostAgent = null;
+                try { hostAgent = accessor?.ResolveNamed<IMessageAgent>("HostAgentSender"); }
+                catch { /* 미등록 — 아래에서 null 처리 */ }
+
+                if (hostAgent == null || alreadyReRouted)
+                {
+                    logger.Error($"ForwardExchangeJobReportToMesActivity: IHostMessageService 미등록 — 재발행 불가. " +
+                                 $"hostAgent={hostAgent != null}, alreadyReRouted={alreadyReRouted}, " +
+                                 $"currentProcess={currentProcess}, routedFrom={data.RoutedFrom}, " +
+                                 $"JobID={data.JobID}, Type={data.Type}. 메시지 유실 — 라우팅 누수 점검 필요.");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                string rerouted = JsonSerializer.Serialize(new
+                {
+                    header = new
+                    {
+                        messageName = "EXCHANGE-JOBREPORT",
+                        transactionId = Guid.NewGuid().ToString("N"),
+                        destSubject = "",
+                        replySubject = "",
+                        routedFrom = currentProcess
+                    },
+                    data = new
+                    {
+                        AcsId = data.AcsId ?? "",
+                        Type = data.Type ?? "",
+                        Step = data.Step ?? "",
+                        StepName = data.StepName ?? "",
+                        AmrId = data.AmrId ?? "",
+                        ActionType = data.ActionType ?? "",
+                        JobID = data.JobID ?? "",
+                        CarrierSlot = data.CarrierSlot ?? "",
+                        MaterialType = data.MaterialType ?? "",
+                        UserID = data.UserID ?? "",
+                        ErrorCode = data.ErrorCode ?? "",
+                        ErrorMsg = data.ErrorMsg ?? ""
+                    }
+                });
+                hostAgent.Send((object)rerouted);
+                context.Set(Result, true);
+                logger.Warn($"ForwardExchangeJobReportToMesActivity: 비-Host 프로세스({currentProcess})에서 실행됨 — host 큐로 재발행. " +
+                            $"JobID={data.JobID}, Type={data.Type}. 라우팅 누수 점검 필요.");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"ForwardExchangeJobReportToMesActivity: {ex.Message}", ex);
                 context.Set(Result, false);
             }
         }

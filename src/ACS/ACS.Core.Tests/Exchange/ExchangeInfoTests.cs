@@ -213,6 +213,47 @@ namespace ACS.Core.Tests.Exchange
             Assert.Equal("", ExchangeInfo.Get(info, ExchangeInfo.KEY_EQJOB_U));
         }
 
+        // ---------- S4 배차: 슬롯 기록/롤백 갱신 ----------
+
+        [Fact]
+        public void Set_DispatchSlots_OnInitialSnapshot_PreservesOtherKeysAndOrder()
+        {
+            // S4 배차 시 AssignExchangeVehicleActivity 가 수행하는 갱신:
+            // BuildInitial 스냅샷에 LOADSLOT/UNLOADSLOT 만 채워지고 STEP/TRIP/EQJOB_* 은 보존돼야 한다.
+            string info = ExchangeInfo.BuildInitial("PRD-X_LOAD_001", "PRD-X_UNLOAD_001");
+            string updated = ExchangeInfo.Set(
+                ExchangeInfo.Set(info, ExchangeInfo.KEY_LOADSLOT, "1"),
+                ExchangeInfo.KEY_UNLOADSLOT, "3");
+
+            Assert.Equal("10", ExchangeInfo.Get(updated, ExchangeInfo.KEY_STEP));
+            Assert.Equal("", ExchangeInfo.Get(updated, ExchangeInfo.KEY_TRIP));
+            Assert.Equal("1", ExchangeInfo.Get(updated, ExchangeInfo.KEY_LOADSLOT));
+            Assert.Equal("3", ExchangeInfo.Get(updated, ExchangeInfo.KEY_UNLOADSLOT));
+            Assert.Equal("PRD-X_LOAD_001", ExchangeInfo.Get(updated, ExchangeInfo.KEY_EQJOB_L));
+            Assert.Equal("PRD-X_UNLOAD_001", ExchangeInfo.Get(updated, ExchangeInfo.KEY_EQJOB_U));
+
+            // 위치도 스냅샷 순서 그대로 (STEP, TRIP, LOADSLOT, UNLOADSLOT, EQJOB_L, EQJOB_U)
+            var entries = ExchangeInfo.Parse(updated);
+            Assert.Equal(6, entries.Count);
+            Assert.Equal(ExchangeInfo.KEY_LOADSLOT, entries[2].Key);
+            Assert.Equal(ExchangeInfo.KEY_UNLOADSLOT, entries[3].Key);
+        }
+
+        [Fact]
+        public void Set_RollbackSlots_ClearsValuesRoundtrip()
+        {
+            // S4 롤백: LOADSLOT/UNLOADSLOT 을 빈 값으로 되돌리면 초기 스냅샷과 동등해야 한다.
+            string initial = ExchangeInfo.BuildInitial("L1", "U1");
+            string dispatched = ExchangeInfo.Set(
+                ExchangeInfo.Set(initial, ExchangeInfo.KEY_LOADSLOT, "2"),
+                ExchangeInfo.KEY_UNLOADSLOT, "4");
+            string rolledBack = ExchangeInfo.Set(
+                ExchangeInfo.Set(dispatched, ExchangeInfo.KEY_LOADSLOT, ""),
+                ExchangeInfo.KEY_UNLOADSLOT, "");
+
+            Assert.Equal(initial, rolledBack);
+        }
+
         [Fact]
         public void BuildInitial_FitsInAdditionalInfoColumn()
         {
