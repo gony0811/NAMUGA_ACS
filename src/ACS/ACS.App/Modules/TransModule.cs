@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Autofac;
 using ACS.Core.Base;
 using ACS.Core.Application;
@@ -38,6 +38,14 @@ namespace ACS.App.Modules
                     .SingleInstance()
                     .PropertiesAutowired()
                     .OnActivated(e => ((AbstractManager)e.Instance).Init());
+
+            // EXCHANGE(v2): AMR 슬롯 점유 매니저 — 슬롯 전이의 단일 진입점 (§4.7)
+            var slotMgrType = Type.GetType("ACS.Manager.Resource.SlotManagerImplement, ACS.Manager");
+            if (slotMgrType != null)
+                builder.RegisterType(slotMgrType)
+                    .As<ISlotManagerEx>()
+                    .SingleInstance()
+                    .PropertiesAutowired();
 
             var materialMgrType = Type.GetType("ACS.Manager.Material.MaterialManagerExImplement, ACS.Manager");
             if (materialMgrType != null)

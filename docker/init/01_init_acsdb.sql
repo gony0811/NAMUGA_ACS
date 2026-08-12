@@ -1910,3 +1910,42 @@ GROUP BY n.node_id, n.type, lz."zoneId";
 
 \unrestrict 9iT4XZGDbWKs4149DiOO9dfg9GR0kbPjMsGKFNG4m6wJWNs9Jo8AsiOmaoFDpTb
 
+
+--
+-- EXCHANGE(v2): AMR 슬롯 점유 테이블 — 참조: ACS_EXCHANGE_구현사양서.md §2.3 (D6: 유일한 신규 DDL)
+-- 슬롯 1·2 = 투입(INSERT), 3·4 = 회수(RETRIEVE). idempotent (IF NOT EXISTS) — 운영 DB 재실행 안전.
+--
+
+CREATE SEQUENCE IF NOT EXISTS public."NA_R_VEHICLE_SLOT_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+CREATE TABLE IF NOT EXISTS public."NA_R_VEHICLE_SLOT" (
+    id            bigint DEFAULT nextval('public."NA_R_VEHICLE_SLOT_id_seq"'::regclass) NOT NULL,
+    "vehicleId"   character varying(64) NOT NULL,
+    "slotNo"      integer NOT NULL,
+    role          character varying(10) NOT NULL,
+    state         character varying(10) NOT NULL,
+    "jobId"       character varying(256),
+    phase         character varying(5),
+    "updatedTime" timestamp with time zone NOT NULL,
+    CONSTRAINT "NA_R_VEHICLE_SLOT_pkey" PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_VEHICLE_SLOT_VEH_NO"
+    ON public."NA_R_VEHICLE_SLOT" ("vehicleId", "slotNo");
+
+-- 시드: 등록된 차량마다 4행 (기존 행 없을 때만 — idempotent)
+INSERT INTO public."NA_R_VEHICLE_SLOT" ("vehicleId", "slotNo", role, state, "jobId", phase, "updatedTime")
+SELECT v."vehicleId", s.no,
+       CASE WHEN s.no IN (1, 2) THEN 'INSERT' ELSE 'RETRIEVE' END,
+       'EMPTY', NULL, NULL, now()
+FROM (SELECT DISTINCT "vehicleId" FROM public."NA_R_VEHICLE") v
+CROSS JOIN (VALUES (1), (2), (3), (4)) AS s(no)
+WHERE NOT EXISTS (
+    SELECT 1 FROM public."NA_R_VEHICLE_SLOT" e
+    WHERE e."vehicleId" = v."vehicleId" AND e."slotNo" = s.no
+);

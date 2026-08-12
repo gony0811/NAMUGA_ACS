@@ -1077,3 +1077,25 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **문서 내용:** 구성 요소 표(스크립트/피드 경로·URL/버전 규칙/권한), 사전 준비(.NET 8 SDK + `vpk` CLI), 델타 원리, **절차 A**(CS에서 직접 빌드 — `publish-ui.ps1 -Version <v> -ReleaseDir C:\acs\releases\ui` 한 줄), **절차 B**(빌드 PC≠CS — `vpk download`로 피드 동기화 → pack → 누적 복사), 클라이언트 반영, 흔한 실수, 검증 체크리스트.
 
 **핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).
+
+## 40. EXCHANGE S3 배선 완성 — EXCHANGECMD "Unknown host message" 해결
+
+**날짜:** 2026-08-12
+**작업:** MES EXCHANGECMD 가 HS 에서 `[Bridge] Unknown host message` 로 드롭되던 문제 해결. S3 슬라이스(파서·검증·1-TC·JOBREPORT) 코드는 이미 완성 상태였고, 부족한 것은 배선 2가지였음.
+
+**원인 분석:**
+1. 실행 중이던 HS 바이너리가 구버전 — `HostBridgeService.cs` 의 `case "EXCHANGECMD"` 분기가 작업 트리에만 있고 `publish/HS01_P` 에는 미컴파일 상태.
+2. `ACS.Elsa/elsa-migration.json` 의 `ElsaCommands` 에 `EXCHANGECMD` 미등록 → 리빌드해도 `ElsaWorkflowManagerBridge.IsElsaCommand()` 가 legacy `WorkflowManagerImpl` 로 폴백, legacy 엔 EXCHANGECMD BizProcess 가 없어 조용히 실패. **새 Host 커맨드 추가 시 (a) HostBridgeService switch case, (b) elsa-migration.json ElsaCommands, (c) `Host{커맨드}Workflow` 클래스명(OrdinalIgnoreCase 매칭) 3가지가 모두 맞아야 함.**
+
+**변경:**
+- `ACS.Elsa/elsa-migration.json`: `ElsaCommands` 에 `"EXCHANGECMD"` 추가 (유일한 라우팅 수정)
+- `ACS.Elsa/Activities/HostExchangeActivities.cs`: `using Elsa.Extensions;` 누락 보완 (Input<T>.Get 확장 — 빌드 오류였음)
+- 부수 수정: `ACS.App/` 안의 `C:\acs\releases\ui` 라는 이름의 빈 디렉토리 제거 — Windows 경로가 macOS 에서 문자 그대로 폴더로 생성된 것으로, MSBuild glob(`**/*.resx`) 확장을 깨뜨려 MSB3552 빌드 실패 유발
+- `deploy/HS01_P/appsettings.json`(PC 로컬): DB Password 를 실제 docker postgres 값(1234)으로 교정 — config-templates 시딩 기본값은 P@4083w0rd
+
+**E2E 검증 (2026-08-12, MES 시뮬레이터 = 3333 수신 + 3334 송신, LE 4바이트 길이 프레이밍):**
+- NACK 경로: 미존재 위치(TEST_LOAD_RACK_01) → JOBREPORT(RECEIVE, Step=10, ErrorCode=25 SOURCEMACHINENOTFOUND) 회신 확인
+- ACK 경로: IN_BUF → EQP1:LEFT → EQP2 (모두 bay DEMO) → JOBREPORT(RECEIVE, Step=10, ErrorCode=0) + `NA_T_TRANSPORTCMD` 에 `state=EXCHANGE_QUEUED, jobType=EXCHANGE, eqpId=ACS01, portId=NULL, bayId=DEMO, additionalInfo=STEP=10;TRIP=;...` 1행 생성 확인 (사양 §2.1 스냅샷 일치, 검증 후 테스트 행 삭제)
+- 단위 테스트 52건 통과 (`dotnet test ACS.Core.Tests`)
+
+**현재 상태:** S3 검증점("TC 1행 + RECEIVE 회신")까지 동작. `EXCHANGE_QUEUED` TC 를 집어가는 스케줄러(S4 배차)는 미착수라 TC 는 의도적으로 대기 상태에 머무름.

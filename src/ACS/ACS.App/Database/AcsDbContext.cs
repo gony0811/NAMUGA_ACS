@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -55,6 +55,8 @@ namespace ACS.Database
         public DbSet<OrderPairNodeEx> OrderPairNodes { get; set; }
         public DbSet<VehicleIdleEx> VehicleIdles { get; set; }
         public DbSet<VehicleOrderEx> VehicleOrders { get; set; }
+        // EXCHANGE(v2): AMR 슬롯 점유 (NA_R_VEHICLE_SLOT)
+        public DbSet<VehicleSlotEx> VehicleSlots { get; set; }
 
         // ===== Transfer Domain =====
         public DbSet<TransportCommandEx> TransportCommands { get; set; }
@@ -428,6 +430,22 @@ namespace ACS.Database
                 e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
                 e.Property(x => x.OrderNode).HasColumnName("orderNode").HasMaxLength(64);
                 e.Property(x => x.OrderTime).HasColumnName("orderTime");
+            });
+
+            // EXCHANGE(v2): AMR 슬롯 점유 — 참조: ACS_EXCHANGE_구현사양서.md §2.3
+            modelBuilder.Entity<VehicleSlotEx>(e =>
+            {
+                e.ToTable("NA_R_VEHICLE_SLOT");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                e.Property(x => x.VehicleId).HasColumnName("vehicleId").HasMaxLength(64);
+                e.Property(x => x.SlotNo).HasColumnName("slotNo");
+                e.Property(x => x.Role).HasColumnName("role").HasMaxLength(10);
+                e.Property(x => x.State).HasColumnName("state").HasMaxLength(10);
+                e.Property(x => x.JobId).HasColumnName("jobId").HasMaxLength(256);
+                e.Property(x => x.Phase).HasColumnName("phase").HasMaxLength(5);
+                e.Property(x => x.UpdatedTime).HasColumnName("updatedTime");
+                e.HasIndex(x => new { x.VehicleId, x.SlotNo }).IsUnique().HasDatabaseName("IX_VEHICLE_SLOT_VEH_NO");
             });
 
             // ===== Transfer Domain =====

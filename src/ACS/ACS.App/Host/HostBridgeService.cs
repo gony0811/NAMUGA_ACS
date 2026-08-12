@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -77,6 +77,11 @@ namespace ACS.App.Host
                         break;
 
                     case "MOVECANCEL":
+                        HandleGenericCommand(e.MessageName, xmlDoc);
+                        break;
+
+                    // EXCHANGE(v2): 매거진 교환 — HostExchangeCmdWorkflow(DefinitionId=EXCHANGECMD) 실행
+                    case "EXCHANGECMD":
                         HandleGenericCommand(e.MessageName, xmlDoc);
                         break;
 
