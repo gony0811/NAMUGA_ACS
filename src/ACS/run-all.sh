@@ -21,8 +21,8 @@ if [ $# -gt 0 ]; then
     PROCESSES=("$@")
     # 유효성 검증
     for proc in "${PROCESSES[@]}"; do
-        if [ ! -d "$DEPLOY_DIR/$proc" ]; then
-            echo "오류: deploy/$proc 디렉토리가 없습니다."
+        if [ ! -d "$DEPLOY_DIR/$proc" ] && [ ! -d "$SCRIPT_DIR/config-templates/$proc" ]; then
+            echo "오류: deploy/$proc 도 config-templates/$proc 도 없습니다."
             echo "사용 가능: ${ALL_PROCESSES[*]}"
             exit 1
         fi
@@ -103,6 +103,13 @@ for proc in "${PROCESSES[@]}"; do
     # 기존 디렉토리 정리 후 복사
     rm -rf "$PROC_DIR"
     cp -r "$PUBLISH_DIR/base" "$PROC_DIR"
+
+    # deploy/<proc>/appsettings.json 이 없으면 config-templates 에서 시딩 (덮어쓰기 없음)
+    if [ ! -f "$DEPLOY_DIR/$proc/appsettings.json" ]; then
+        mkdir -p "$DEPLOY_DIR/$proc"
+        cp "$SCRIPT_DIR/config-templates/$proc/appsettings.json" "$DEPLOY_DIR/$proc/appsettings.json"
+        echo "  시드: config-templates/$proc → deploy/$proc (DB/호스트 값 확인 필요)"
+    fi
 
     # 프로세스별 appsettings.json 덮어쓰기
     cp "$DEPLOY_DIR/$proc/appsettings.json" "$PROC_DIR/appsettings.json"

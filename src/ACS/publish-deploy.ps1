@@ -1,4 +1,4 @@
-# ACS 사이트별 In-Repo 배포 스크립트
+﻿# ACS 사이트별 In-Repo 배포 스크립트
 #
 # 1) ACS.App 을 staging 폴더로 publish
 # 2) 각 src/ACS/deploy/<SITE>/ 에 robocopy /MIR 로 미러
@@ -29,9 +29,23 @@ $proj      = Join-Path $root 'ACS.App\ACS.App.csproj'
 $deployDir = Join-Path $root 'deploy'
 if (-not $Staging) { $Staging = Join-Path $root '.publish-staging' }
 
+# deploy/ 는 git 미추적(PC별 실행 폴더) — 없으면 만들고, config-templates/ 에서
+# 사이트별 appsettings.json 을 시딩한다. 이미 있는 파일은 절대 덮어쓰지 않는다.
 if (-not (Test-Path $deployDir)) {
-    Write-Error "Deploy dir not found: $deployDir"
-    exit 1
+    New-Item -ItemType Directory -Force -Path $deployDir | Out-Null
+}
+$templateDir = Join-Path $root 'config-templates'
+if (Test-Path $templateDir) {
+    foreach ($t in Get-ChildItem -Path $templateDir -Directory) {
+        $siteDir  = Join-Path $deployDir $t.Name
+        $siteJson = Join-Path $siteDir 'appsettings.json'
+        $tplJson  = Join-Path $t.FullName 'appsettings.json'
+        if ((Test-Path $tplJson) -and (-not (Test-Path $siteJson))) {
+            New-Item -ItemType Directory -Force -Path $siteDir | Out-Null
+            Copy-Item $tplJson $siteJson
+            Write-Host "Seeded  : deploy/$($t.Name)/appsettings.json  (from config-templates — DB/호스트 값 확인 필요)" -ForegroundColor Yellow
+        }
+    }
 }
 if (-not (Test-Path $proj)) {
     Write-Error "Project not found: $proj"

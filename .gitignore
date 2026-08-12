@@ -26,6 +26,8 @@ bld/
 [Dd]eploy/
 .publish-staging/
 .publish-ui-staging/
+# 빌드 산출물 스냅샷 — 설정 원본은 src/ACS/config-templates/ 로 이관
+src/ACS/publish/
 .DS_Store
 
 # .NET Core
