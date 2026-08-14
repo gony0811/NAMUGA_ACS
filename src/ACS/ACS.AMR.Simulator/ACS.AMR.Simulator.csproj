@@ -22,6 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ACS.Core\ACS.Core.csproj" />
     <ProjectReference Include="..\ACS.App\ACS.App.csproj" />
+    <!-- MQTT 가상 차량: AmrCommandMessage/AmrStatusMessage/AmrReplyMessage/MqttConfig 재사용.
+         MQTTnet 은 이 참조를 통해 프로덕션과 동일 버전으로 유지 (직접 PackageReference 금지) -->
+    <ProjectReference Include="..\ACS.Communication\ACS.Communication.csproj" />
   </ItemGroup>
 
   <ItemGroup>

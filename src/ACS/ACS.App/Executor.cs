@@ -56,19 +56,31 @@ namespace ACS.App
         /// appsettings.json을 로드해 IConfiguration을 만든다.
         /// Program.Main과 동일하게 AppDomain.CurrentDomain.BaseDirectory(= ACS.App.dll 폴더)를
         /// 우선 사용하여, dotnet 명령/윈도우 서비스 등으로 작업 디렉토리가 달라져도 같은 파일을 읽도록 한다.
+        ///
+        /// 레이어드 설정: 부모 폴더(배포 루트)의 appsettings.common.json(공통 1부, optional)을
+        /// 먼저 로드하고 사이트별 appsettings.json이 override 한다. common 부재 시 기존과 동일 동작.
         /// </summary>
         public static IConfiguration LoadConfiguration()
         {
             string basePath = ResolveBasePath();
+            string commonPath = ResolveCommonPath(basePath);
 
             Log.ForContext("Logger", "ErrorLogger")
-                .Information("Configuration base path: {Path} (appsettings.json => {File})",
-                    basePath, Path.Combine(basePath, "appsettings.json"));
+                .Information("Configuration base path: {Path} (common => {Common}, appsettings.json => {File})",
+                    basePath, File.Exists(commonPath) ? commonPath : "(없음)", Path.Combine(basePath, "appsettings.json"));
 
             return new ConfigurationBuilder()
                 .SetBasePath(basePath)
+                // 절대경로로 추가 — SetBasePath의 PhysicalFileProvider는 상위 폴더 탐색이 제한됨
+                .AddJsonFile(commonPath, optional: true)
                 .AddJsonFile("appsettings.json", optional: false)
                 .Build();
+        }
+
+        /// <summary>배포 루트 공유 공통 설정 경로: {basePath}\..\appsettings.common.json</summary>
+        internal static string ResolveCommonPath(string basePath)
+        {
+            return Path.GetFullPath(Path.Combine(basePath, "..", "appsettings.common.json"));
         }
 
         /// <summary>

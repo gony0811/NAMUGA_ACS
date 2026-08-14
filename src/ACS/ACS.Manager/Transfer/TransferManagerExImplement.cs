@@ -250,7 +250,7 @@ namespace ACS.Manager.Transfer
         public IList GetQueuedTransportCommands()
         {
             IList transportCommands = this.PersistentDao.FindByAttributeOrderBy(typeof(TransportCommandEx), "State", "QUEUED", "CreateTime");
-            return FilterUnassignedTransportCommands(transportCommands);
+            return FilterUnassignedTransportCommands(transportCommands, excludeExchange: true);
         }
 
         public IList GetQueuedUiTransportCommands()
@@ -268,7 +268,7 @@ namespace ACS.Manager.Transfer
             attributes.Add("BayId", bayId);
 
             IList transportCommands = this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
-            return FilterUnassignedTransportCommands(transportCommands);
+            return FilterUnassignedTransportCommands(transportCommands, excludeExchange: true);
         }
 
         // EXCHANGE(v2) S4: 배차 대기 EXCHANGE TC 조회 — 기존 QUEUED 조회와 상태 격리 (D5).
@@ -284,16 +284,24 @@ namespace ACS.Manager.Transfer
 
         // Rollback 잘못된 발동/EF silent drop 등으로 만들어진 좀비 TC (state=QUEUED 이지만 VehicleId 가
         // 남아있는 경우) 가 다음 사이클에서 다시 잡혀 잘못된 재할당을 일으키지 않도록 메모리에서 한 번 더 필터.
-        private static IList FilterUnassignedTransportCommands(IList transportCommands)
+        // excludeExchange: 일반 배차 조회용 이중 방어 — 상태가 어떤 경로로 QUEUED 로 오염되든
+        // JobType=EXCHANGE TC 는 일반 스케줄러가 절대 집지 못하게 한다 (D5 격리).
+        private IList FilterUnassignedTransportCommands(IList transportCommands, bool excludeExchange = false)
         {
             if (transportCommands == null || transportCommands.Count == 0) return transportCommands;
             var filtered = new List<TransportCommandEx>(transportCommands.Count);
             foreach (var item in transportCommands)
             {
-                if (item is TransportCommandEx tc && string.IsNullOrEmpty(tc.VehicleId))
+                if (item is not TransportCommandEx tc || !string.IsNullOrEmpty(tc.VehicleId))
+                    continue;
+                if (excludeExchange
+                    && TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
                 {
-                    filtered.Add(tc);
+                    logger.Warn($"FilterUnassignedTransportCommands: EXCHANGE TC 가 일반 QUEUED 조회에 잡힘 — 제외 " +
+                                $"(state 오염 의심) jobId={tc.JobId}, state={tc.State}");
+                    continue;
                 }
+                filtered.Add(tc);
             }
             return filtered;
         }

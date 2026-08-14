@@ -101,6 +101,13 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // EXCHANGE(v2) S5: STEP 기반 waypoint(origin/mid/dest) 도착 판정 + ARRIVED(step) 보고 (D4 분기)
+                if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    Activities.ExchangeTransHandlers.OnDestArrived(tc, vehicle, resourceManager, messageManager);
+                    return;
+                }
+
                 // StationId 1개에 다수의 LocationId(:LEFT/:RIGHT 등) 가 매핑되므로
                 // tc.Source / tc.Dest 를 LocationId 키로 직접 조회한 뒤 그 StationId 가
                 // vehicle.CurrentNodeId 와 같은지로 도착 매칭을 판정한다.

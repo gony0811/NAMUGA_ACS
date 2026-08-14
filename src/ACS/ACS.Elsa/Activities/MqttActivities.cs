@@ -735,6 +735,7 @@ namespace ACS.Elsa.Activities
                 string jobType = null;
                 string portType = null;
                 string model = null;
+                int amrSlot = 1;
 
                 using (var doc = JsonDocument.Parse(jsonMessage))
                 {
@@ -754,6 +755,10 @@ namespace ACS.Elsa.Activities
                             portType = ptEl.GetString();
                         if (dataEl.TryGetProperty("model", out var mEl))
                             model = mEl.GetString();
+                        // EXCHANGE(v2): 투입/회수 슬롯 지정. 필드 부재 시 사양 default 1
+                        if (dataEl.TryGetProperty("amrSlot", out var slotEl)
+                            && slotEl.ValueKind == JsonValueKind.Number && slotEl.TryGetInt32(out var slotVal))
+                            amrSlot = slotVal;
                     }
                 }
 
@@ -795,8 +800,7 @@ namespace ACS.Elsa.Activities
 
                 // CommId로 Vehicle을 식별하여 MQTT command 토픽으로 이동 명령 전송
                 // cmdId=commandId(=TC.JobId) 로 발행해야 AMR reply 수신 시 TC 조회(JobType fallback)가 가능
-                // amrSlot은 도메인 매핑이 없어 사양 default 1 사용
-                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType, commandId, portType, model: model)
+                var result = mqttManager.SendDestination(vehicle.CommId, destNodeId, port, jobType, commandId, portType, amrSlot, model)
                     .GetAwaiter().GetResult();
 
                 if (result)
@@ -900,6 +904,7 @@ namespace ACS.Elsa.Activities
                 string jobType = null;
                 string actionType = null;
                 string model = null;
+                int amrSlot = 1;
 
                 using (var doc = JsonDocument.Parse(jsonMessage))
                 {
@@ -919,6 +924,9 @@ namespace ACS.Elsa.Activities
                             actionType = atEl.GetString();
                         if (dataEl.TryGetProperty("model", out var mEl))
                             model = mEl.GetString();
+                        if (dataEl.TryGetProperty("amrSlot", out var slotEl)
+                            && slotEl.ValueKind == JsonValueKind.Number)
+                            amrSlot = slotEl.GetInt32();
                     }
                 }
 
@@ -959,14 +967,14 @@ namespace ACS.Elsa.Activities
                 // jobType 이 비어있으면 MES 가 보낸 actionType 으로 폴백
                 string effectiveJobType = string.IsNullOrEmpty(jobType) ? (actionType ?? "") : jobType;
 
-                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model)
+                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model, amrSlot)
                     .GetAwaiter().GetResult();
 
                 if (result)
                 {
                     logger.Info($"HandleActionCmdActivity: MQTT actionCmd 전송 완료. " +
                         $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
-                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, actionType={actionType}, model={model}");
+                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, actionType={actionType}, model={model}, amrSlot={amrSlot}");
                 }
                 else
                 {
@@ -1042,7 +1050,26 @@ namespace ACS.Elsa.Activities
                         return;
                     }
 
-                    if (tc.State == TransportCommandEx.STATE_ASSIGNED
+                    if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // EXCHANGE(v2) S5: 상태는 여정 내내 EXCHANGE_ASSIGNED — STEP 으로 구간 결정
+                        // (10=origin 픽업 UNLOAD, 20~40=설비 교체 EXCHANGE, 50=반납 LOAD)
+                        int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
+                        if (step == ExchangeSteps.STEP_PICKUP_NEW)
+                            jobType = TransportCommandEx.JOBTYPE_UNLOAD;
+                        else if (step == ExchangeSteps.STEP_MOVE_TO_EQUIP
+                                 || step == ExchangeSteps.STEP_UNLOAD_OLD
+                                 || step == ExchangeSteps.STEP_LOAD_NEW)
+                            jobType = TransportCommandEx.JOBTYPE_EXCHANGE;
+                        else if (step == ExchangeSteps.STEP_RETURN_OLD)
+                            jobType = TransportCommandEx.JOBTYPE_LOAD;
+                        else
+                        {
+                            logger.Warn($"HandleAmrReplyActivity: EXCHANGE STEP 매핑 실패. 라우팅 생략. cmdId={reply.CmdId}, step={step}");
+                            return;
+                        }
+                    }
+                    else if (tc.State == TransportCommandEx.STATE_ASSIGNED
                         || tc.State == TransportCommandEx.STATE_TRANSFERRING_SOURCE)
                     {
                         jobType = TransportCommandEx.JOBTYPE_UNLOAD;
@@ -1056,7 +1083,7 @@ namespace ACS.Elsa.Activities
                         logger.Warn($"HandleAmrReplyActivity: TC.State 매핑 실패. 라우팅 생략. cmdId={reply.CmdId}, vehicleId={vehicleId}, state={tc.State}");
                         return;
                     }
-                    logger.Info($"HandleAmrReplyActivity: TC.State 로 jobType 보완. cmdId={reply.CmdId}, state={tc.State}, jobType={jobType}");
+                    logger.Info($"HandleAmrReplyActivity: TC 조회로 jobType 보완. cmdId={reply.CmdId}, state={tc.State}, jobType={jobType}");
                 }
 
                 string dbVehicleId = ResolveDbVehicleId(accessor, vehicleId);
@@ -1104,6 +1131,30 @@ namespace ACS.Elsa.Activities
                             Sender = "EI"
                         },
                         Data = new RailVehicleDepositCompletedData
+                        {
+                            CommandId = reply.CmdId ?? "",
+                            VehicleId = dbVehicleId,
+                            ResultCode = resultCode,
+                            ErrorCode = errorCode,
+                            ErrorMessage = errorMessage
+                        }
+                    };
+                    json = JsonSerializer.Serialize(msg);
+                }
+                else if ("EXCHANGE".Equals(jobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    // EXCHANGE(v2) S5: 설비 교체 완료 → Trans 의 RailVehicleExchangeCompletedWorkflow 로 라우팅
+                    messageName = "RAIL-VEHICLEEXCHANGECOMPLETED";
+                    var msg = new RailVehicleExchangeCompletedMessage
+                    {
+                        Header = new RailVehicleExchangeCompletedHeader
+                        {
+                            MessageName = messageName,
+                            TransactionId = Guid.NewGuid().ToString(),
+                            Timestamp = DateTime.UtcNow,
+                            Sender = "EI"
+                        },
+                        Data = new RailVehicleExchangeCompletedData
                         {
                             CommandId = reply.CmdId ?? "",
                             VehicleId = dbVehicleId,

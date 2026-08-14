@@ -27,6 +27,18 @@ namespace ACS.Core.Transfer
         public const string KEY_EQJOB_L = "EQJOB_L";
         /// <summary>설비 UNLOAD 보고용 JobID (EXCHANGECMD.UnloadEquipJobID).</summary>
         public const string KEY_EQJOB_U = "EQJOB_U";
+        /// <summary>
+        /// 진행 중인 설비 액션 (UNLOAD | LOAD | 빈값).
+        /// MES ACTIONCMD 를 차량으로 중계할 때 기록하고, 해당 액션의 완료 reply 를
+        /// 처리할 때 클리어한다. 빈값이면 설비 액션 미진행 — 이때 도착한
+        /// EXCHANGE COMPLETED reply 는 이동/도킹 완료로 간주하고 무시한다.
+        /// </summary>
+        public const string KEY_ACT = "ACT";
+
+        /// <summary>KEY_ACT 값: 기존 매거진 회수 액션 (사양서 ACTIONCMD Type=UNLOAD).</summary>
+        public const string ACT_UNLOAD = "UNLOAD";
+        /// <summary>KEY_ACT 값: 신규 매거진 투입 액션 (사양서 ACTIONCMD Type=LOAD).</summary>
+        public const string ACT_LOAD = "LOAD";
 
         private const char ENTRY_SEPARATOR = ';';
         private const char KEYVALUE_SEPARATOR = '=';
@@ -144,7 +156,7 @@ namespace ACS.Core.Transfer
 
         /// <summary>
         /// EXCHANGE TC 최초 insert 시의 AdditionalInfo 를 조립한다 (구현사양서 §2.1).
-        /// STEP=10, TRIP/LOADSLOT/UNLOADSLOT 은 빈 값으로 예약.
+        /// STEP=10, TRIP/LOADSLOT/UNLOADSLOT/ACT 는 빈 값으로 예약.
         /// </summary>
         public static string BuildInitial(string equipLoadJobId, string equipUnloadJobId)
         {
@@ -155,7 +167,8 @@ namespace ACS.Core.Transfer
                 new KeyValuePair<string, string>(KEY_LOADSLOT, ""),
                 new KeyValuePair<string, string>(KEY_UNLOADSLOT, ""),
                 new KeyValuePair<string, string>(KEY_EQJOB_L, equipLoadJobId ?? ""),
-                new KeyValuePair<string, string>(KEY_EQJOB_U, equipUnloadJobId ?? "")
+                new KeyValuePair<string, string>(KEY_EQJOB_U, equipUnloadJobId ?? ""),
+                new KeyValuePair<string, string>(KEY_ACT, "")
             });
         }
 

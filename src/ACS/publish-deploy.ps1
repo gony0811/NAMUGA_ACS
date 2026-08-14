@@ -36,6 +36,13 @@ if (-not (Test-Path $deployDir)) {
 }
 $templateDir = Join-Path $root 'config-templates'
 if (Test-Path $templateDir) {
+    # 공통 설정 1부 시딩: deploy/appsettings.common.json (없을 때만 — 기존 파일 절대 미덮어쓰기)
+    $commonTpl  = Join-Path $templateDir 'appsettings.common.json'
+    $commonDst  = Join-Path $deployDir 'appsettings.common.json'
+    if ((Test-Path $commonTpl) -and (-not (Test-Path $commonDst))) {
+        Copy-Item $commonTpl $commonDst
+        Write-Host "Seeded  : deploy/appsettings.common.json  (from config-templates — DB/브로커 값 확인 필요)" -ForegroundColor Yellow
+    }
     foreach ($t in Get-ChildItem -Path $templateDir -Directory) {
         $siteDir  = Join-Path $deployDir $t.Name
         $siteJson = Join-Path $siteDir 'appsettings.json'

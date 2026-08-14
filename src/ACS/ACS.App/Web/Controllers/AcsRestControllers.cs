@@ -80,11 +80,16 @@ namespace ACS.App.Web.Controllers
     {
         private readonly IResourceManagerEx _resourceManager;
         private readonly ITransferManagerEx _transferManager;
+        private readonly ISlotManagerEx _slotManager;
 
-        public VehiclesController(IResourceManagerEx resourceManager, ITransferManagerEx transferManager)
+        // ISlotManagerEx 는 Trans 프로세스(TransModule)에만 등록 — 미등록 프로세스에서도
+        // 컨트롤러 활성화가 깨지지 않도록 optional 주입 (없으면 슬롯 정리 생략).
+        public VehiclesController(IResourceManagerEx resourceManager, ITransferManagerEx transferManager,
+            ISlotManagerEx slotManager = null)
         {
             _resourceManager = resourceManager;
             _transferManager = transferManager;
+            _slotManager = slotManager;
         }
 
         [HttpGet]
@@ -137,8 +142,9 @@ namespace ACS.App.Web.Controllers
         }
 
         // POST /api/vehicles/{vehicleId}/reset — 차량 초기화:
-        //   Vehicle: ProcessingState=IDLE, TransferState=NOTASSIGNED, TransportCommandId=""
-        //   묶인 TransportCommand(NA_T_TRANSPORTCMD): State=QUEUED, VehicleId="" (재할당 대기)
+        //   Vehicle: ProcessingState=IDLE, TransferState=NOTASSIGNED, TransportCommandId="", 슬롯 전체 EMPTY
+        //   묶인 TransportCommand(NA_T_TRANSPORTCMD): 재할당 대기 복원
+        //     - 일반: State=QUEUED / EXCHANGE: State=EXCHANGE_QUEUED + STEP=10 + 슬롯 기록·ACT 초기화 (D5 격리 유지)
         [HttpPost("{vehicleId}/reset")]
         public ActionResult Reset(string vehicleId)
         {
@@ -153,18 +159,44 @@ namespace ACS.App.Web.Controllers
                 var cmd = _transferManager.GetTransportCommand(prevJobId);
                 if (cmd != null)
                 {
-                    cmd.State = TransportCommandEx.STATE_QUEUED;
-                    cmd.VehicleId = "";
+                    TransportCommandResetHelper.ResetToQueued(cmd, _slotManager);
                     _transferManager.UpdateTransportCommand(cmd);
                 }
             }
 
-            // 차량 상태 초기화
+            // 차량 상태 초기화 + 슬롯 동반 초기화
             _resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE);
             _resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
             _resourceManager.UpdateVehicleTransportCommandId(vehicle, "");
+            _slotManager?.ReleaseAllByVehicleId(vehicleId);
 
             return Ok(new { success = true });
+        }
+    }
+
+    /// <summary>
+    /// 운영 조작(reset)용 TC 재큐 헬퍼 — EXCHANGE TC 는 D5 상태 격리를 지키도록
+    /// RollbackExchangeAssignmentActivity 와 동일한 의미론으로 복원한다.
+    /// </summary>
+    internal static class TransportCommandResetHelper
+    {
+        public static void ResetToQueued(TransportCommandEx cmd, ISlotManagerEx slotManager)
+        {
+            if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(cmd.JobType, StringComparison.OrdinalIgnoreCase))
+            {
+                slotManager?.ReleaseAllByJobId(cmd.JobId);
+                cmd.State = TransportCommandEx.STATE_EXCHANGE_QUEUED;
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_STEP, "10");
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT, "");
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_UNLOADSLOT, "");
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_ACT, "");
+            }
+            else
+            {
+                cmd.State = TransportCommandEx.STATE_QUEUED;
+            }
+            cmd.VehicleId = "";
+            cmd.AssignedTime = null;
         }
     }
 
@@ -738,10 +770,13 @@ namespace ACS.App.Web.Controllers
     public class CommandsController : ControllerBase
     {
         private readonly ITransferManagerEx _transferManager;
+        private readonly ISlotManagerEx _slotManager;
 
-        public CommandsController(ITransferManagerEx transferManager)
+        // ISlotManagerEx 는 Trans 프로세스에만 등록 — optional 주입 (없으면 슬롯 정리 생략)
+        public CommandsController(ITransferManagerEx transferManager, ISlotManagerEx slotManager = null)
         {
             _transferManager = transferManager;
+            _slotManager = slotManager;
         }
 
         [HttpGet]
@@ -777,14 +812,17 @@ namespace ACS.App.Web.Controllers
         }
 
         // DELETE /api/commands/{jobId} — 반송 명령 1건 삭제 (NA_T_TRANSPORTCMD)
+        //   삭제 전 해당 jobId 의 슬롯 예약·점유를 해제한다 (EXCHANGE 잔류 방지 — 비EXCHANGE 엔 no-op)
         [HttpDelete("{jobId}")]
         public ActionResult Delete(string jobId)
         {
+            _slotManager?.ReleaseAllByJobId(jobId);
             _transferManager.DeleteTransportCommand(jobId);
             return Ok(new { success = true });
         }
 
-        // POST /api/commands/{jobId}/reset — 반송 명령 초기화: State=QUEUED, VehicleId 비우기
+        // POST /api/commands/{jobId}/reset — 반송 명령 초기화 (재할당 대기 복원):
+        //   일반: State=QUEUED / EXCHANGE: State=EXCHANGE_QUEUED + STEP=10 + 슬롯 기록·ACT 초기화
         [HttpPost("{jobId}/reset")]
         public ActionResult Reset(string jobId)
         {
@@ -792,8 +830,7 @@ namespace ACS.App.Web.Controllers
             if (cmd == null)
                 return NotFound(new { error = "TransportCommand not found: " + jobId });
 
-            cmd.State = TransportCommandEx.STATE_QUEUED;
-            cmd.VehicleId = "";
+            TransportCommandResetHelper.ResetToQueued(cmd, _slotManager);
             _transferManager.UpdateTransportCommand(cmd);
             return Ok(new { success = true });
         }

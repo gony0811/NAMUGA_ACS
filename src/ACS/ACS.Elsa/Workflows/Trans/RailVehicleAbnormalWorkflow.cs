@@ -207,9 +207,10 @@ namespace ACS.Elsa.Workflows.Trans
             resourceManager.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
             vehicle.AcsDestNodeId = "";
 
-            // 4) 상태 전이
+            // 4) 상태 전이 + 슬롯 동반 초기화 (EXCHANGE 잔류 점유 방지)
             resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
             resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
+            accessor.ResolveOptional<ACS.Core.Resource.ISlotManagerEx>()?.ReleaseAllByVehicleId(vehicle.VehicleId);
 
             logger.Info($"RailVehicleAbnormalActivity: OPERATOR_ABORT 처리 완료 vehicleId={vehicle.VehicleId}, " +
                         $"TransferState={VehicleEx.TRANSFERSTATE_NOTASSIGNED}, ProcessingState={VehicleEx.PROCESSINGSTATE_IDLE}");

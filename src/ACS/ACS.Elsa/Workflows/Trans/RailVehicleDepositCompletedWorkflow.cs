@@ -15,6 +15,7 @@ using ACS.Core.Resource;
 using ACS.Core.Resource.Model;
 using ACS.Core.Transfer;
 using ACS.Core.Transfer.Model;
+using ACS.Elsa.Activities;
 using ACS.Elsa.Bridge;
 
 namespace ACS.Elsa.Workflows.Trans
@@ -164,6 +165,15 @@ namespace ACS.Elsa.Workflows.Trans
                 {
                     ClearAlarmAndSetAlarmTimeHistory(resourceManager, alarmManager, historyManager, vehicle, effectiveVehicleId);
                     DeleteUIInform(resourceManager, effectiveVehicleId);
+                }
+
+                // EXCHANGE(v2) S5: Step8 가드가 EXCHANGE_ASSIGNED 를 거부하기 전에 가로챔 —
+                // COMPLETE(60, DONE) EXCHANGE-JOBREPORT + TC/슬롯/차량 정리 (D4 분기)
+                if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    ExchangeTransHandlers.OnDepositCompleted(tc, vehicle, transferManager, resourceManager,
+                        accessor.Resolve<ACS.Core.Resource.ISlotManagerEx>(), historyManager, messageManager);
+                    return;
                 }
 
                 // Step 8 (보정 + 검증)

@@ -1156,7 +1156,158 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 **핵심 발견:**
 - **PG17 덤프 → PG16 복원 실패 함정**: pg_dump 17 이 넣는 `SET transaction_timeout = 0;` 은 PG16 에 없는 GUC → `ON_ERROR_STOP` 으로 전체 롤백. 해당 라인만 제거한 사본으로 복원하면 성공. `\restrict` 지시자는 psql 16.14 가 지원(16.10+ 백패치)하므로 문제 없음.
 - **이 PC 의 로컬 Postgres 는 `dev-postgres`** (repo docker-compose 의 `acs-postgres-db` 아님), postgres 비번 `postgres`(compose 기본 `1234` 아님) → 스크립트에 `-Container dev-postgres -Password postgres` 오버라이드 필요.
-- 복원 후 CS01_P 재기동 시 앱 DB-init 이 NA_H_*/NA_L_*(12개)·NA_R_VEHICLE_SLOT 을 자동 재생성 — 덤프에 없어도 정상.
+- ~~복원 후 CS01_P 재기동 시 앱 DB-init 이 NA_H_*/NA_L_* 를 자동 재생성~~ **← 오판이었음 (섹션 45 참고)**: 앱이 자동 재생성하는 건 **NA_L_ 로그 테이블+파티션(AwakeLogPartitionMaintenanceJob)과 NA_R_VEHICLE_SLOT 뿐**. NA_H_ 이력 테이블 10개는 아무도 만들지 않아(EF EnsureCreated 는 테이블이 하나라도 있으면 no-op) TS 가 42P01 로 실패함. **덤프 복원 후에는 NA_H_% 10개 존재 여부를 반드시 확인할 것.**
 - **Claude Code 셸에서 `Start-Process` 로 띄운 CS01_P 는 툴 세션 정리 시 함께 종료됨** (기동 후 ~30초 뒤 예외 없이 사망). `Invoke-CimMethod Win32_Process Create` 로 띄우면 독립 프로세스로 생존.
 
 **검증:** 마스터 데이터 적재 확인(NA_R_NODE 15 / NA_R_LINK 19 / NA_R_STATION 14 / NA_R_VEHICLE 1 / NA_X_OPTION 49 / NA_X_USER 1), CS01_P(WMI 기동) 생존 + `GET /api/vehicles` 200 에 덤프 차량(AMR001) 반환.
+
+---
+
+## 44. ACS.AMR.Simulator 에 MQTT 가상 차량 탭 추가 — job 할당/보고 E2E 테스트 도구
+
+**날짜:** 2026-08-12
+
+**작업:** vehicle job 할당·보고 시나리오를 E2E 로 검증할 수단이 없어(기존 AMR.Simulator 는 DB 직접 주입 방식 — EI 경유 MQTT 경로 미검증), 기존 시뮬레이터에 "MQTT 가상 차량" 탭을 추가. 실제 차량처럼 `{prefix}{commId}/command` 구독 → 이동 모사(pose 직선 보간) → `status`(1Hz)/`reply`(ACCEPTED/EXECUTING/COMPLETED/FAILED) 발행. TS+EI+브로커+DB 전체 스택을 실제로 태우는 E2E 가능.
+
+**신규 파일:**
+- `ACS.AMR.Simulator/Mqtt/VirtualAmr.cs` — 차량 1대 상태머신(Idle→Accepted→Moving→Arrived→Working→Idle) + pose 보간. MQTT/UI 비의존(이벤트 위임), 단일 lock. 실패 주입(Reject/Fail + resultCode) 지원.
+- `ACS.AMR.Simulator/Mqtt/VirtualAmrManager.cs` — 공유 IMqttClient 1개, command 구독→디스패치, 100ms 이동 틱 + 1Hz status 발행, reply 발행. 노드 좌표 캐시는 VM 이 NA_R_NODE 에서 로드해 주입.
+- `ACS.AMR.Simulator/ViewModels/MqttSimViewModel.cs` / `VirtualAmrRowViewModel.cs` — 브로커 설정(NA_C_MQTT 로드+수동), CommType=MQTT 차량 로드, 시작/정지, 자동/수동 모드(도착·완료·실패 버튼).
+
+**수정:** csproj 에 ACS.Communication 참조(메시지 모델 재사용, MQTTnet 은 전이 참조로 단일 버전), MainWindow.axaml 을 TabControl 화(탭1 "DB 주입"=기존 UI 그대로, 탭2 "MQTT 가상 차량", 하단 로그 공용), MainWindowViewModel 에 MqttSim 노출, appsettings.json 에 Simulator 기본값(속도 1m/s·작업 3s·배터리 80%).
+
+**프로덕션 계약 (EI 측 함정 — 위반 시 미동작/NRE):**
+- `AmrStatusMessage` 는 `[JsonPropertyName]` 없음 → 발행 시 **CamelCase 정책 필수**.
+- `battery.chargingState` **null 금지** ("Charging"/"Discharging") — `ParseAmrStatusActivity` 가 `.ToUpper()` 호출.
+- `runState`/`fullState` 는 대소문자 정확히 `"Run"/"Stop"`, `"Full"/"Empty"` (EI switch 정확 매칭).
+- 1Hz status 수신 자체가 EI heartbeat 판정(30s 타임아웃) → 별도 heartbeat 토픽 불필요, ConnectionState=CONNECT 자동.
+- 도착 시 pose 를 목표 노드 좌표로 스냅 → NearestNodeFinder 임계(2m) 보장. 링크 경로 추종은 불필요(도착 판정은 TS 의 currentNode==AcsDestNodeId).
+
+**검증:** `dotnet build ACS.AMR.Simulator.csproj` 오류 0 (NU1603 경고는 기존). **런타임 E2E 미실시** — 절차: 브로커/TS/EI/Host.Test 기동 → 시뮬레이터 연결·차량 시작 → Host.Test 에서 MOVECMD → moveCmd(UNLOAD) 수신·source 도착·JOBREPORT(START/ARRIVED) → COMPLETED(UNLOAD)→TC=TRANSFERRING_DEST→moveCmd(LOAD) → COMPLETED(LOAD)→TC COMPLETED+JOBREPORT(COMPLETE)+Vehicle IDLE. 수동 모드/REJECTED·FAILED 주입 시 TS 실패 처리도 확인 필요.
+
+---
+
+## 45. TS 42P01 해결 — NA_H_* 이력 테이블 10개 수동 복구
+
+**날짜:** 2026-08-12
+
+**증상:** TS01_P 에서 `42P01: relation "NA_H_VEHICLEHISTORY" does not exist` — EXCHANGE 배차(AssignExchangeVehicleActivity)가 CreateVehicleHistory 에서 실패, RollbackExchangeAssignmentActivity 도 동일 사유로 실패 (슬롯은 cleanup 으로 정상 해제됨).
+
+**원인:** 섹션 43 복원 시 덤프에 NA_H_*/NA_L_* 가 제외 + DROP SCHEMA CASCADE 로 소실. 재기동 후 자동 재생성된 것은 NA_L_ 로그(파티션 포함 12개)와 NA_R_VEHICLE_SLOT 뿐 — **NA_H_ 10개는 자동 재생성 경로가 없음** (EF EnsureCreated 는 기존 테이블이 있으면 no-op, 로그 파티션은 AwakeLogPartitionMaintenanceJob 담당).
+
+**조치:** `docker/init/01_init_acsdb.sql` 의 NA_H_* CREATE TABLE(204~408행) + PK(1561~1634행)만 추출해 단일 트랜잭션으로 적용 (DEMO 데이터 제외). 적용 전 `NA_H_VEHICLEHISTORY` 컬럼을 AcsDbContext EF 매핑(580~603행)과 대조해 일치 확인. 결과: NA_H_% 10개 생성, 컬럼 21개 일치, psql exit=0.
+
+**앱 재시작 불필요:** EF 는 테이블 존재를 캐시하지 않으므로 다음 SaveChanges 부터 정상. EXCHANGE 배차는 AwakeExchangeTransportJob(10초 주기)이 EXCHANGE_QUEUED 를 자동 재시도.
+
+**교훈:** 부분 덤프(`dump-from-prod` 계열, NA_H_/NA_L_ 제외)를 `restore-prod-dump.ps1` 로 복원하면 이력 테이블이 사라진다. 복원 후 체크리스트에 "NA_H_% = 10개" 확인 추가할 것. 근본 대책 후보: restore-prod-dump.ps1 말미에 NA_H_* DDL 보정 단계 추가 (미실시).
+
+---
+
+## 46. EXCHANGE S5 — 설비 교체·반납·최종 COMPLETE (ARRIVED/Step 보고 완성)
+
+**날짜:** 2026-08-12
+
+**작업:** S4까지는 배차+START(Step=10)뿐이라 EXCHANGE TC가 일반 UNLOAD/LOAD 경로로 흘러 **첫 하역에 legacy COMPLETE 조기 발행**(E2E 로그로 확인, ARRIVED·중간 Step 보고 전무). S5로 전체 여정 완성: `10 PICKUP_NEW → 20 MOVE_TO_EQUIP → 30 UNLOAD_OLD → 40 LOAD_NEW → 50 RETURN_OLD → 60 DONE → COMPLETE`.
+
+**설계 결정:**
+- **신규 TC State 없음** — 여정 내내 `EXCHANGE_ASSIGNED` 유지(D5), 단계는 `ExchangeInfo.STEP` 단독 추적, 종결만 공용 `COMPLETED`. ARRIVED 는 STEP 을 전진시키지 않음(단발 reply 이벤트만 전진).
+- 30/40 은 AMR 이 설비에서 단일 EXCHANGE 작업으로 수행 → 교체 완료 reply 시점에 STEP_COMPLETE 2건(30→40) 연속 발행.
+- D4 유지: 공용 워크플로우 3곳에 JobType==EXCHANGE 3줄 분기만, 본체는 `ExchangeTransHandlers` 에 격리.
+
+**신규 파일:**
+- `ACS.Core/Transfer/ExchangeSteps.cs` — STEP 상수/StepName/GetStep/BuildMidLocationId(MidLoc+":"+MidPortId)/ResolveArrivedStep(STEP×현재노드→ARRIVED step)/CarrierSlotFor 순수 로직.
+- `ACS.Elsa/Activities/ExchangeTransHandlers.cs` — OnDestArrived(ARRIVED 10/20/50)·OnAcquireCompleted(STEP 10→20, loadSlot Occupy(NEW), mid행 EXCHANGE 명령, STEP_COMPLETE 10)·OnExchangeCompleted(STEP→50, loadSlot Release+unloadSlot Occupy(OLD), dest행 LOAD, STEP_COMPLETE 30·40)·OnDepositCompleted(STEP→60, TC COMPLETED, **EXCHANGE-JOBREPORT COMPLETE(60,DONE)**, ReleaseAllByJobId, 히스토리+삭제, 차량 초기화). 순서 규율: DB 전이→전송→보고.
+- `ACS.Elsa/Workflows/Trans/RailVehicleExchangeCompletedWorkflow.cs` — 신규 WF (DefinitionId=RAIL-VEHICLEEXCHANGECOMPLETED, Acquire 미러).
+- `ACS.Communication/Mqtt/Model/RailVehicleExchangeCompletedMessage.cs` — Acquire 메시지 미러.
+- `ACS.Core.Tests/Exchange/ExchangeStepsTests.cs` — 42건.
+
+**수정 파일 (최소 분기):**
+- DestArrived/Acquire/Deposit 3개 WF — CHARGEMOVE 가드 뒤 / Step10 뒤 / **Step8 상태가드 앞** 에 EXCHANGE 분기 (Deposit 은 가드가 EXCHANGE_ASSIGNED 를 거부하므로 반드시 가드 앞).
+- `MqttActivities.cs` HandleAmrReply — ① jobType=EXCHANGE reply → RAIL-VEHICLEEXCHANGECOMPLETED 라우팅 ② jobType 빈 reply(실 AMR 스펙) fallback 에 EXCHANGE TC 분기: STEP 10→UNLOAD, 20~40→EXCHANGE, 50→LOAD. HandleCarrierTransfer — amrSlot 파싱→SendDestination 전달.
+- `ScheduleActivities.cs` CarrierTransferJsonBuilder — `Build(..., string targetLocationId, int amrSlot, ...)` 오버로드 신설, 기존 bool useSource 버전은 위임화(출력 불변). `RailCarrierTransferMessage` 에 amrSlot(default 1) 추가.
+- elsa-migration.json ×6 (source + deploy 5부) — RAIL-VEHICLEEXCHANGECOMPLETED 추가.
+
+**검증:** ACS.Elsa/ACS.App 빌드 0 오류, `dotnet test ACS.Core.Tests` **106건 전체 통과**(기존 64 + 신규 42). ACS.sln 전체 빌드는 실행 중인 ACS.AMR.Simulator.exe 의 bin 잠금으로 복사 단계만 실패(컴파일 오류 아님).
+
+**미실시 (다음 배포 테스트):**
+- **런타임 E2E**: deploy 5부에 신규 DLL 재배포 필요(DS/TS/HS/ES 공유 어셈블리 — migration json 만 갱신됨, DLL 은 구버전). 마스터 데이터에 origin/mid/dest 가 **서로 다른 StationId** 인 Location 3건(mid 는 Type=EQP, MidLoc:MidPortId 형식, 공용 Bay 성립) 필요 — 현재 테스트 데이터는 전부 N1011.
+- 실패 경로(FAILED/REJECTED reply → TC 가 해당 STEP 에 정지, 운영자 개입)와 CANCEL 은 후속 슬라이스.
+
+---
+
+## 47. appsettings 레이어드 통합 — 공통 1부 + 사이트별 슬림 파일
+
+**날짜:** 2026-08-12
+
+**배경:** DB 비번 등 공통 설정 변경 시 5개 프로세스 폴더의 appsettings.json(각 24KB)을 전부 수정해야 했음. 정밀 비교 결과 **331개 키 중 326개가 전 사이트 동일**, 차이는 5키뿐(Process:Name/Type, Api:ListenPort, Amr 임계값[CS·HS 없음], Serilog 로그 경로). 부피 대부분은 동일한 Message(~15KB)·Destination(~2KB).
+
+**구조:** 배포 루트 `deploy/appsettings.common.json` **1부**(공통) + 사이트 폴더의 슬림 appsettings.json(정체성 키만, ~450B)이 override.
+- 로더: `Executor.LoadConfiguration()`/`Program.cs` — `{basePath}\..\appsettings.common.json`(optional, **절대경로로 AddJsonFile** — SetBasePath 의 PhysicalFileProvider 는 상위 탐색 제한) → `appsettings.json`(required) 순. **common 부재 시 기존 단일 파일 방식과 100% 동일(하위호환)** — 구버전 full 설정 배포본도 그대로 동작.
+- Serilog 는 사이트 파일에 유지 (배열 인덱스 병합 취약성 회피, 130자 수준이라 중복 무해).
+- `publish-deploy.ps1` 에 common 시딩 추가(없을 때만), `config-templates/README.md` 레이어 구조로 갱신.
+
+**검증:** 5개 사이트 모두 flatten(common)+flatten(슬림) 병합 == git 원본 템플릿과 **키 단위 완전 일치**(330~331키). ACS.App 빌드 0 오류. 공통 템플릿은 ConvertTo-Json 재직렬화(54KB 부풀음) 대신 **원본 텍스트 수술**로 생성해 사람 편집용 포맷 유지(24KB).
+
+**이행 완료:** `D:\ACS\deploy`(runtime, Password=postgres 유지)와 repo `src/ACS/deploy`(Password=1234 유지) 모두 common 생성 + 사이트 5부 슬림 교체(원본은 `.bak`).
+
+**⚠ 주의:**
+- **구버전 바이너리는 common 을 못 읽음** → 슬림화된 런타임에서 프로세스 재시작 전에 반드시 `redeploy.bat` 로 신규 DLL 배포 필요 (안 하면 ConnectionStrings 없음으로 기동 실패 — 그 경우 `.bak` 복원).
+- repo deploy 의 `.bak` 은 publish-deploy 의 robocopy /MIR 대상이라 다음 배포 때 삭제될 수 있음(백업 필요 시 밖으로).
+- 이후 공통 변경 절차: `D:\ACS\deploy\appsettings.common.json` 1부 수정 → 프로세스 재시작 (+영구 변경이면 config-templates 템플릿도 커밋).
+
+---
+
+## 48. EXCHANGE S6 — 설비 액션 2건 시퀀스(ACTIONCMD UNLOAD→LOAD) 정합화
+
+**날짜:** 2026-08-15
+
+**배경 (8/14 E2E 고착 사고):** EXCHANGE E2E 첫 실주행에서 차량이 설비(N2002) 앞에 영구 정지. TS/ES/HS 로그 추적 결과:
+1. 15:43:00.95 — 첫 설비 액션(MES ACTIONCMD Type=UNLOAD 유래)의 `COMPLETED(jobType=EXCHANGE)` reply 를 `OnExchangeCompleted` 가 **교체 전체 완료로 간주** → STEP 20→50 + 반납행 moveCmd 전송(조기 출발).
+2. 15:43:01.53 — MES 가 시퀀스의 두 번째 **ACTIONCMD(Type=LOAD)** 송신 → TS 가 게이트 없이 중계 → **이동 시작한 차량의 반납행 명령을 덮어씀**(AMR 은 신규 명령 수신 시 기존 명령 폐기) → 두 번째 완료 reply 는 "예상외 STEP=50" 로 무시 → 고착. EXCHANGE TC 는 `RecoverStuckVehiclesActivity` 매칭(state=TRANSFERRING_DEST) 대상이 아니라 자동 복구도 없음.
+
+**사양 확정:** `docs/나무가ACS_MESACS_매거진 교체 시나리오 사양서_v2.xlsx` Scenario 시트 —
+ACTIONCMD(UNLOAD)는 **Step=20 에서만 수용**→STEP_COMPLETE(30, CarrierSlot=회수슬롯), ACTIONCMD(LOAD)는 **Step=30 에서만 수용**→STEP_COMPLETE(40, CarrierSlot=투입슬롯), 반납 완료 시 STEP_COMPLETE(50)→COMPLETE(60). "UNLOAD 와 LOAD 는 반드시 설비의 후속 요청을 받은 뒤 실행." **§46 의 "30/40 은 단일 EXCHANGE 작업" 결정은 사양 위반으로 폐기.**
+
+**설계:**
+- `ExchangeInfo.KEY_ACT`(값 UNLOAD|LOAD|빈값) 신설 — "진행 중 설비 액션" 추적. STEP 만으로 완료 reply 를 해석하면 mid행 moveCmd(EXCHANGE) 자체의 도킹 완료 reply(ACTIONCMD 도착 전 발생 가능)를 액션 완료로 오인하므로 명시 키가 필요. **ACT 빈값에 도착한 EXCHANGE COMPLETED reply 는 무시**(이동/도킹 완료로 간주).
+- ACTIONCMD 중계 시점(`RouteActionCmdToVehicleActivity`)에 사양 게이트: UNLOAD↔STEP20, LOAD↔STEP30. 불일치 시 경고+중계 생략(차량 보호). 통과 시 ACT 기록 + `AmrSlot`(UNLOAD→UNLOADSLOT(3), LOAD→LOADSLOT(1))을 RAIL-ACTIONCMD 에 실어 EI 가 actionCmd 에 반영.
+- `OnExchangeCompleted` 분기: ACT=UNLOAD(STEP20) → STEP=30 + unloadSlot Occupy(OLD) + STEP_COMPLETE(30), **설비 앞 대기 유지**. ACT=LOAD(STEP30) → STEP=50 + loadSlot Release + dest행 moveCmd(LOAD, amrSlot=unloadSlot) + STEP_COMPLETE(40). 각 분기에서 ACT 클리어.
+- `OnDepositCompleted` 에 STEP_COMPLETE(50) 보고 추가(COMPLETE(60) 직전, 사양 row 12).
+
+**수정 파일:** `ACS.Core/Transfer/ExchangeInfo.cs`(KEY_ACT/ACT_UNLOAD/ACT_LOAD, BuildInitial 에 ACT= 슬롯), `ACS.Communication/Mqtt/Model/RailActionCmdMessage.cs`(AmrSlot), `ACS.Communication/Mqtt/MqttInterfaceManager.cs`(SendAction amrSlot 파라미터), `ACS.Elsa/Activities/TransActionCmdActivities.cs`(GateExchangeActionCmd), `ACS.Elsa/Activities/MqttActivities.cs`(HandleActionCmd amrSlot 파싱/전달), `ACS.Elsa/Activities/ExchangeTransHandlers.cs`(OnExchangeCompleted 재작성 + OnDepositCompleted 보고), `ACS.Core.Tests/Exchange/ExchangeInfoTests.cs`(ACT 라운드트립/레거시 호환 +2건).
+
+**검증:** ACS.sln 빌드 0 오류, `dotnet test ACS.Core.Tests` **108건 전체 통과**. 고착 TC 삭제 + 차량 001/슬롯 초기화(SQL), publish-deploy.ps1 로 repo deploy 5부 + `D:\ACS\deploy` 5부 미러 배포, 서버 5부(CS→DS→TS→ES→HS) 재기동 확인. **E2E 재실행은 미실시** — Validator 로 시나리오 재주행하여 §48 기대 시퀀스(ARRIVED(20)→ACTIONCMD(UNLOAD)→SC(30)→ACTIONCMD(LOAD)→SC(40)→반납 이동→SC(50)→COMPLETE(60)) 확인 필요.
+
+**8/15 02:01 재시험 결과 (부분 성공 — 신규 로직 검증됨):**
+- 픽업(N2002→N1011 실이동, ARRIVED(10) 발화)→STEP 10→20→설비 도착 ARRIVED(20)까지 정상. 02:02:00 도킹 완료 reply 를 **"ACT 빈값 → 무시"** 로 정확히 차단 — 어제 조기 출발 원인이 재현 조건에서 제거됨을 확인. STEP=20 에서 ACTIONCMD(UNLOAD) 대기 상태로 설계대로 정지.
+- **시나리오 미완주 원인은 Validator**: ACS→MES 리스너(3333)가 8/14 세션 이후 수신 처리 정지(TCP LISTENING 이나 앱 미수신 — 보고 5건 전부 Validator 로그에 RECV 없음). Validator 재시작 후 재실행 필요.
+- **사양 외 보고 정리(후속 커밋)**: Validator 가 SC(10)에 `VALIDATION_FAIL "Unknown EXCHANGE Step=10"` 기록 → OnAcquireCompleted 의 STEP_COMPLETE(10) 제거, OnDestArrived 는 ARRIVED(20)만 발행(10/50 도착은 로그만). SC(50)은 Validator 가 optional 로 허용 확인.
+
+**참고 (조사 중 확정된 사실 — §46 기술 정정):**
+- 테스트 Location 데이터는 이미 정비됨: mid(192.168.32.36:LEFT)=N2002(EQP), origin(TEST_LOAD_RACK_01)=dest(TEST_UNLOAD_RACK_01)=N1011. §46 의 "전부 N1011" 은 낡은 기술.
+- RAIL-VEHICLEDESTARRIVED dispatch 는 **엣지 트리거**(RailVehicleUpdateWorkflow: NodeChanged 또는 RunState 비RUN 전이) — 제자리 명령(차량이 이미 목적 노드)에서는 발화 안 됨. 시뮬레이터는 0.1m 이내면 Moving 상태를 status 에 노출하지 않고 동기 도착 처리라 엣지 없음. 단 사양상 ARRIVED 보고는 **Step=20 한 건만 정의**되어 있어(10/50 은 초과 구현) 실해 없음 — STEP 전이는 전부 reply 구동.
+
+---
+
+## 49. EXCHANGE E2E 완주 성공 + 운영 조작(reset/delete)의 EXCHANGE 인지화
+
+**날짜:** 2026-08-15
+
+**E2E 최종 결과 (02:40, 잡 `..._022117419_0001`): 완주 성공.**
+START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → ACTIONCMD(LOAD, ACT=LOAD·slot1) → SC(40) → 반납 이동 → SC(50) → COMPLETE(60). Validator 판정 **"EXCHANGE test completed successfully"**, FAIL 0건. TC 히스토리 이관(COMPLETED)·슬롯 4개 전체 해제·차량 IDLE 복귀 확인. (WARN 2건 "Late/duplicate RECEIVE"는 HS 의 ACTIONCMD 접수 즉시응답(JOBREPORT RECEIVE) — Validator 가 관용 처리, 실해 없음.)
+
+**완주 전 마지막 배차 불가 사고 (02:16~02:23) — 원인 체인:**
+1. 죽은 Validator 가 보낸 잡 0003 이 STEP=20 대기 중, 운영 조작(REST reset 추정)으로 TC 가 **일반 `QUEUED` 로 격하** → 일반 스케줄러가 EXCHANGE TC 를 일반 반송으로 재배차 (D5 격리가 REST 경로로 파괴)
+2. TC 는 이후 히스토리 없이 삭제(REST DELETE 추정) — EXCHANGE 슬롯 정리 없이 소멸 → **슬롯1 OCCUPIED(NEW) 잔류 + 차량 FullState=FULL**
+3. 신규 잡 0001 배차 시 후보 조회(`FullState=EMPTY` 조건)에서 무로그 탈락 — `SearchSuitableVehicle` null 경로와 슬롯 검사 모두 로그 부재로 원인 파악 지연
+
+**수정 (커밋 대상):**
+- `ISlotManagerEx.ReleaseAllByVehicleId()` 신설(`SlotManagerImplement` 구현) — 차량 초기화 시 슬롯 동반 EMPTY.
+- 호출 지점: REST `POST /api/vehicles/{id}/reset`, `RollbackVehicleAssignmentActivity`, `RollbackExchangeAssignmentActivity`(보강), `RailVehicleAbnormalWorkflow`(OPERATOR_ABORT).
+- REST 운영 API EXCHANGE 인지화(`AcsRestControllers.cs`): reset 2종은 `TransportCommandResetHelper.ResetToQueued` — EXCHANGE 면 `EXCHANGE_QUEUED`+STEP=10+LOADSLOT/UNLOADSLOT/ACT 초기화+`ReleaseAllByJobId`, DELETE 는 삭제 전 `ReleaseAllByJobId`. `ISlotManagerEx` 는 optional 주입(Trans 외 프로세스 호환).
+- 일반 스케줄러 이중 방어(`TransferManagerExImplement.FilterUnassignedTransportCommands(excludeExchange)`): 일반 QUEUED 조회 2곳에서 JobType=EXCHANGE 제외 + 경고 로그 (상태 오염돼도 일반 배차 불가).
+- `FindSuitableExchangeVehicleActivity` 배차 탈락 사유 로그: 후보 없음(FullState 등 조회 조건 명시)/상태 부적격/기할당/슬롯 부적격(어느 슬롯·잡인지).
+
+**검증:** 빌드 0 오류, 테스트 108건 통과, 5부+시뮬레이터 재배포·재기동 후 위 E2E 완주로 실증.
+
+**남은 항목:** 실패 경로(FAILED/REJECTED)·JOBCANCEL 은 후속 슬라이스 (사양서 "취소·오류" 시트 참조).

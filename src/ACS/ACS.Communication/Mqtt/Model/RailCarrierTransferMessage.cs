@@ -76,5 +76,9 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>결과 코드 (초기 전송 시 빈 문자열)</summary>
         [JsonPropertyName("resultCode")]
         public string ResultCode { get; set; }
+
+        /// <summary>AMR 슬롯 번호 (1~4). EXCHANGE(v2)에서 투입/회수 슬롯 지정용, 기본 1 (기존 발신자 영향 없음).</summary>
+        [JsonPropertyName("amrSlot")]
+        public int AmrSlot { get; set; } = 1;
     }
 }

@@ -426,9 +426,20 @@ namespace ACS.Elsa.Activities
         public static string Build(TransportCommandEx tc, string vehicleId, string jobType,
             bool useSource, IResourceManagerEx resourceManager, Logger logger)
         {
+            // 기존 시그니처 유지 — tc.Source/tc.Dest 2택, amrSlot 기본 1 (출력 불변)
+            return Build(tc, vehicleId, jobType, useSource ? tc.Source : tc.Dest, 1, resourceManager, logger);
+        }
+
+        /// <summary>
+        /// EXCHANGE(v2) S5: 임의 목적지(LocationId)와 amrSlot 을 지정하는 확장 빌드.
+        /// mid(설비, MidLoc:MidPortId) 등 tc.Source/Dest 이외의 waypoint 전송에 사용.
+        /// </summary>
+        public static string Build(TransportCommandEx tc, string vehicleId, string jobType,
+            string targetLocationId, int amrSlot, IResourceManagerEx resourceManager, Logger logger)
+        {
             try
             {
-                string src = useSource ? tc.Source : tc.Dest;
+                string src = targetLocationId;
 
                 // portId (machine:unit) 파싱
                 string portId = "";
@@ -488,7 +499,8 @@ namespace ACS.Elsa.Activities
                         JobType = string.IsNullOrEmpty(jobType) ? (tc.JobType ?? "") : jobType,
                         PortType = portType,
                         Model = tc.GetModel() ?? "",
-                        ResultCode = ""
+                        ResultCode = "",
+                        AmrSlot = amrSlot
                     }
                 };
 
@@ -681,10 +693,11 @@ namespace ACS.Elsa.Activities
                 freshTc.AssignedTime = null;
                 transferManager.UpdateTransportCommand(freshTc);
 
-                // Vehicle 롤백: NOTASSIGNED + IDLE 상태로 복원
+                // Vehicle 롤백: NOTASSIGNED + IDLE 상태로 복원 + 슬롯 동반 초기화
                 resourceManager.UpdateVehicleTransferState(freshVehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
                 resourceManager.UpdateVehicleProcessingState(freshVehicle, VehicleEx.PROCESSINGSTATE_IDLE);
                 resourceManager.UpdateVehicleTransportCommandId(freshVehicle, "");
+                accessor.ResolveOptional<ISlotManagerEx>()?.ReleaseAllByVehicleId(freshVehicle.VehicleId);
 
                 logger.Info($"RollbackVehicleAssignmentActivity: 롤백 완료 - TC {freshTc.JobId} → QUEUED, Vehicle {freshVehicle.VehicleId} → NOTASSIGNED/IDLE");
             }

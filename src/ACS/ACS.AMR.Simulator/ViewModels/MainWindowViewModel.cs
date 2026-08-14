@@ -37,12 +37,17 @@ public partial class MainWindowViewModel : ObservableObject
     // ── DB ──
     private readonly IConfiguration _configuration;
 
+    // ── MQTT 가상 차량 탭 ──
+    public MqttSimViewModel MqttSim { get; }
+
     public MainWindowViewModel()
     {
         var builder = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true);
         _configuration = builder.Build();
+
+        MqttSim = new MqttSimViewModel(_configuration, CreateDbContext, AppendLog);
 
         // DB 스키마 확인 및 마이그레이션
         try

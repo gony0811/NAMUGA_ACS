@@ -64,5 +64,9 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>모델명 (MOVECMD.MODEL 값). TC.Description 에서 추출. 비어있을 수 있음.</summary>
         [JsonPropertyName("model")]
         public string Model { get; set; }
+
+        /// <summary>액션 대상 AMR 슬롯 번호. EXCHANGE: UNLOAD 액션=회수 슬롯(3|4), LOAD 액션=투입 슬롯(1|2). 미지정 시 1.</summary>
+        [JsonPropertyName("amrSlot")]
+        public int AmrSlot { get; set; } = 1;
     }
 }

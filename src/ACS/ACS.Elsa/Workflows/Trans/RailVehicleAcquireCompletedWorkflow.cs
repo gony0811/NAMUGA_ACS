@@ -173,6 +173,14 @@ namespace ACS.Elsa.Workflows.Trans
                 // Step 10
                 ChangeVehicleTransferStateToAcquireComplete(resourceManager, vehicle);
 
+                // EXCHANGE(v2) S5: 조기 dest행(Step11~13) 차단 — STEP=20 전이 + mid행 EXCHANGE 명령 (D4 분기)
+                if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    ExchangeTransHandlers.OnAcquireCompleted(tc, vehicle, transferManager, resourceManager,
+                        accessor.Resolve<ACS.Core.Resource.ISlotManagerEx>(), messageManager);
+                    return;
+                }
+
                 // Step 11
                 ChangeTransportCommandStateToTransferingDest(transferManager, tc);
 

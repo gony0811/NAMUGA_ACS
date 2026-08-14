@@ -119,6 +119,23 @@ namespace ACS.Manager.Resource
             }
         }
 
+        public void ReleaseAllByVehicleId(string vehicleId)
+        {
+            if (string.IsNullOrEmpty(vehicleId)) return;
+            foreach (var slot in GetSlots(vehicleId))
+            {
+                if (VehicleSlotEx.STATE_EMPTY.Equals(slot.State, StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(slot.JobId) && string.IsNullOrEmpty(slot.Phase))
+                    continue;
+                slot.State = VehicleSlotEx.STATE_EMPTY;
+                slot.JobId = null;
+                slot.Phase = null;
+                slot.UpdatedTime = DateTime.UtcNow;
+                this.PersistentDao.Update(slot);
+                logger.Info($"SlotManager: released by vehicle cleanup vehicle={vehicleId}, slotNo={slot.SlotNo}");
+            }
+        }
+
         private void UpdateSlot(IList<VehicleSlotEx> slots, int slotNo, Action<VehicleSlotEx> mutate)
         {
             foreach (var s in slots)

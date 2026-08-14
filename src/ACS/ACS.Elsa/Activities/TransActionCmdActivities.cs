@@ -125,6 +125,18 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
+                // EXCHANGE TC: 사양서 게이트 — ACTIONCMD(UNLOAD)는 STEP=20, ACTIONCMD(LOAD)는 STEP=30
+                // 상태에서만 수용한다. 통과 시 진행 중 액션(ACT)과 대상 슬롯을 확정한다.
+                int amrSlot = 1;
+                if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!GateExchangeActionCmd(tc, msg.Data.ActionType, transferManager, out amrSlot))
+                    {
+                        context.Set(Result, false);
+                        return;
+                    }
+                }
+
                 string targetLoc = msg.Data.TargetLoc ?? "";
                 string targetPort = msg.Data.TargetPort ?? "";
                 string portId = string.IsNullOrEmpty(targetLoc) ? "" : targetLoc + ":" + targetPort;
@@ -167,7 +179,8 @@ namespace ACS.Elsa.Activities
                         JobType = tc.JobType ?? msg.Data.ActionType ?? "",
                         PortType = portType,
                         // ACTIONCMD 가 명시한 MODEL 을 우선 사용. 비어있을 때만 TC.Description 의 MODEL 로 폴백.
-                        Model = !string.IsNullOrEmpty(msg.Data.Model) ? msg.Data.Model : (tc.GetModel() ?? "")
+                        Model = !string.IsNullOrEmpty(msg.Data.Model) ? msg.Data.Model : (tc.GetModel() ?? ""),
+                        AmrSlot = amrSlot
                     }
                 };
 
@@ -182,6 +195,59 @@ namespace ACS.Elsa.Activities
                 logger.Error($"RouteActionCmdToVehicleActivity: {ex.Message}", ex);
                 context.Set(Result, false);
             }
+        }
+
+        /// <summary>
+        /// EXCHANGE TC 의 ACTIONCMD 수용 게이트 (시나리오 사양서 Scenario 시트):
+        ///  - UNLOAD: STEP=20 에서만 수용 → ACT=UNLOAD 기록, 슬롯=UNLOADSLOT(회수)
+        ///  - LOAD:   STEP=30 에서만 수용 → ACT=LOAD 기록, 슬롯=LOADSLOT(투입)
+        /// 불일치 시 차량으로 중계하지 않는다 (false 반환).
+        /// </summary>
+        private static bool GateExchangeActionCmd(TransportCommandEx tc, string actionType,
+            ITransferManagerEx transferManager, out int amrSlot)
+        {
+            amrSlot = 1;
+            int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
+
+            string act;
+            int expectedStep;
+            string slotKey;
+            if (ExchangeInfo.ACT_UNLOAD.Equals(actionType, StringComparison.OrdinalIgnoreCase))
+            {
+                act = ExchangeInfo.ACT_UNLOAD;
+                expectedStep = ExchangeSteps.STEP_MOVE_TO_EQUIP;
+                slotKey = ExchangeInfo.KEY_UNLOADSLOT;
+            }
+            else if (ExchangeInfo.ACT_LOAD.Equals(actionType, StringComparison.OrdinalIgnoreCase))
+            {
+                act = ExchangeInfo.ACT_LOAD;
+                expectedStep = ExchangeSteps.STEP_UNLOAD_OLD;
+                slotKey = ExchangeInfo.KEY_LOADSLOT;
+            }
+            else
+            {
+                logger.Warn($"RouteActionCmdToVehicleActivity: [EXCHANGE] 알 수 없는 ActionType={actionType} — 중계 생략. tc={tc.JobId}");
+                return false;
+            }
+
+            if (step != expectedStep)
+            {
+                logger.Warn($"RouteActionCmdToVehicleActivity: [EXCHANGE] ACTIONCMD({act}) 수용 불가 — " +
+                            $"STEP={step} (기대 {expectedStep}). 중계 생략. tc={tc.JobId}");
+                return false;
+            }
+
+            string slot = ExchangeInfo.Get(tc.AdditionalInfo, slotKey);
+            if (!int.TryParse(slot, out amrSlot) || amrSlot < 1)
+            {
+                logger.Warn($"RouteActionCmdToVehicleActivity: [EXCHANGE] {slotKey} 비정상('{slot}') — 기본 1 사용. tc={tc.JobId}");
+                amrSlot = 1;
+            }
+
+            tc.AdditionalInfo = ExchangeInfo.Set(tc.AdditionalInfo, ExchangeInfo.KEY_ACT, act);
+            transferManager.UpdateTransportCommand(tc);
+            logger.Info($"RouteActionCmdToVehicleActivity: [EXCHANGE] ACT={act} 기록, amrSlot={amrSlot}, tc={tc.JobId}");
+            return true;
         }
     }
 }

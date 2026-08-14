@@ -33,5 +33,8 @@ namespace ACS.Core.Resource
 
         /// <summary>실패/취소 정리: 해당 jobId 가 예약·점유한 모든 슬롯 해제</summary>
         void ReleaseAllByJobId(string jobId);
+
+        /// <summary>차량 초기화(수동 reset/자동복구) 동반 정리: 해당 차량의 모든 슬롯을 EMPTY 로 해제 (idempotent)</summary>
+        void ReleaseAllByVehicleId(string vehicleId);
     }
 }

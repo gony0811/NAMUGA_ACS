@@ -203,6 +203,7 @@ namespace ACS.Core.Tests.Exchange
             Assert.Equal("", ExchangeInfo.Get(info, ExchangeInfo.KEY_UNLOADSLOT));
             Assert.Equal("PRD-X_LOAD_001", ExchangeInfo.Get(info, ExchangeInfo.KEY_EQJOB_L));
             Assert.Equal("PRD-X_UNLOAD_001", ExchangeInfo.Get(info, ExchangeInfo.KEY_EQJOB_U));
+            Assert.Equal("", ExchangeInfo.Get(info, ExchangeInfo.KEY_ACT));
         }
 
         [Fact]
@@ -234,7 +235,7 @@ namespace ACS.Core.Tests.Exchange
 
             // 위치도 스냅샷 순서 그대로 (STEP, TRIP, LOADSLOT, UNLOADSLOT, EQJOB_L, EQJOB_U)
             var entries = ExchangeInfo.Parse(updated);
-            Assert.Equal(6, entries.Count);
+            Assert.Equal(7, entries.Count);
             Assert.Equal(ExchangeInfo.KEY_LOADSLOT, entries[2].Key);
             Assert.Equal(ExchangeInfo.KEY_UNLOADSLOT, entries[3].Key);
         }
@@ -252,6 +253,36 @@ namespace ACS.Core.Tests.Exchange
                 ExchangeInfo.KEY_UNLOADSLOT, "");
 
             Assert.Equal(initial, rolledBack);
+        }
+
+        // ---------- S6 설비 액션 시퀀스: ACT 기록/클리어 ----------
+
+        [Fact]
+        public void Set_Act_RecordAndClear_Roundtrip()
+        {
+            // ACTIONCMD(UNLOAD) 중계 시 ACT=UNLOAD 기록 → 완료 처리 시 클리어.
+            // 이어서 ACTIONCMD(LOAD) 도 동일 사이클을 거친다. 다른 키는 보존돼야 한다.
+            string initial = ExchangeInfo.BuildInitial("L1", "U1");
+
+            string unloadPending = ExchangeInfo.Set(initial, ExchangeInfo.KEY_ACT, ExchangeInfo.ACT_UNLOAD);
+            Assert.Equal("UNLOAD", ExchangeInfo.Get(unloadPending, ExchangeInfo.KEY_ACT));
+
+            string unloadDone = ExchangeInfo.Set(unloadPending, ExchangeInfo.KEY_ACT, "");
+            Assert.Equal("", ExchangeInfo.Get(unloadDone, ExchangeInfo.KEY_ACT));
+            Assert.Equal(initial, unloadDone);
+
+            string loadPending = ExchangeInfo.Set(unloadDone, ExchangeInfo.KEY_ACT, ExchangeInfo.ACT_LOAD);
+            Assert.Equal("LOAD", ExchangeInfo.Get(loadPending, ExchangeInfo.KEY_ACT));
+            Assert.Equal("10", ExchangeInfo.Get(loadPending, ExchangeInfo.KEY_STEP));
+            Assert.Equal("L1", ExchangeInfo.Get(loadPending, ExchangeInfo.KEY_EQJOB_L));
+        }
+
+        [Fact]
+        public void Get_Act_LegacyInfoWithoutActKey_ReturnsEmpty()
+        {
+            // ACT 키 도입 이전에 생성된 TC (기존 6키 스냅샷) 도 빈값으로 안전하게 조회돼야 한다.
+            string legacy = "STEP=20;TRIP=;LOADSLOT=1;UNLOADSLOT=3;EQJOB_L=L1;EQJOB_U=U1";
+            Assert.Equal("", ExchangeInfo.Get(legacy, ExchangeInfo.KEY_ACT));
         }
 
         [Fact]

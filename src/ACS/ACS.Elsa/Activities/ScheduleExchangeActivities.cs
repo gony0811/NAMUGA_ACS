@@ -169,6 +169,9 @@ namespace ACS.Elsa.Activities
                 VehicleEx vehicle = pathManager.SearchSuitableVehicle(sourceLocation, tc.BayId);
                 if (vehicle == null)
                 {
+                    // 후보 조회 조건: CONNECT + ALIVE + IDLE + FullState=EMPTY + Installed=T (bayId 내)
+                    logger.Info($"FindSuitableExchangeVehicleActivity: 후보 차량 없음 — " +
+                                $"bayId={tc.BayId} 에 IDLE/CONNECT/ALIVE/FullState=EMPTY 차량 부재 (tc={tc.JobId})");
                     context.Set(Found, false);
                     return;
                 }
@@ -177,6 +180,8 @@ namespace ACS.Elsa.Activities
                 if (vehicle.ProcessingState != VehicleEx.PROCESSINGSTATE_IDLE ||
                     vehicle.ConnectionState != VehicleEx.CONNECTIONSTATE_CONNECT)
                 {
+                    logger.Info($"FindSuitableExchangeVehicleActivity: vehicle {vehicle.VehicleId} 상태 부적격 — " +
+                                $"processingState={vehicle.ProcessingState}, connectionState={vehicle.ConnectionState} (tc={tc.JobId})");
                     context.Set(Found, false);
                     return;
                 }
@@ -185,6 +190,8 @@ namespace ACS.Elsa.Activities
                 var existingTc = transferManager.GetTransportCommandByVehicleId(vehicle.VehicleId);
                 if (existingTc != null)
                 {
+                    logger.Info($"FindSuitableExchangeVehicleActivity: vehicle {vehicle.VehicleId} 기할당 — " +
+                                $"existingTc={existingTc.JobId} (tc={tc.JobId})");
                     context.Set(Found, false);
                     return;
                 }
@@ -193,7 +200,14 @@ namespace ACS.Elsa.Activities
                 slotManager.EnsureSlots(vehicle.VehicleId);
                 if (!slotManager.AreAllSlotsEmpty(vehicle.VehicleId))
                 {
-                    logger.Info($"FindSuitableExchangeVehicleActivity: vehicle {vehicle.VehicleId} slots not all EMPTY — skip (tc={tc.JobId})");
+                    var occupied = new List<string>();
+                    foreach (var s in slotManager.GetSlots(vehicle.VehicleId))
+                    {
+                        if (!VehicleSlotEx.STATE_EMPTY.Equals(s.State, StringComparison.OrdinalIgnoreCase))
+                            occupied.Add($"slot{s.SlotNo}={s.State}({s.JobId})");
+                    }
+                    logger.Info($"FindSuitableExchangeVehicleActivity: vehicle {vehicle.VehicleId} 슬롯 부적격 — " +
+                                $"{string.Join(", ", occupied)} (tc={tc.JobId})");
                     context.Set(Found, false);
                     return;
                 }
@@ -379,10 +393,11 @@ namespace ACS.Elsa.Activities
                     ExchangeInfo.KEY_UNLOADSLOT, "");
                 transferManager.UpdateTransportCommand(freshTc);
 
-                // Vehicle 롤백: NOTASSIGNED + IDLE 복원
+                // Vehicle 롤백: NOTASSIGNED + IDLE 복원 + 슬롯 동반 초기화 (job 단위 해제의 보강)
                 resourceManager.UpdateVehicleTransferState(freshVehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
                 resourceManager.UpdateVehicleProcessingState(freshVehicle, VehicleEx.PROCESSINGSTATE_IDLE);
                 resourceManager.UpdateVehicleTransportCommandId(freshVehicle, "");
+                slotManager.ReleaseAllByVehicleId(freshVehicle.VehicleId);
 
                 logger.Info($"RollbackExchangeAssignmentActivity: 롤백 완료 - TC {freshTc.JobId} → EXCHANGE_QUEUED, Vehicle {freshVehicle.VehicleId} → NOTASSIGNED/IDLE, 슬롯 예약 해제");
             }

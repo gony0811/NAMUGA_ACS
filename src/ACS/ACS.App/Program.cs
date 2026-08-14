@@ -36,8 +36,10 @@ static class Program
             return null;
         };
 
+        // 레이어드 설정: 배포 루트의 appsettings.common.json(공통 1부, optional) → 사이트별 appsettings.json override
         var configuration = new ConfigurationBuilder()
             .SetBasePath(appDir)
+            .AddJsonFile(Executor.ResolveCommonPath(appDir), optional: true, reloadOnChange: true)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
