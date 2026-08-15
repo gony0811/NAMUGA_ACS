@@ -80,6 +80,11 @@ namespace ACS.App.Host
                         HandleGenericCommand(e.MessageName, xmlDoc);
                         break;
 
+                    // JOBCANCEL(공통 취소, EXCHANGE·MOVECMD) — HostJobCancelWorkflow(DefinitionId=JOBCANCEL) 실행
+                    case "JOBCANCEL":
+                        HandleGenericCommand(e.MessageName, xmlDoc);
+                        break;
+
                     // EXCHANGE(v2): 매거진 교환 — HostExchangeCmdWorkflow(DefinitionId=EXCHANGECMD) 실행
                     case "EXCHANGECMD":
                         HandleGenericCommand(e.MessageName, xmlDoc);

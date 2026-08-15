@@ -41,4 +41,18 @@ public class VehicleDto
 
     /// <summary>SignalR로 수신한 실시간 각도 (radian). 미수신 시 null.</summary>
     public float? PoseAngle { get; set; }
+
+    /// <summary>EXCHANGE(v2): 차량 슬롯 상태 (NA_R_VEHICLE_SLOT, slotNo 오름차순 4행) — Vehicle View 행 선택 상세(RowDetails)에서 표시</summary>
+    public List<VehicleSlotDto> Slots { get; set; } = new();
+}
+
+/// <summary>차량 슬롯 1행 (NA_R_VEHICLE_SLOT) — 서버 VehicleSlotDto 미러.</summary>
+public class VehicleSlotDto
+{
+    public int SlotNo { get; set; }
+    public string Role { get; set; }
+    public string State { get; set; }
+    public string JobId { get; set; }
+    public string Phase { get; set; }
+    public DateTime? UpdatedTime { get; set; }
 }

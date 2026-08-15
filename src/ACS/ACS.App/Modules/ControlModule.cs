@@ -50,6 +50,15 @@ namespace ACS.App.Modules
                     .SingleInstance()
                     .PropertiesAutowired();
 
+            // EXCHANGE(v2): 운영 REST API(차량/명령 reset·delete)가 CS 에서 서빙되므로
+            // 슬롯 동반 초기화를 위해 CS 에도 슬롯 매니저 등록 (TransModule 과 동일)
+            var slotMgrType = Type.GetType("ACS.Manager.Resource.SlotManagerImplement, ACS.Manager");
+            if (slotMgrType != null)
+                builder.RegisterType(slotMgrType)
+                    .As<ACS.Core.Resource.ISlotManagerEx>()
+                    .SingleInstance()
+                    .PropertiesAutowired();
+
             // Spring XML에서는 TransferManagerExsImplement (ITransferManagerExs) 사용
             var transferMgrType = Type.GetType("ACS.Manager.TransferManagerExsImplement, ACS.Manager");
             if (transferMgrType != null)

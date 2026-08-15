@@ -1,0 +1,338 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text.Json;
+using Elsa.Extensions;
+using Elsa.Workflows;
+using Elsa.Workflows.Attributes;
+using Elsa.Workflows.Models;
+using ACS.Communication.Mqtt.Model;
+using ACS.Core.Cache;
+using ACS.Core.History;
+using ACS.Core.Logging;
+using ACS.Core.Message;
+using ACS.Core.Path;
+using ACS.Core.Path.Model;
+using ACS.Core.Resource;
+using ACS.Core.Resource.Model;
+using ACS.Core.Transfer;
+using ACS.Core.Transfer.Model;
+using ACS.Elsa.Bridge;
+
+namespace ACS.Elsa.Activities
+{
+    // ═══════════════════════════════════════════════════════════════
+    //  TRANS-JOBCANCEL — 취소 판정(C1~C4)·실행 본체 (사양서 "취소·오류" 시트)
+    //
+    //  판정은 JobCancelJudge(순수 로직)에 위임하고, 여기서는 실행만 담당한다.
+    //  실행 순서 규율: CANCELING 마킹(재수신 방어) → 실행 → 보고.
+    //  (C3 만 사양에 따라 승인 보고를 복귀 조치보다 먼저 발행)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// JOBCANCEL 판정·실행: TC 상태/EXCHANGE STEP/슬롯 적재 기준으로 C1~C4 를 결정하고
+    /// 취소를 실행한 뒤 JOBREPORT(CANCEL, ErrorCode) 를 회신한다.
+    /// </summary>
+    [Activity("ACS.Trans", "Judge And Execute JobCancel",
+        "JOBCANCEL C1~C4 판정·실행 → JOBREPORT(CANCEL) 회신")]
+    public class JudgeAndExecuteJobCancelActivity : CodeActivity<bool>
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "JOBCANCEL 메시지 (TRANS-JOBCANCEL JSON)")]
+        public Input<ActionCmdMessage> JobCancel { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var msg = JobCancel?.Get(context);
+                string jobId = msg?.Data?.JobId ?? "";
+                if (string.IsNullOrEmpty(jobId))
+                {
+                    logger.Error("JudgeAndExecuteJobCancelActivity: JobID 가 없음");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var tm = accessor?.Resolve<ITransferManagerEx>();
+                var rm = accessor?.Resolve<IResourceManagerEx>();
+                var mm = accessor?.Resolve<IMessageManagerEx>();
+                var hm = accessor?.Resolve<IHistoryManagerEx>();
+                var sm = accessor?.ResolveOptional<ISlotManagerEx>();
+                var cm = accessor?.Resolve<ICacheManagerEx>();
+
+                if (tm == null || rm == null || mm == null || hm == null)
+                {
+                    logger.Error("JudgeAndExecuteJobCancelActivity: 필수 서비스 해결 실패");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                TransportCommandEx tc = tm.GetTransportCommand(jobId);
+                if (tc == null)
+                {
+                    // C4: TC 부재 (이미 종결·이관되었거나 미존재)
+                    logger.Info($"[JOBCANCEL] C4 거부 — TC 없음 jobId={jobId}");
+                    SendCancelReport(mm, jobId, "", "", "",
+                        JobCancelJudge.ERR_CANCEL_REJECTED, "TransportCommand not found (already terminated?)");
+                    context.Set(Result, true);
+                    return;
+                }
+
+                bool anySlotOccupied = HasOccupiedSlot(sm, tc.VehicleId);
+                int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
+                var verdict = JobCancelJudge.Judge(tc.State, tc.JobType, step, anySlotOccupied);
+
+                string actionType = tc.JobType ?? "";
+                string materialType = tc.GetMaterialType() ?? "";
+                logger.Info($"[JOBCANCEL] 판정={verdict} — jobId={jobId}, state={tc.State}, jobType={tc.JobType}, " +
+                            $"step={step}, slotOccupied={anySlotOccupied}, vehicleId={tc.VehicleId}");
+
+                switch (verdict)
+                {
+                    case JobCancelVerdict.Reject:
+                        SendCancelReport(mm, jobId, tc.VehicleId ?? "", actionType, materialType,
+                            JobCancelJudge.ERR_CANCEL_REJECTED, $"terminal state: {tc.State}");
+                        break;
+
+                    case JobCancelVerdict.CancelBeforeAssign:
+                        ExecuteC1(tm, hm, sm, mm, tc, actionType, materialType);
+                        break;
+
+                    case JobCancelVerdict.CancelBeforePickup:
+                        ExecuteC2(tm, rm, hm, sm, mm, tc, actionType, materialType);
+                        break;
+
+                    case JobCancelVerdict.CancelAfterLoad:
+                        ExecuteC3(tm, rm, hm, mm, cm, tc, actionType, materialType);
+                        break;
+                }
+
+                context.Set(Result, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"JudgeAndExecuteJobCancelActivity: {ex.Message}", ex);
+                context.Set(Result, false);
+            }
+        }
+
+        // ── C1: 배차 전 — 즉시 취소 (이력 이관) ──────────────────────
+        private static void ExecuteC1(ITransferManagerEx tm, IHistoryManagerEx hm, ISlotManagerEx sm,
+            IMessageManagerEx mm, TransportCommandEx tc, string actionType, string materialType)
+        {
+            tc.State = TransportCommandEx.STATE_CANCELED;
+            tm.UpdateTransportCommand(tc);
+
+            hm.CreateTransportCommandHistory(tc, "", JobCancelJudge.CAUSE_JOBCANCEL);
+            tm.DeleteTransportCommand(tc);
+            sm?.ReleaseAllByJobId(tc.JobId);
+
+            logger.Info($"[JOBCANCEL] C1 즉시 취소 완료 — jobId={tc.JobId}");
+            SendCancelReport(mm, tc.JobId, "", actionType, materialType, JobCancelJudge.ERR_OK, "");
+        }
+
+        // ── C2: 픽업 전 — cancelCmd + 즉시 취소 + 차량 IDLE ──────────
+        private static void ExecuteC2(ITransferManagerEx tm, IResourceManagerEx rm, IHistoryManagerEx hm,
+            ISlotManagerEx sm, IMessageManagerEx mm, TransportCommandEx tc, string actionType, string materialType)
+        {
+            const string MsgName = "TRANS-JOBCANCEL";
+            string vehicleId = tc.VehicleId;
+
+            // 재수신 방어 마킹 후 AMR 진행 명령 중단
+            tc.State = TransportCommandEx.STATE_CANCELING;
+            tm.UpdateTransportCommand(tc);
+            SendCancelCmd(mm, tc.JobId, vehicleId);
+
+            // TC 종결
+            tc.State = TransportCommandEx.STATE_CANCELED;
+            tm.UpdateTransportCommand(tc);
+            hm.CreateTransportCommandHistory(tc, "", JobCancelJudge.CAUSE_JOBCANCEL);
+            tm.DeleteTransportCommand(tc);
+
+            // 차량 초기화 (미적재 — 슬롯 예약분 포함 전체 해제)
+            VehicleEx vehicle = string.IsNullOrEmpty(vehicleId) ? null : rm.GetVehicle(vehicleId);
+            if (vehicle != null)
+            {
+                rm.UpdateVehicleTransportCommandId(vehicle, "", MsgName);
+                rm.UpdateVehicle(vehicle, "Path", "");
+                rm.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
+                rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
+                rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
+                sm?.ReleaseAllByVehicleId(vehicleId);
+            }
+
+            logger.Info($"[JOBCANCEL] C2 취소 완료 — jobId={tc.JobId}, vehicleId={vehicleId} (IDLE 복귀)");
+            SendCancelReport(mm, tc.JobId, vehicleId ?? "", actionType, materialType, JobCancelJudge.ERR_OK, "");
+        }
+
+        // ── C3: 적재 후 — 승인 보고 → cancelCmd → Job 삭제 → 충전소 복귀 + 차량 ALARM ──
+        //    슬롯 점유는 유지한다 (실물 반영 — 작업자 회수 후 차량 reset 이 해소)
+        private static void ExecuteC3(ITransferManagerEx tm, IResourceManagerEx rm, IHistoryManagerEx hm,
+            IMessageManagerEx mm, ICacheManagerEx cm, TransportCommandEx tc, string actionType, string materialType)
+        {
+            const string MsgName = "TRANS-JOBCANCEL";
+            string vehicleId = tc.VehicleId;
+            string bayId = tc.BayId;
+
+            // 재수신 방어 마킹 + 사양 순서: 승인 보고 먼저
+            tc.State = TransportCommandEx.STATE_CANCELING;
+            tm.UpdateTransportCommand(tc);
+            SendCancelReport(mm, tc.JobId, vehicleId ?? "", actionType, materialType, JobCancelJudge.ERR_OK, "");
+
+            // AMR 진행 명령 중단
+            SendCancelCmd(mm, tc.JobId, vehicleId);
+
+            // TC 종결
+            tc.State = TransportCommandEx.STATE_CANCELED;
+            tm.UpdateTransportCommand(tc);
+            hm.CreateTransportCommandHistory(tc, "", JobCancelJudge.CAUSE_JOBCANCEL);
+            tm.DeleteTransportCommand(tc);
+
+            VehicleEx vehicle = string.IsNullOrEmpty(vehicleId) ? null : rm.GetVehicle(vehicleId);
+            if (vehicle == null)
+            {
+                logger.Warn($"[JOBCANCEL] C3: 차량 조회 실패 vehicleId={vehicleId} — 복귀/알람 생략 jobId={tc.JobId}");
+                return;
+            }
+
+            // 차량 할당 해제 (슬롯은 실물 반영을 위해 유지)
+            rm.UpdateVehicleTransportCommandId(vehicle, "", MsgName);
+            vehicle.TransportCommandId = "";
+            rm.UpdateVehicle(vehicle, "Path", "");
+            rm.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
+            rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
+            rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
+
+            // 충전소 복귀 (DispatchChargeJobActivity 패턴)
+            DispatchChargeReturn(tm, rm, mm, cm, vehicle, bayId);
+
+            // 차량 ALARM — 작업자 실물 회수 대상 표시
+            rm.UpdateVehicleAlarmState(vehicle, VehicleEx.ALARMSTATE_ALARM, MsgName);
+            logger.Info($"[JOBCANCEL] C3 취소 완료 — jobId={tc.JobId}, vehicleId={vehicleId}, " +
+                        "충전소 복귀 지시 + ALARM (작업자 실물 회수 후 차량 reset 필요, 슬롯 점유 유지)");
+        }
+
+        // ── 공통 헬퍼 ────────────────────────────────────────────────
+
+        private static bool HasOccupiedSlot(ISlotManagerEx sm, string vehicleId)
+        {
+            if (sm == null || string.IsNullOrEmpty(vehicleId)) return false;
+            foreach (var slot in sm.GetSlots(vehicleId))
+            {
+                if (VehicleSlotEx.STATE_OCCUPIED.Equals(slot.State, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private static void SendCancelReport(IMessageManagerEx mm, string jobId, string vehicleId,
+            string actionType, string materialType, string errCode, string errMsg)
+        {
+            mm.SendJobReportToHost("CANCEL", jobId, vehicleId, actionType, materialType, errCode, errMsg);
+            logger.Info($"[JOBCANCEL] JOBREPORT(CANCEL) 발행 — jobId={jobId}, errCode={errCode}");
+        }
+
+        private static void SendCancelCmd(IMessageManagerEx mm, string jobId, string vehicleId)
+        {
+            if (string.IsNullOrEmpty(vehicleId))
+            {
+                logger.Warn($"[JOBCANCEL] cancelCmd 생략 — vehicleId 없음 jobId={jobId}");
+                return;
+            }
+
+            var msg = new RailCancelCmdMessage
+            {
+                Header = new RailCancelCmdHeader
+                {
+                    MessageName = "RAIL-CANCELCMD",
+                    TransactionId = Guid.NewGuid().ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Sender = "Trans"
+                },
+                Data = new RailCancelCmdData { CommandId = jobId, VehicleId = vehicleId }
+            };
+            mm.SendActionCmdJson(JsonSerializer.Serialize(msg), vehicleId);
+            logger.Info($"[JOBCANCEL] RAIL-CANCELCMD 전송 — jobId={jobId}, vehicleId={vehicleId}");
+        }
+
+        /// <summary>
+        /// 취소된 차량을 빈 충전 슬롯으로 복귀시킨다 (DispatchChargeJobActivity 의
+        /// 슬롯 선정·CHARGEMOVE TC 생성·RAIL-CARRIERTRANSFER 전송 패턴 재사용).
+        /// 빈 슬롯이 없으면 복귀를 생략한다 (차량 ALARM 은 호출자가 세팅 — 작업자 조치).
+        /// </summary>
+        private static void DispatchChargeReturn(ITransferManagerEx tm, IResourceManagerEx rm,
+            IMessageManagerEx mm, ICacheManagerEx cm, VehicleEx vehicle, string bayId)
+        {
+            if (cm == null)
+            {
+                logger.Warn("[JOBCANCEL] C3: ICacheManagerEx 미해결 — 충전소 복귀 생략");
+                return;
+            }
+
+            List<LocationViewEx> chargeLocations = cm.GetChargeLocationViewsByBayId(bayId);
+            LocationViewEx availableSlot = null;
+            if (chargeLocations != null)
+            {
+                foreach (LocationViewEx loc in chargeLocations)
+                {
+                    IList occupied = rm.GetVehiclesByCurrentNode(loc.StationId);
+                    bool nodeBusy = occupied != null && occupied.Count > 0;
+                    bool tcBusy = tm.CheckTransportCommandByDestLocationId(loc.LocationId);
+                    if (!nodeBusy && !tcBusy)
+                    {
+                        availableSlot = loc;
+                        break;
+                    }
+                }
+            }
+            if (availableSlot == null)
+            {
+                logger.Warn($"[JOBCANCEL] C3: bayId={bayId} 빈 충전 슬롯 없음 — 복귀 생략 (작업자 조치) vehicleId={vehicle.VehicleId}");
+                return;
+            }
+
+            string commandId = "C" + vehicle.VehicleId + DateTime.Now.ToString("yyyyMMddHHmmss");
+            var chargeTc = new TransportCommandEx
+            {
+                JobId = commandId,
+                CarrierId = commandId,
+                State = TransportCommandEx.STATE_CREATED,
+                Dest = availableSlot.LocationId,
+                VehicleId = vehicle.VehicleId,
+                BayId = bayId,
+                CreateTime = DateTime.Now,
+                AssignedTime = DateTime.Now,
+                JobType = TransportCommandEx.JOBTYPE_CHARGEMOVE,
+                LoadedTime = null,
+                UnloadArrivedTime = null,
+                UnloadedTime = null,
+                LoadingTime = null,
+                UnloadingTime = null,
+                CompletedTime = null,
+                StartedTime = null
+            };
+
+            if (tm.CreateRechargeTransportCommand(chargeTc) == null)
+            {
+                logger.Error($"[JOBCANCEL] C3: 충전 TC 생성 실패 vehicleId={vehicle.VehicleId}");
+                return;
+            }
+            rm.UpdateVehicleTransportCommandId(vehicle, chargeTc.JobId);
+            vehicle.TransportCommandId = chargeTc.JobId;
+
+            string json = CarrierTransferJsonBuilder.Build(chargeTc, vehicle.VehicleId,
+                TransportCommandEx.JOBTYPE_CHARGEMOVE, useSource: false, rm, logger);
+            if (string.IsNullOrEmpty(json))
+            {
+                logger.Error($"[JOBCANCEL] C3: CHARGEMOVE JSON 빌드 실패 vehicleId={vehicle.VehicleId}, tc={chargeTc.JobId}");
+                return;
+            }
+            mm.SendCarrierTransferJson(json);
+            logger.Info($"[JOBCANCEL] C3: 충전소 복귀 지시 — vehicleId={vehicle.VehicleId}, " +
+                        $"chargeLocationId={availableSlot.LocationId}, tc={chargeTc.JobId}");
+        }
+    }
+}

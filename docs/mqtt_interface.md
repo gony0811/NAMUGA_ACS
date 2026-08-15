@@ -195,6 +195,16 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 {"command": "actionCmd", "nodeId": "N0001", "port": "LEFT", "JobType": "UNLOAD"}
 ```
 
+#### `cancelCmd` — 진행 중 명령 취소 (JOBCANCEL C2/C3)
+
+```json
+{"cmdId": "취소 대상 Job의 cmdId", "command": "cancelCmd"}
+```
+
+- AMR 은 진행 중 명령(moveCmd/actionCmd)을 폐기하고 **현 위치에 정지 후 대기(Idle) 상태로 복귀**한다.
+- `nodeId`/`port`/`jobType` 은 사용하지 않는다.
+- reply 는 발행하지 않는다 (실 AMR 프로토콜 협의 시 CANCELED status 추가 여부 결정).
+
 ## Command Reply (AMR → ACS)
 
 **토픽:** `amr/AMR001/reply`

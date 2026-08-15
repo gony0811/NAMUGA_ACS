@@ -439,17 +439,23 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
-    /// VehicleUpdateContext의 PreviousAlarmState↔ComputedAlarmState 전이가 일어났을 때만
-    /// RAIL-VEHICLEALARM JSON 메시지를 생성하여 Trans에 전송한다.
-    /// - NOALARM → ALARM : type=SET (errorCode 동봉)
-    /// - ALARM → NOALARM : type=RESET
-    /// 동일 상태가 유지되는 동안에는 메시지 발행 없음.
+    /// AMR errorCode 관측의 전이가 일어났을 때만 RAIL-VEHICLEALARM JSON 을 Trans 에 전송한다.
+    /// - (관측) NOALARM → ALARM : type=SET (errorCode 동봉)
+    /// - (관측) ALARM → NOALARM : type=RESET
+    /// 전이 기준은 DB AlarmState 가 아니라 **EI 자신의 직전 관측(ComputedAlarmState) 이력**이다 —
+    /// DB 기준으로 판정하면 ACS 운영 알람(예: JOBCANCEL C3 의 작업자 조치 ALARM)을
+    /// errorCode=0 텔레메트리가 매초 RESET 으로 지워버린다. 운영 알람의 해제는 운영 절차(차량 reset 등) 책임.
+    /// EI 재시작 시 이력은 NOALARM 으로 시드 — AMR 에러가 지속 중이면 첫 status 에서 SET 재발행(TS 측 멱등).
     /// </summary>
     [Activity("ACS.Mqtt", "Send Vehicle Alarm",
-        "AlarmState 전이 시 RAIL-VEHICLEALARM JSON을 Trans에 전송")]
+        "AMR 에러 관측 전이 시 RAIL-VEHICLEALARM JSON을 Trans에 전송")]
     public class SendVehicleAlarmActivity : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger(typeof(SendVehicleAlarmActivity));
+
+        // EI 프로세스 내 차량별 직전 관측 AlarmState (DB 와 무관한 관측 이력)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _lastObserved
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         protected override void Execute(ActivityExecutionContext context)
         {
@@ -462,10 +468,13 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                if (string.Equals(bundle.PreviousAlarmState, bundle.ComputedAlarmState, StringComparison.OrdinalIgnoreCase))
+                string vehicleKey = !string.IsNullOrEmpty(bundle.DbVehicleId) ? bundle.DbVehicleId : (bundle.CommId ?? "");
+                string lastObserved = _lastObserved.GetOrAdd(vehicleKey, VehicleEx.ALARMSTATE_NOALARM);
+                if (string.Equals(lastObserved, bundle.ComputedAlarmState, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
+                _lastObserved[vehicleKey] = bundle.ComputedAlarmState;
 
                 string type;
                 if (string.Equals(bundle.ComputedAlarmState, VehicleEx.ALARMSTATE_ALARM, StringComparison.OrdinalIgnoreCase))
@@ -990,6 +999,88 @@ namespace ACS.Elsa.Activities
     }
 
     /// <summary>
+    /// RAIL-CANCELCMD JSON 을 수신하여 Vehicle 의 MQTT 브로커로 cancelCmd 발행.
+    /// JOBCANCEL C2/C3 — AMR 은 현재 명령을 폐기하고 정지 후 Idle 복귀 (docs/mqtt_interface.md §cancelCmd).
+    /// </summary>
+    [Activity("ACS.Mqtt", "Handle Cancel Cmd",
+        "RAIL-CANCELCMD 수신 시 MQTT 로 Vehicle 에 cancelCmd 전송")]
+    public class HandleCancelCmdActivity : CodeActivity
+    {
+        private static readonly Logger logger = Logger.GetLogger(typeof(HandleCancelCmdActivity));
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var input = context.WorkflowExecutionContext.Input;
+                if (!input.TryGetValue("Arguments", out var argsObj) || argsObj is not object[] args || args.Length < 1)
+                {
+                    logger.Error("HandleCancelCmdActivity: Arguments가 없거나 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                var jsonMessage = args[0] as string;
+                if (string.IsNullOrEmpty(jsonMessage))
+                {
+                    logger.Error("HandleCancelCmdActivity: JSON 메시지가 null입니다.");
+                    return;
+                }
+
+                string vehicleId = null;
+                string commandId = null;
+                using (var doc = JsonDocument.Parse(jsonMessage))
+                {
+                    if (doc.RootElement.TryGetProperty("data", out var dataEl))
+                    {
+                        if (dataEl.TryGetProperty("vehicleId", out var vid))
+                            vehicleId = vid.GetString();
+                        if (dataEl.TryGetProperty("commandId", out var cid))
+                            commandId = cid.GetString();
+                    }
+                }
+
+                if (string.IsNullOrEmpty(vehicleId))
+                {
+                    logger.Error("HandleCancelCmdActivity: vehicleId가 없습니다.");
+                    return;
+                }
+
+                var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
+                var resourceManager = accessor?.Resolve<ACS.Core.Resource.IResourceManagerEx>();
+                var vehicle = resourceManager?.GetVehicle(vehicleId);
+                if (vehicle == null)
+                {
+                    logger.Error($"HandleCancelCmdActivity: Vehicle을 찾을 수 없습니다. vehicleId={vehicleId}");
+                    return;
+                }
+
+                if (!"MQTT".Equals(vehicle.CommType, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Warn($"HandleCancelCmdActivity: Vehicle CommType이 MQTT가 아닙니다. vehicleId={vehicleId}, commType={vehicle.CommType}");
+                    return;
+                }
+
+                var mqttManager = accessor.Resolve<MqttInterfaceManager>();
+                if (mqttManager == null)
+                {
+                    logger.Error("HandleCancelCmdActivity: MqttInterfaceManager를 찾을 수 없습니다.");
+                    return;
+                }
+
+                var result = mqttManager.SendCancel(vehicle.CommId, commandId).GetAwaiter().GetResult();
+                if (result)
+                    logger.Info($"HandleCancelCmdActivity: MQTT cancelCmd 전송 완료. commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}");
+                else
+                    logger.Error($"HandleCancelCmdActivity: MQTT cancelCmd 전송 실패. vehicleId={vehicleId}, commId={vehicle.CommId}");
+            }
+            catch (Exception e)
+            {
+                logger.Error("HandleCancelCmdActivity 오류", e);
+            }
+        }
+    }
+
+    /// <summary>
     /// AMR reply(amr/{id}/reply) 메시지 수신 시 status=COMPLETED와 jobType에 따라
     /// Trans 프로세스로 RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는
     /// RAIL-VEHICLEDEPOSITCOMPLETED(LOAD) JSON을 전송한다.
@@ -1022,17 +1113,25 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED/FAILED는 현재 라우팅 대상 아님.
-                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
-                    return;
-                }
-
                 var accessor = context.GetService<Bridge.AutofacContainerAccessor>();
                 if (accessor == null)
                 {
                     logger.Error("HandleAmrReplyActivity: AutofacContainerAccessor를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // FAILED: 사양 확정분(EXCHANGE origin 픽업 실패 → MAGAZINE_NOT_FOUND 즉시 종결)만 라우팅.
+                // 그 외 FAILED 는 기존대로 정지 + 운영자 개입 (후속 슬라이스).
+                if ("FAILED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
+                {
+                    RouteExchangePickupFailure(accessor, reply, vehicleId);
+                    return;
+                }
+
+                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED 는 현재 라우팅 대상 아님.
+                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
                     return;
                 }
 
@@ -1187,6 +1286,54 @@ namespace ACS.Elsa.Activities
             {
                 logger.Error("HandleAmrReplyActivity 오류", e);
             }
+        }
+
+        /// <summary>
+        /// FAILED reply 라우팅 — EXCHANGE TC 가 origin 픽업(STEP=10, jobType=UNLOAD) 중 실패하면
+        /// MAGAZINE_NOT_FOUND 즉시 종결 대상이므로 RAIL-VEHICLEJOBFAILED 를 Trans 로 전송한다.
+        /// 그 외 FAILED 는 로그만 남기고 무시 (해당 STEP 정지 + 운영자 개입 — 기존 정책).
+        /// </summary>
+        private static void RouteExchangePickupFailure(Bridge.AutofacContainerAccessor accessor,
+            AmrReplyMessage reply, string vehicleId)
+        {
+            var transferManager = accessor.Resolve<ITransferManagerEx>();
+            var tc = transferManager?.GetTransportCommand(reply.CmdId);
+            if (tc == null
+                || !TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase)
+                || ExchangeSteps.GetStep(tc.AdditionalInfo) != ExchangeSteps.STEP_PICKUP_NEW)
+            {
+                logger.Warn($"HandleAmrReplyActivity: FAILED reply — 라우팅 대상 아님 (정지+운영자 개입). " +
+                            $"cmdId={reply.CmdId}, vehicleId={vehicleId}, resultCode={reply.ResultCode}, msg={reply.Message}");
+                return;
+            }
+
+            var messageManager = accessor.Resolve<IMessageManagerEx>();
+            if (messageManager == null)
+            {
+                logger.Error("RouteExchangePickupFailure: IMessageManagerEx를 찾을 수 없습니다.");
+                return;
+            }
+
+            var msg = new RailVehicleJobFailedMessage
+            {
+                Header = new RailVehicleJobFailedHeader
+                {
+                    MessageName = "RAIL-VEHICLEJOBFAILED",
+                    TransactionId = Guid.NewGuid().ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Sender = "EI"
+                },
+                Data = new RailVehicleJobFailedData
+                {
+                    CommandId = reply.CmdId ?? "",
+                    VehicleId = ResolveDbVehicleId(accessor, vehicleId),
+                    ErrorCode = reply.ResultCode.ToString(),
+                    ErrorMessage = reply.Message ?? ""
+                }
+            };
+            messageManager.SendVehicleUpdateJson(JsonSerializer.Serialize(msg));
+            logger.Info($"HandleAmrReplyActivity: RAIL-VEHICLEJOBFAILED 전송 (EXCHANGE 픽업 실패). " +
+                        $"cmdId={reply.CmdId}, vehicleId={vehicleId}");
         }
 
         /// <summary>

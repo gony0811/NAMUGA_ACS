@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ACS.UI.ViewModels"
              xmlns:svc="using:ACS.UI.Services"
+             xmlns:models="using:ACS.UI.Models"
              x:Class="ACS.UI.Views.VehicleView"
              x:DataType="vm:VehicleViewModel">
 
@@ -72,7 +73,8 @@
                   Background="{StaticResource AcsSurfaceCardBrush}"
                   FontSize="11"
                   RowHeight="26"
-                  HeadersVisibility="Column">
+                  HeadersVisibility="Column"
+                  RowDetailsVisibilityMode="VisibleWhenSelected">
 
             <DataGrid.Styles>
                 <Style Selector="DataGridColumnHeader">
@@ -81,6 +83,44 @@
                     <Setter Property="Padding" Value="8,4" />
                 </Style>
             </DataGrid.Styles>
+
+            <!-- 선택 행 하부: 슬롯 4행 상세 (NA_R_VEHICLE_SLOT) -->
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate x:DataType="models:VehicleDto">
+                    <Border Background="{StaticResource AcsGridStripeBrush}"
+                            BorderBrush="{StaticResource AcsSectionBorderBrush}"
+                            BorderThickness="0,1,0,1"
+                            Padding="24,6,8,6">
+                        <StackPanel Spacing="2">
+                            <!-- 헤더 행 -->
+                            <Grid ColumnDefinitions="60,90,90,300,70,150">
+                                <TextBlock Grid.Column="0" Text="slotNo"      FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                                <TextBlock Grid.Column="1" Text="role"        FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                                <TextBlock Grid.Column="2" Text="state"       FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                                <TextBlock Grid.Column="3" Text="jobId"       FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                                <TextBlock Grid.Column="4" Text="phase"       FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                                <TextBlock Grid.Column="5" Text="updatedTime" FontWeight="Bold" Foreground="{StaticResource AcsTextSecondaryBrush}" FontSize="10" />
+                            </Grid>
+                            <!-- 슬롯 행 -->
+                            <ItemsControl ItemsSource="{Binding Slots}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:VehicleSlotDto">
+                                        <Grid ColumnDefinitions="60,90,90,300,70,150">
+                                            <TextBlock Grid.Column="0" Text="{Binding SlotNo}" FontSize="11" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Role}"   FontSize="11" />
+                                            <TextBlock Grid.Column="2" Text="{Binding State}"  FontSize="11" />
+                                            <TextBlock Grid.Column="3" Text="{Binding JobId}"  FontSize="11" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="4" Text="{Binding Phase}"  FontSize="11" FontWeight="Bold"
+                                                       Foreground="{StaticResource AcsPrimaryBlueBrush}" />
+                                            <TextBlock Grid.Column="5" Text="{Binding UpdatedTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" FontSize="11" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="vehicleId"           Binding="{Binding VehicleId}"           Width="100" />

@@ -135,6 +135,23 @@ namespace ACS.App.Web.Controllers
                         dto.LastChargeTime = vx.LastChargeTime == default ? null : vx.LastChargeTime;
                         dto.LastChargeBattery = vx.LastChargeBattery;
                     }
+                    // EXCHANGE(v2): 슬롯 상태 동봉 — 차량당 1쿼리(N+1)이나 현장 플릿 규모(수 대)에서 무해.
+                    // _slotManager 는 optional 주입 — 미등록 프로세스에서는 빈 리스트 유지.
+                    if (_slotManager != null)
+                    {
+                        foreach (var slot in _slotManager.GetSlots(v.VehicleId))
+                        {
+                            dto.Slots.Add(new VehicleSlotDto
+                            {
+                                SlotNo = slot.SlotNo,
+                                Role = slot.Role,
+                                State = slot.State,
+                                JobId = slot.JobId ?? "",
+                                Phase = slot.Phase ?? "",
+                                UpdatedTime = slot.UpdatedTime == default ? null : slot.UpdatedTime
+                            });
+                        }
+                    }
                     dtos.Add(dto);
                 }
             }
@@ -164,10 +181,12 @@ namespace ACS.App.Web.Controllers
                 }
             }
 
-            // 차량 상태 초기화 + 슬롯 동반 초기화
+            // 차량 상태 초기화 + 슬롯 동반 초기화 + 운영 알람 해제
+            // (JOBCANCEL C3 등의 작업자 조치 ALARM 은 실물 회수 후 이 reset 으로 복귀하는 절차)
             _resourceManager.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE);
             _resourceManager.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
             _resourceManager.UpdateVehicleTransportCommandId(vehicle, "");
+            _resourceManager.UpdateVehicleAlarmState(vehicle, VehicleEx.ALARMSTATE_NOALARM, "REST-RESET");
             _slotManager?.ReleaseAllByVehicleId(vehicleId);
 
             return Ok(new { success = true });

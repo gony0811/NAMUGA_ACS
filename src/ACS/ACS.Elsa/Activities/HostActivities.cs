@@ -1474,4 +1474,95 @@ namespace ACS.Elsa.Activities
             }
         }
     }
+
+    /// <summary>
+    /// JOBCANCEL XML(DataLayer: AcsId/JobID/UserID)에서 필드를 추출해
+    /// TRANS-JOBCANCEL JSON 을 빌드하여 Trans 프로세스 큐로 전송.
+    /// (SendActionCmdJsonToTransActivity 미러 — 메시지 모델은 ActionCmdMessage 재사용,
+    ///  MessageName 만 TRANS-JOBCANCEL. 취소 판정·JOBREPORT(CANCEL) 회신은 Trans 책임.)
+    /// </summary>
+    [Activity("ACS.Host", "Send JobCancel To Trans",
+        "JOBCANCEL 수신 → TRANS-JOBCANCEL JSON 을 Trans 큐로 전송")]
+    public class SendJobCancelJsonToTransActivity : CodeActivity<bool>
+    {
+        private static readonly Logger logger = Logger.GetLogger("ELSA_ACTIVITY");
+
+        [Input(Description = "수신한 JOBCANCEL XmlDocument")]
+        public Input<XmlDocument> JobCancelXml { get; set; }
+
+        protected override void Execute(ActivityExecutionContext context)
+        {
+            try
+            {
+                var xml = JobCancelXml?.Get(context);
+                if (xml == null)
+                {
+                    logger.Error("SendJobCancelJsonToTransActivity: JobCancelXml is null");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var accessor = context.GetService<AutofacContainerAccessor>();
+                var hostAgentSender = accessor?.ResolveNamed<ACS.Communication.Msb.IMessageAgent>("HostAgentSender");
+                if (hostAgentSender == null)
+                {
+                    logger.Error("SendJobCancelJsonToTransActivity: HostAgentSender not available");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                string acsId = Extract(xml, "AcsId");
+                string jobId = Extract(xml, "JobID");
+                string userId = Extract(xml, "UserID");
+
+                if (string.IsNullOrEmpty(jobId))
+                {
+                    logger.Error("SendJobCancelJsonToTransActivity: JobID 가 없음 — 릴레이 생략");
+                    context.Set(Result, false);
+                    return;
+                }
+
+                var message = new ACS.Communication.Mqtt.Model.ActionCmdMessage
+                {
+                    Header = new ACS.Communication.Mqtt.Model.ActionCmdHeader
+                    {
+                        MessageName = "TRANS-JOBCANCEL",
+                        TransactionId = Guid.NewGuid().ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        Sender = "Host"
+                    },
+                    Data = new ACS.Communication.Mqtt.Model.ActionCmdData
+                    {
+                        AcsId = acsId,
+                        JobId = jobId,
+                        UserId = userId
+                    }
+                };
+
+                string json = System.Text.Json.JsonSerializer.Serialize(message);
+                hostAgentSender.Send((object)json);
+
+                logger.Info($"SendJobCancelJsonToTransActivity: sent TRANS-JOBCANCEL to Trans - jobId={jobId}, userId={userId}");
+                context.Set(Result, true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"SendJobCancelJsonToTransActivity: {ex.Message}", ex);
+                context.Set(Result, false);
+            }
+        }
+
+        private static string Extract(XmlDocument doc, string name)
+        {
+            try
+            {
+                var node = doc.SelectSingleNode("//DataLayer/" + name) ?? doc.SelectSingleNode("//" + name);
+                return string.IsNullOrWhiteSpace(node?.InnerText) ? "" : node.InnerText.Trim();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+    }
 }

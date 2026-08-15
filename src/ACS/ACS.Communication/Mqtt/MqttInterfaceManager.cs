@@ -535,6 +535,21 @@ namespace ACS.Communication.Mqtt
             return await SendCommand(vehicleId, command);
         }
 
+        /// <summary>
+        /// AMR 취소 명령 발행 (JOBCANCEL C2/C3): 진행 중 명령 중단.
+        /// AMR 은 현재 명령을 폐기하고 정지 후 대기(Idle) 상태로 복귀한다 (docs/mqtt_interface.md §cancelCmd).
+        /// </summary>
+        public async Task<bool> SendCancel(string vehicleId, string cmdId)
+        {
+            var command = new AmrCommandMessage
+            {
+                CmdId = cmdId,
+                Command = "cancelCmd"
+            };
+
+            return await SendCommand(vehicleId, command);
+        }
+
         #endregion
 
         #region AMR Heartbeat 모니터링

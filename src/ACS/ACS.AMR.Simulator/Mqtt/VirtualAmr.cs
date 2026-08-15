@@ -76,6 +76,15 @@ public class VirtualAmr
     {
         lock (_sync)
         {
+            // cancelCmd: 진행 중 명령 폐기 → 현 위치 정지 후 Idle 복귀 (reply 없음 — 실 AMR 협의 전 최소 동작)
+            if ("cancelCmd".Equals(cmd.Command, StringComparison.OrdinalIgnoreCase))
+            {
+                RaiseLog($"취소 명령 수신: cmdId={cmd.CmdId} — 현재 명령(cmdId={CurrentCommand?.CmdId}, 상태={State}) 폐기 후 Idle 복귀");
+                ToIdle();
+                StateChanged?.Invoke(this);
+                return;
+            }
+
             if (State != VirtualAmrState.Idle)
                 RaiseLog($"경고: {State} 상태에서 새 명령 수신 — 기존 cmdId={CurrentCommand?.CmdId} 를 버리고 교체");
 

@@ -1310,4 +1310,52 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 **검증:** 빌드 0 오류, 테스트 108건 통과, 5부+시뮬레이터 재배포·재기동 후 위 E2E 완주로 실증.
 
-**남은 항목:** 실패 경로(FAILED/REJECTED)·JOBCANCEL 은 후속 슬라이스 (사양서 "취소·오류" 시트 참조).
+**남은 항목:** 실패 경로(FAILED/REJECTED)·JOBCANCEL 은 후속 슬라이스 (사양서 "취소·오류" 시트 참조). → §50 에서 구현.
+
+---
+
+## 50. EXCHANGE S7 — JOBCANCEL(C1~C4) + MAGAZINE_NOT_FOUND + cancelCmd 프로토콜
+
+**날짜:** 2026-08-15
+
+**범위:** 시나리오 사양서 "JOBCANCEL 요청/처리보고/취소·오류" 시트 구현. C5(배칭 페어)는 TRIP 배칭과 함께 후속.
+
+**아키텍처:** MES→HS(`HostBridgeService` case, `HostJobCancelWorkflow`)→TRANS-JOBCANCEL 릴레이(`SendJobCancelJsonToTransActivity`, ACTIONCMD 릴레이 미러)→TS(`TransJobcancelWorkflow`→`JudgeAndExecuteJobCancelActivity`)가 판정·실행 후 `SendJobReportToHost(7-arg)` 로 JOBREPORT(CANCEL, ErrorCode) 회신(HS 기존 JOBREPORT 릴레이 경유).
+
+**핵심 설계:**
+- **판정 순수 로직 `ACS.Core/Transfer/JobCancelJudge.cs`** (+테스트 28건): TC 상태·EXCHANGE STEP·슬롯 OCCUPIED → C1(배차 전)/C2(픽업 전)/C3(적재 후)/C4(종료·미존재·CANCELING 거부). 적재 판단은 슬롯 OCCUPIED 기준(LoadedTime 은 생성자 기본값 함정).
+- **cancelCmd 프로토콜 신설** (기존 공백): `MqttInterfaceManager.SendCancel`, `RailCancelCmdMessage`, EI `RailCancelcmdWorkflow`/`HandleCancelCmdActivity`, `VirtualAmr` cancelCmd 분기(현재 명령 폐기→Idle, reply 없음 — 실 AMR 협의 전 최소 동작), `docs/mqtt_interface.md` §cancelCmd.
+- **C3 실행**: 승인 보고(사양 순서) → cancelCmd → TC CANCELED 히스토리+삭제 → 충전소 복귀(DispatchChargeJob 패턴 재사용: 빈 슬롯 선정+`CreateRechargeTransportCommand`+CHARGEMOVE 전송) → 차량 ALARM. **슬롯 점유는 유지**(실물 반영) — 작업자 회수 후 차량 reset 이 슬롯+ALARM 해소.
+- **MAGAZINE_NOT_FOUND**: EI `HandleAmrReply` 에 FAILED 분기(EXCHANGE & STEP=10 만) → `RAIL-VEHICLEJOBFAILED` → TS `RailVehicleJobfailedWorkflow` 가 EXCHANGE-JOBREPORT COMPLETE(Step=10, ErrorCode=MAGAZINE_NOT_FOUND) + TC COMPLETEFAILED 히스토리+삭제 + 차량 초기화. 그 외 FAILED 는 기존대로 정지+운영자.
+- elsa-migration.json: JOBCANCEL/TRANS-JOBCANCEL/RAIL-CANCELCMD/RAIL-VEHICLEJOBFAILED 등록.
+
+**검증 중 발견·수정한 2건:**
+1. **EI 알람 RESET 이 운영 알람을 덮어씀**: `SendVehicleAlarmActivity` 가 DB AlarmState 기준 전이 판정이라 errorCode=0 텔레메트리가 C3 운영 ALARM 을 1초 내 RESET. → **EI 자기 관측 이력(static dict, NOALARM 시드) 기준**으로 변경. 운영 알람 해제는 운영 절차(차량 reset) 책임.
+2. **운영 REST API 는 CS01_P(5100)가 서빙** (UI Backend=192.168.0.55:5100): `ISlotManagerEx` 가 Trans 에만 등록돼 reset 의 슬롯 정리가 무시됨 → `ControlModule` 에도 등록. 아울러 차량 reset 에 **AlarmState=NOALARM 해제** 추가(작업자 회수 후 복귀 절차 완성).
+
+**E2E 검증 결과 (실측):**
+- **C4**: 미존재 JobID → `CANCEL_REJECTED` 회신 확인.
+- **C1**: EXCHANGE_QUEUED(배차 전) 취소 → 즉시 취소·히스토리 CANCELED·CANCEL(0).
+- **C2**: **Validator 실주행** — 픽업 이동 중(STEP=10, 미적재) JOBCANCEL → cancelCmd·차량 IDLE·CANCEL(0), Validator 판정 **"JOBCANCEL approved by ACS" PASS**.
+- **C3**: STEP=20(슬롯1 NEW 적재, 설비 앞) 취소 → 승인 보고→취소→**충전소(N1001) 복귀**→**ALARM 유지(EI 수정 후)**→슬롯 실물 유지→reset 으로 슬롯+ALARM 해소 확인.
+- 테스트 136건 통과(기존 108+28), 5부+시뮬레이터 재배포·재기동.
+
+**미실측 (코드 완료, 확인 대기):** MAGAZINE_NOT_FOUND 는 시뮬레이터 GUI 의 Fail 주입이 필요해 수동 확인 필요. 정상 EXCHANGE 회귀 1회(Validator)도 재확인 권장.
+
+**부수 관찰:** 03:08 시뮬레이터가 status 발행을 멈춰(원인 미상, GUI 프로세스는 생존) DISCONNECT 처리됨 — 재시작으로 복구. 신규 배차 탈락 로그(`후보 차량 없음 — IDLE/CONNECT/ALIVE/FullState=EMPTY`)가 진단에 즉효였음. 시뮬레이터 status 타이머 안정성은 관찰 항목.
+
+---
+
+## 51. UI Vehicle 테이블 슬롯 컬럼(slot1~4) 추가
+
+**날짜:** 2026-08-15
+
+**배경:** 슬롯 상태가 배차 적격·C3 실물 회수의 핵심인데 UI 에서 볼 수 없었음 (§49~50).
+
+**구현:** `GET /api/vehicles` 응답에 `slots` 배열 동봉(서버 `ACS.Communication/Http/Models/VehicleDto.cs` 에 `VehicleSlotDto` 신설 + `VehiclesController.Get()` 에서 `ISlotManagerEx.GetSlots` 매핑 — 차량당 1쿼리, 소규모 플릿 무해). UI `ACS.UI/Models/VehicleDto.cs` 미러 + 표시 계산 프로퍼티(`Slot1~4Display`/`Tooltip`), `VehicleView.axaml` 에 DataGridTemplateColumn 4개(transportCommandId 뒤): 값 `-`(빈)/`R`(예약)/`NEW`·`OLD`(적재), 툴팁에 role/state/jobId/updatedTime.
+
+**검증:** 빌드 0 오류, API 응답에서 진행 중 잡의 슬롯(slot1 OCCUPIED NEW, slot3 예약) 확인. UI 는 소스 빌드로 확인 — **설치본(AppData Velopack) 반영은 UI 릴리스 절차(releases/ui) 필요**.
+
+**추가 (같은 날):** 행 선택 시 하부에 슬롯 4행 상세를 펼치는 `DataGrid.RowDetailsTemplate` 추가(`RowDetailsVisibilityMode=VisibleWhenSelected`, 저장소 첫 RowDetails 사용) — 헤더+슬롯행(slotNo/role/state/jobId/phase/updatedTime), phase 는 강조 표시. 이후 사용자 결정으로 **압축 컬럼(slot1~4)은 제거하고 RowDetails 로 일원화** (컬럼 전용 계산 프로퍼티도 함께 제거, `Slots` DTO 는 유지).
+
+**⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.

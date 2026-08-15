@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ACS.Communication.Http.Models
 {
@@ -31,5 +32,23 @@ namespace ACS.Communication.Http.Models
         public float LastChargeBattery { get; set; }
         public string BayId { get; set; }
         public string CarrierType { get; set; }
+
+        /// <summary>EXCHANGE(v2): 차량 슬롯 상태 (NA_R_VEHICLE_SLOT, slotNo 오름차순 4행)</summary>
+        public List<VehicleSlotDto> Slots { get; set; } = new List<VehicleSlotDto>();
+    }
+
+    /// <summary>차량 슬롯 1행 (NA_R_VEHICLE_SLOT)</summary>
+    public class VehicleSlotDto
+    {
+        public int SlotNo { get; set; }
+        /// <summary>INSERT(투입 1|2) / RETRIEVE(회수 3|4)</summary>
+        public string Role { get; set; }
+        /// <summary>EMPTY / OCCUPIED</summary>
+        public string State { get; set; }
+        /// <summary>예약·점유한 Job ID (빈값 = 미예약)</summary>
+        public string JobId { get; set; }
+        /// <summary>NEW(신자재) / OLD(구자재) — OCCUPIED 시</summary>
+        public string Phase { get; set; }
+        public DateTime? UpdatedTime { get; set; }
     }
 }
