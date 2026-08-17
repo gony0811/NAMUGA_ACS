@@ -11,11 +11,13 @@
 5. EXCHANGE 정상 경로 (S1~S6): STEP 10→60 완주 E2E 실증 — Validator "completed successfully" (§49)
 6. JOBCANCEL C1~C4 + cancelCmd 프로토콜 + MAGAZINE_NOT_FOUND 실패 경로 (§50)
 7. 운영 reset/delete 의 EXCHANGE 인지화 + 차량 reset 슬롯·알람 동반 초기화 (§49~50)
+8. MAGAZINE_NOT_FOUND 실측 완료 — 전체 경로 검증 4종 통과 (2026-08-17, §50)
+9. UI Vehicle View 슬롯 상세 표시 (행 선택 RowDetails, §51)
 
 ## 남은 작업
 
-1. **MAGAZINE_NOT_FOUND 실측**: 코드 완료 — 시뮬레이터 GUI Fail 주입으로 수동 확인 필요 (§50)
-2. **TRIP 배칭**: AdditionalInfo `TRIP` 키 예약만 됨. 배칭 도입 시 JOBCANCEL C5(페어 연대 종결, `EXCHANGE_CANCELED`) 함께 구현
-3. **AMR 일반 실패 경로(FAILED/REJECTED)**: MAGAZINE_NOT_FOUND 외 실패의 보고 방식은 MES 와 오류 코드 체계 협의 후 (사양서 "취소·오류" 시트 §3 단서)
-4. **cancelCmd 실 AMR 협의**: reply(CANCELED status) 추가 여부 등 프로토콜 확정 (`docs/mqtt_interface.md` §cancelCmd)
-5. 시뮬레이터 status 발행 타이머 안정성 관찰 (§50 부수 관찰 — 1회 무발행 발생, 원인 미상)
+1. **TRIP 배칭**: AdditionalInfo `TRIP` 키 예약만 됨. 배칭 도입 시 JOBCANCEL C5(페어 연대 종결, `EXCHANGE_CANCELED`) 함께 구현
+2. **AMR 일반 실패 경로(FAILED/REJECTED)**: MAGAZINE_NOT_FOUND 외 실패의 보고 방식은 MES 와 오류 코드 체계 협의 후 (사양서 "취소·오류" 시트 §3 단서)
+3. **cancelCmd 실 AMR 협의**: reply(CANCELED status) 추가 여부 등 프로토콜 확정 (`docs/mqtt_interface.md` §cancelCmd)
+4. 시뮬레이터 status 발행 타이머 안정성 관찰 (§50 부수 관찰 — 1회 무발행 발생, 원인 미상). 설정 패널 조작 시 **차량 행 선택 선행** 필수 (§50 주의사항)
+5. UI 릴리스: 슬롯 상세 표시를 설치본(Velopack)에 반영 — releases/ui 절차

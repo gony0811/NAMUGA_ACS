@@ -1342,6 +1342,11 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 **미실측 (코드 완료, 확인 대기):** MAGAZINE_NOT_FOUND 는 시뮬레이터 GUI 의 Fail 주입이 필요해 수동 확인 필요. 정상 EXCHANGE 회귀 1회(Validator)도 재확인 권장.
 
+**8/17 MAGAZINE_NOT_FOUND 실측 완료 (S7 잔여 검증 종결):**
+- 앞선 2회 시도는 정상 COMPLETED 로 진행되어 실패 — 시뮬레이터 설정 패널(실패 주입 콤보 포함)이 **선택된 차량 행에 바인딩**되는 구조라 행 미선택 상태의 콤보 변경이 무시된 것(`VirtualAmrRowViewModel` + `MainWindow.axaml:242-249`). 시뮬레이터 조작 시 **행 선택 선행** 필수 — 운영 주의사항.
+- 3차 시도(행 선택 후) 성공: 픽업 시 FAILED(resultCode=900) → ES `RAIL-VEHICLEJOBFAILED` 라우팅 → TS `MAGAZINE_NOT_FOUND 즉시 종결`(COMPLETE, Step=10, ErrorCode=MAGAZINE_NOT_FOUND 를 MES 로 발신, HS XML 전달 확인) → TC 히스토리 `COMPLETEFAILED` 이관·삭제 → 차량 IDLE/슬롯 전체 해제 → **재배차 없음**(사양대로 재교체는 MES 책임). 검증 4종 전부 통과.
+- 부수: 잔여 잡 정리 과정에서 JOBCANCEL C3 경로 2회 추가 실측(충전소 복귀+ALARM+reset 복구 정상).
+
 **부수 관찰:** 03:08 시뮬레이터가 status 발행을 멈춰(원인 미상, GUI 프로세스는 생존) DISCONNECT 처리됨 — 재시작으로 복구. 신규 배차 탈락 로그(`후보 차량 없음 — IDLE/CONNECT/ALIVE/FullState=EMPTY`)가 진단에 즉효였음. 시뮬레이터 status 타이머 안정성은 관찰 항목.
 
 ---
