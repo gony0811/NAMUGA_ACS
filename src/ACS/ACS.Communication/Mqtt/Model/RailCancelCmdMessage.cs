@@ -41,5 +41,13 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>할당된 Vehicle ID</summary>
         [JsonPropertyName("vehicleId")]
         public string VehicleId { get; set; }
+
+        /// <summary>
+        /// 적재 후 취소(C3) 시 AMR 복귀 노드 (ACS-AMR_mqtt_exchangecmd.docx §7).
+        /// 생략(null) 시 AMR 이 자동충전 노드로 복귀 — 협의 #3.
+        /// </summary>
+        [JsonPropertyName("returnNode")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string ReturnNode { get; set; }
     }
 }

@@ -206,6 +206,7 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
  "nodeId":"N0001","port":"LEFT","jobType":"EXCHANGE","type":"UNLOAD","model":"CF203W","amrSlot":3}
 ```
 
+<<<<<<< Updated upstream
 - MES ACTIONCMD(Type=UNLOAD/LOAD)를 ACS 가 중계. EXCHANGE 는 ACS 가 STEP=20 에서 UNLOAD, STEP=30 에서 LOAD 만 중계한다.
 - AMR 은 portType=EQP 도착 후 대기 중인 게이트와 `type` 이 일치할 때만 수용하고, 그 외는 무시(로그)한다.
 
@@ -218,13 +219,75 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 - AMR 은 진행 중 명령(moveCmd/actionCmd)을 폐기하고 **현 위치에 정지 후 대기(Idle) 상태로 복귀**한 뒤 `CANCELED` reply 를 발행한다.
 - 진행 중 job 과 `jobId` 불일치/미진행이면 `CANCELED` resultCode=40(CANCEL_REJECTED).
 - 복귀 이동(충전소 등)은 AMR 이 하지 않는다 — ACS 가 별도 moveCmd 로 지시한다.
+=======
+#### `exchangeCmd` — 매거진 교환 명령 (EXCHANGE 전용, ACS-AMR_mqtt_exchangecmd.docx §4)
+
+3-waypoint(픽업/설비/반납)와 슬롯 배정을 단일 명령으로 전달하고, AMR 이 시퀀스 전체
+(게이트 대기 포함)를 자율 수행하며 단계 보고(reply)로 진행을 알린다. Loc→NodeId 변환은 ACS 담당 (협의 #1 확정).
+
+```json
+{
+  "cmdId": "20260811_103000_001",
+  "command": "exchangeCmd",
+  "jobId": "EX20260706103000123",
+  "loadSourceNode": "N0010",
+  "equipNode": "N0003",
+  "unloadDestNode": "N0011",
+  "port": "RIGHT",
+  "model": "CF203W",
+  "loadSlot": 1,
+  "unloadSlot": 3,
+  "loadSourcePortType": "MATERIAL",
+  "unloadDestPortType": "MATERIAL"
+}
+```
+
+- 수락 조건(모두 만족 시 ACCEPTED): Modbus 연결 · Idle · Cobot Auto/Run · 3개 노드 위치 태그 매핑 · loadSlot/unloadSlot 비어 있음
+- 단계 매핑·게이트·오류 코드 상세는 `docs/ACS-AMR_mqtt_exchangecmd.docx` 참조
+
+#### `actionCmd` EXCHANGE 게이트 확장 (§6)
+
+교환 시퀀스 중 설비 준비 허가를 전달할 때 `type`/`jobId` 를 사용한다 (port/amrSlot 은 교환 시 무시):
+
+```json
+{"cmdId": "...", "command": "actionCmd", "jobId": "EX...", "type": "UNLOAD"}
+```
+
+- `type`: `UNLOAD` = 기존 매거진 취출 허가(게이트1) / `LOAD` = 신규 매거진 투입 허가(게이트2)
+- AMR 은 현재 게이트 상태와 type 이 일치할 때만 수용, jobId 불일치 시 무시(로그만)
+
+#### `cancelCmd` — 진행 중 명령 취소 (JOBCANCEL C2/C3, §7)
+
+```json
+{"cmdId": "...", "command": "cancelCmd", "jobId": "EX...", "returnNode": "N1001"}
+```
+
+- AMR 은 진행 중 명령/시퀀스를 폐기하고 정지한다. `jobId` 로 취소 대상 Job 을 식별한다.
+- `returnNode`(선택): 적재 후 취소(C3) 시 복귀 노드. 생략 시 AMR 자동충전 노드 사용 (협의 #3).
+- 신 스펙 AMR 은 reply `status=CANCELED`(정상 resultCode=0 / 거부 40 CANCEL_REJECTED) 로 회신한다.
+  (구 스펙 시뮬레이터는 reply 없이 Idle 복귀 — 하위 호환.)
+>>>>>>> Stashed changes
 
 ## Command Reply (AMR → ACS)
 
 **토픽:** `amr/AMR001/reply`
 
+<<<<<<< Updated upstream
 모든 command 에 대한 진행/완료 응답. `cmdId` 는 받은 명령의 값을 그대로 반환한다.
 확장 필드(`jobId`, `jobType`, `step`, `stepName`, `carrierSlot`)는 선택 — 없으면 ACS 가 TC 상태/STEP 으로 보완한다. (상세: `ACS-AMR_mqtt_exchange.md` §5)
+=======
+### EXCHANGE 단계 보고 확장 (ACS-AMR_mqtt_exchangecmd.docx §5)
+
+exchangeCmd 진행 보고에는 기존 reply 에 4개 필드가 추가된다 (moveCmd 응답에는 없음 — null 생략):
+`jobId`(Exchange Job ID), `step`(10/20/30/40/50/60), `stepName`, `carrierSlot`(STEP_COMPLETE 30/40/50 필수).
+status 신규 값: `STEP_COMPLETE`(단계 완료), `CANCELED`(취소 처리 완료).
+
+```json
+{"cmdId":"...","jobId":"EX...","status":"STEP_COMPLETE","step":30,"stepName":"UNLOAD_OLD","carrierSlot":3,"resultCode":0,"message":"...","timestamp":"..."}
+```
+
+### 'moveCmd_Reply' - 로봇 이동 명령에 대한 응답
+>>>>>>> Stashed changes
 
 ```json
 {

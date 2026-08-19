@@ -520,7 +520,11 @@ namespace ACS.Communication.Mqtt
         /// AMR에 액션 명령을 전송한다 (actionCmd).
         /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// </summary>
+<<<<<<< Updated upstream
         public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string model = null, int amrSlot = 1, string type = null)
+=======
+        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string model = null, int amrSlot = 1, string actionType = null, string jobId = null)
+>>>>>>> Stashed changes
         {
             var command = new AmrCommandMessage
             {
@@ -533,7 +537,42 @@ namespace ACS.Communication.Mqtt
                 Type = !string.IsNullOrEmpty(type) ? type : (string.IsNullOrEmpty(jobType) ? null : jobType),
                 JobId = string.IsNullOrEmpty(cmdId) ? null : cmdId,
                 Model = model ?? "",
-                AmrSlot = amrSlot
+                AmrSlot = amrSlot,
+                // EXCHANGE 게이트 허가 (ACS-AMR_mqtt_exchangecmd.docx §6):
+                //  type=UNLOAD(게이트1 취출)/LOAD(게이트2 투입), jobId=진행 중 Exchange Job.
+                //  신 스펙 AMR 은 type/jobId 로 게이트를 판정하고 port/amrSlot 은 무시한다.
+                Type = actionType,
+                JobId = jobId
+            };
+
+            return await SendCommand(vehicleId, command);
+        }
+
+        /// <summary>
+        /// EXCHANGE 교환 명령 발행 (ACS-AMR_mqtt_exchangecmd.docx §4):
+        /// 3-waypoint(픽업/설비/반납) NodeId + 슬롯 배정을 단일 명령으로 전달하고,
+        /// AMR 이 시퀀스 전체(게이트 대기 포함)를 수행하며 단계 보고(reply)로 진행을 알린다.
+        /// Loc→NodeId 변환은 ACS 책임 (협의 #1 확정).
+        /// </summary>
+        public async Task<bool> SendExchange(string vehicleId, string cmdId, string jobId,
+            string loadSourceNode, string equipNode, string unloadDestNode,
+            string port, string model, int loadSlot, int unloadSlot,
+            string loadSourcePortType = "MATERIAL", string unloadDestPortType = "MATERIAL")
+        {
+            var command = new AmrCommandMessage
+            {
+                CmdId = cmdId,
+                Command = "exchangeCmd",
+                JobId = jobId,
+                LoadSourceNode = loadSourceNode,
+                EquipNode = equipNode,
+                UnloadDestNode = unloadDestNode,
+                Port = port ?? "",
+                Model = model ?? "",
+                LoadSlot = loadSlot,
+                UnloadSlot = unloadSlot,
+                LoadSourcePortType = loadSourcePortType,
+                UnloadDestPortType = unloadDestPortType
             };
 
             return await SendCommand(vehicleId, command);
@@ -541,16 +580,24 @@ namespace ACS.Communication.Mqtt
 
         /// <summary>
         /// AMR 취소 명령 발행 (JOBCANCEL C2/C3): 진행 중 명령 중단.
-        /// AMR 은 현재 명령을 폐기하고 정지 후 대기(Idle) 상태로 복귀한다 (docs/mqtt_interface.md §cancelCmd).
+        /// AMR 은 현재 명령을 폐기하고 정지 후 대기(Idle) 상태로 복귀한다.
+        /// EXCHANGE 확장(ACS-AMR_mqtt_exchangecmd.docx §7): jobId 로 취소 대상 Job 을 식별하고,
+        /// 적재 후 취소(C3)면 returnNode 로 복귀 (생략 시 AMR 자동충전 노드 — 협의 #3).
+        /// 신 스펙 AMR 은 처리 결과를 reply status=CANCELED(정상 0 / 거부 40) 로 회신한다.
         /// </summary>
-        public async Task<bool> SendCancel(string vehicleId, string cmdId)
+        public async Task<bool> SendCancel(string vehicleId, string cmdId, string jobId = null, string returnNode = null)
         {
             var command = new AmrCommandMessage
             {
                 CmdId = cmdId,
                 Command = "cancelCmd",
+<<<<<<< Updated upstream
                 // v0.3: jobId(=cmdId) — AMR 이 진행 중 job 과 대조 (불일치 시 CANCELED resultCode=40)
                 JobId = string.IsNullOrEmpty(cmdId) ? null : cmdId
+=======
+                JobId = jobId,
+                ReturnNode = returnNode
+>>>>>>> Stashed changes
             };
 
             return await SendCommand(vehicleId, command);

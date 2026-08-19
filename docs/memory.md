@@ -1361,6 +1361,10 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 **검증:** 빌드 0 오류, API 응답에서 진행 중 잡의 슬롯(slot1 OCCUPIED NEW, slot3 예약) 확인. UI 는 소스 빌드로 확인 — **설치본(AppData Velopack) 반영은 UI 릴리스 절차(releases/ui) 필요**.
 
+**추가 (같은 날):** 행 선택 시 하부에 슬롯 4행 상세를 펼치는 `DataGrid.RowDetailsTemplate` 추가(`RowDetailsVisibilityMode=VisibleWhenSelected`, 저장소 첫 RowDetails 사용) — 헤더+슬롯행(slotNo/role/state/jobId/phase/updatedTime), phase 는 강조 표시. 이후 사용자 결정으로 **압축 컬럼(slot1~4)은 제거하고 RowDetails 로 일원화** (컬럼 전용 계산 프로퍼티도 함께 제거, `Slots` DTO 는 유지).
+
+**⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.
+
 ---
 
 ## 52. 고객사 전달용 EXCHANGE E2E 증적 (2026-08-18)
@@ -1372,8 +1376,9 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 - "서버 로그 미기록"으로 보였던 것은 **NTFS 가 열린 파일 크기를 지연 표시**한 것 — 실제로는 정상 기록 중이었음 (디렉토리 크기 89MB→실측). 로그 존재 판단은 크기가 아니라 Get-Content 로 할 것.
 - Validator 로그 파일명은 **프로세스 시작 날짜** 기준 — 특정 날짜 로그가 필요하면 그날 Validator 를 재시작해야 함.
 
-**추가 (같은 날):** 행 선택 시 하부에 슬롯 4행 상세를 펼치는 `DataGrid.RowDetailsTemplate` 추가(`RowDetailsVisibilityMode=VisibleWhenSelected`, 저장소 첫 RowDetails 사용) — 헤더+슬롯행(slotNo/role/state/jobId/phase/updatedTime), phase 는 강조 표시. 이후 사용자 결정으로 **압축 컬럼(slot1~4)은 제거하고 RowDetails 로 일원화** (컬럼 전용 계산 프로퍼티도 함께 제거, `Slots` DTO 는 유지).
+---
 
+<<<<<<< Updated upstream
 **⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.
 
 ---
@@ -1400,3 +1405,22 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **미실시:** 런타임 E2E(시뮬레이터 ARRIVED/CANCELED 포함 완주, REJECTED@10 롤백→재배차, stuck 재푸시)는 다음 배포 테스트에서 확인. deploy 5부 재배포 필요(공유 어셈블리 + elsa-migration RAIL-VEHICLEARRIVED). v0.2 docx 는 미추적 상태로 남겨둠(사용자 판단으로 삭제).
 
 **남은 협의(AMR 벤더):** ARRIVED reply 발행 여부(선택), 일반 moveCmd 의 COMPLETED 시점(작업 완료 시점만 — 도착은 ARRIVED), 게이트 대기 상한, resultCode 21/22/30/31/32 채택.
+=======
+## 53. ACS↔AMR exchangeCmd 인터페이스 — EI 프로토콜 계층 정합 (정의서 v0.2)
+
+**날짜:** 2026-08-19
+
+**범위:** `docs/ACS-AMR_mqtt_exchangecmd.docx`(v0.2 초안, 협의 #1만 확정) 기준으로 **EI 프로토콜 계층만** 정합. 문서의 "협의 확정 전 구현 착수 금지" 단서에 따라 **TS 오케스트레이션 전환(단일 exchangeCmd 위임)과 시뮬레이터 시퀀스는 S8 로 보류** — 사용자 승인 하에 프로토콜 준비만 선행.
+
+**변경 (전부 additive — 신규 필드 null 시 직렬화 생략, 기존 moveCmd/actionCmd 페이로드 불변):**
+- `AmrCommandMessage`: jobId / loadSourceNode·equipNode·unloadDestNode / loadSlot·unloadSlot / loadSourcePortType·unloadDestPortType / type(게이트) / returnNode(취소 복귀) 추가
+- `AmrReplyMessage`: jobId / step / stepName / carrierSlot 추가 (status 신규 값 STEP_COMPLETE·CANCELED 수신 대비)
+- `MqttInterfaceManager`: **`SendExchange()`** 신설(§4 exchangeCmd 발행), `SendAction()` 에 actionType/jobId(§6 게이트), `SendCancel()` 에 jobId/returnNode(§7)
+- EI `HandleActionCmdActivity`: actionCmd 에 type=actionType, jobId=commandId 동봉(게이트 허가 신 스펙 — 구 스펙 AMR 은 미지 필드 무시로 하위 호환). `HandleCancelCmdActivity`: RAIL-CANCELCMD 의 returnNode 파싱·전달 (`RailCancelCmdData.ReturnNode` 추가 — TS 는 아직 미전송, 옵션 필드)
+- EI `HandleAmrReplyActivity`: 신 스펙 status(STEP_COMPLETE/ARRIVED/CANCELED) 수신 시 필드 포함 Info 로그 후 보류 — **Trans 라우팅은 S8 에서 연결** (현행 구간별 흐름과 혼선 방지)
+- `docs/mqtt_interface.md`: §exchangeCmd / actionCmd 게이트 확장 / cancelCmd returnNode / reply 단계 보고 확장 반영
+
+**검증:** ACS.Communication/ACS.Elsa 빌드 0 오류, 테스트 136건 통과, 5부 재배포·재기동. 기존 흐름 무변경(신규 필드는 발행 시 생략 또는 부가 필드).
+
+**S8 남은 범위 (협의 #2~#7 확정 후):** TS 가 배차 시 단일 RAIL-EXCHANGECMD→exchangeCmd 로 위임, EI 단계 보고 라우팅→TS STEP/슬롯 미러링, C3 returnNode 전달, 시뮬레이터 exchangeCmd 시퀀스(2중 게이트)·CANCELED reply.
+>>>>>>> Stashed changes
