@@ -1361,6 +1361,17 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 **검증:** 빌드 0 오류, API 응답에서 진행 중 잡의 슬롯(slot1 OCCUPIED NEW, slot3 예약) 확인. UI 는 소스 빌드로 확인 — **설치본(AppData Velopack) 반영은 UI 릴리스 절차(releases/ui) 필요**.
 
+---
+
+## 52. 고객사 전달용 EXCHANGE E2E 증적 (2026-08-18)
+
+**결과:** Job `MES_ACS_TEST_EXCHANGE_20260818120451210_0001` — EXCHANGECMD(12:04:51)부터 COMPLETE(60)(12:05:34)까지 완주, Validator 판정 PASS·FAIL 0건. 패키지 **`D:\ACS\ACS_EXCHANGE_E2E_20260818.zip`** (README + Validator 로그/CSV/요약 + HS·TS·ES 당일 로그, XML 전문 포함) — 고객사 발송용.
+
+**과정 기록:**
+- 구 Validator(8/15 기동)의 수신 리스너가 **또** 사망(8/15와 동일 증상 — 재발 2회째, 도구 자체 결함으로 판단). 그 상태에서 보낸 잡 0008 은 시뮬레이터 Fail 주입 잔류로 MAGAZINE_NOT_FOUND 즉시 종결(ACS 는 정상 동작).
+- "서버 로그 미기록"으로 보였던 것은 **NTFS 가 열린 파일 크기를 지연 표시**한 것 — 실제로는 정상 기록 중이었음 (디렉토리 크기 89MB→실측). 로그 존재 판단은 크기가 아니라 Get-Content 로 할 것.
+- Validator 로그 파일명은 **프로세스 시작 날짜** 기준 — 특정 날짜 로그가 필요하면 그날 Validator 를 재시작해야 함.
+
 **추가 (같은 날):** 행 선택 시 하부에 슬롯 4행 상세를 펼치는 `DataGrid.RowDetailsTemplate` 추가(`RowDetailsVisibilityMode=VisibleWhenSelected`, 저장소 첫 RowDetails 사용) — 헤더+슬롯행(slotNo/role/state/jobId/phase/updatedTime), phase 는 강조 표시. 이후 사용자 결정으로 **압축 컬럼(slot1~4)은 제거하고 RowDetails 로 일원화** (컬럼 전용 계산 프로퍼티도 함께 제거, `Slots` DTO 는 유지).
 
 **⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.
