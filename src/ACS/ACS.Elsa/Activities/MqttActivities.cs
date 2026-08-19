@@ -976,14 +976,16 @@ namespace ACS.Elsa.Activities
                 // jobType 이 비어있으면 MES 가 보낸 actionType 으로 폴백
                 string effectiveJobType = string.IsNullOrEmpty(jobType) ? (actionType ?? "") : jobType;
 
-                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model, amrSlot)
+                // v0.3: type = MES ACTIONCMD Type(UNLOAD/LOAD) 우선 — EXCHANGE TC 는 jobType=EXCHANGE 라 AMR 이 PICK/PLACE 를 결정하려면 type 이 필요
+                string actionCmdType = string.IsNullOrEmpty(actionType) ? effectiveJobType : actionType;
+                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model, amrSlot, actionCmdType)
                     .GetAwaiter().GetResult();
 
                 if (result)
                 {
                     logger.Info($"HandleActionCmdActivity: MQTT actionCmd 전송 완료. " +
                         $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
-                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, actionType={actionType}, model={model}, amrSlot={amrSlot}");
+                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, type={actionCmdType}, model={model}, amrSlot={amrSlot}");
                 }
                 else
                 {
@@ -1082,13 +1084,17 @@ namespace ACS.Elsa.Activities
 
     /// <summary>
     /// AMR reply(amr/{id}/reply) 메시지 수신 시 status=COMPLETED와 jobType에 따라
-    /// Trans 프로세스로 RAIL-VEHICLEACQUIRECOMPLETED(UNLOAD) 또는
-    /// RAIL-VEHICLEDEPOSITCOMPLETED(LOAD) JSON을 전송한다.
+    /// Trans 프로세스로 status 별 RAIL-* JSON을 전송한다 (라우팅 결정표: ACS.Core AmrReplyPolicy).
+    ///  - COMPLETED / STEP_COMPLETE → RAIL-VEHICLE{ACQUIRE|DEPOSIT|EXCHANGE}COMPLETED (jobType 분기)
+    ///  - ARRIVED                   → RAIL-VEHICLEARRIVED (pose 도착 판정과 Trans 에서 수렴)
+    ///  - FAILED / REJECTED         → RAIL-VEHICLEJOBFAILED (EXCHANGE TC 한정, 처리 정책은 Trans)
+    ///  - CANCELED                  → 로그만
+    ///  - ACCEPTED / EXECUTING      → 무시
     ///
     /// Arguments: [AmrReplyMessage reply, string vehicleId]
     /// </summary>
     [Activity("ACS.Mqtt", "Handle AMR Reply",
-        "AMR reply 수신 → COMPLETED일 때 jobType 분기로 Trans에 ACQUIRE/DEPOSIT 전송")]
+        "AMR reply 수신 → status/jobType 분기로 Trans에 RAIL-* 전송")]
     public class HandleAmrReplyActivity : CodeActivity
     {
         private static readonly Logger logger = Logger.GetLogger(typeof(HandleAmrReplyActivity));
@@ -1120,51 +1126,66 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // FAILED: 사양 확정분(EXCHANGE origin 픽업 실패 → MAGAZINE_NOT_FOUND 즉시 종결)만 라우팅.
-                // 그 외 FAILED 는 기존대로 정지 + 운영자 개입 (후속 슬라이스).
-                if ("FAILED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
+                // v0.3: TC 조회 키는 reply.jobId 우선, 없으면 cmdId (ACS 는 둘 다 TC JobId 로 발행)
+                string tcKey = !string.IsNullOrEmpty(reply.JobId) ? reply.JobId : reply.CmdId;
+
+                // status → 라우팅 결정 (ACS.Core AmrReplyPolicy 단일 출처)
+                var action = AmrReplyPolicy.Route(reply.Status);
+                switch (action)
                 {
-                    RouteExchangePickupFailure(accessor, reply, vehicleId);
+                    case AmrReplyAction.RouteFailed:
+                        // FAILED / REJECTED: EXCHANGE TC 면 Trans 로 라우팅 (처리 정책은 Trans RailVehicleJobfailedWorkflow)
+                        RouteFailure(accessor, reply, vehicleId, tcKey);
+                        return;
+                    case AmrReplyAction.RouteArrived:
+                        RouteArrived(accessor, reply, vehicleId, tcKey);
+                        return;
+                    case AmrReplyAction.LogCanceled:
+                        if (AmrReplyPolicy.IsCancelRejected(reply.ResultCode))
+                            logger.Warn($"HandleAmrReplyActivity: CANCELED(취소 거부 resultCode={reply.ResultCode}) — 종료 상태/jobId 불일치. " +
+                                        $"cmdId={reply.CmdId}, jobId={reply.JobId}, vehicleId={vehicleId}, msg={reply.Message}");
+                        else
+                            logger.Info($"HandleAmrReplyActivity: CANCELED 수신 (Trans 는 이미 취소 처리 완료 — 라우팅 없음). " +
+                                        $"cmdId={reply.CmdId}, jobId={reply.JobId}, vehicleId={vehicleId}, resultCode={reply.ResultCode}");
+                        return;
+                    case AmrReplyAction.RouteCompleted:
+                        break;
+                    default:
+                        // ACCEPTED / EXECUTING / 미정의 status
+                        logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
+                        return;
+                }
+
+                // STEP_COMPLETE 는 step 필수 (사양 v0.3 §5)
+                if (AmrReplyPolicy.RequiresStep(reply.Status) && !reply.Step.HasValue)
+                {
+                    logger.Warn($"HandleAmrReplyActivity: STEP_COMPLETE 인데 step 이 없음 — 라우팅 생략. cmdId={reply.CmdId}, vehicleId={vehicleId}");
                     return;
                 }
 
-                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED 는 현재 라우팅 대상 아님.
-                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
-                    return;
-                }
-
-                // AMR reply 스펙(docs/mqtt_interface.md)에는 jobType이 없으므로 reply.JobType이 비어있으면
-                // cmdId(=TC JobId)로 TC를 조회해 TC.State(TransferringState) 기준으로 LOAD/UNLOAD 를 결정한다.
+                // AMR reply 에 jobType 이 없으면 TC 를 조회해 구간을 결정한다.
+                //  - EXCHANGE TC: 여정 내내 EXCHANGE_ASSIGNED 이므로 STEP 으로 결정 (AmrReplyPolicy.ResolveExchangeJobType)
+                //  - 일반 TC: TC.State(TransferringState) 기준 LOAD/UNLOAD
                 // tc.JobType 은 상위 분류(AUTOCALL/ACSCALL/CHARGEMOVE 등)라서 LOAD/UNLOAD phase 구분에 부적합 — 사용하지 않음.
                 string jobType = reply.JobType;
                 if (string.IsNullOrEmpty(jobType))
                 {
                     var transferManager = accessor.Resolve<ITransferManagerEx>();
-                    var tc = transferManager?.GetTransportCommand(reply.CmdId);
+                    var tc = transferManager?.GetTransportCommand(tcKey);
                     if (tc == null)
                     {
-                        logger.Warn($"HandleAmrReplyActivity: reply에 jobType이 없고 TC 조회 실패. 라우팅 불가. cmdId={reply.CmdId}, vehicleId={vehicleId}");
+                        logger.Warn($"HandleAmrReplyActivity: reply에 jobType이 없고 TC 조회 실패. 라우팅 불가. tcKey={tcKey}, vehicleId={vehicleId}");
                         return;
                     }
 
                     if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
                     {
-                        // EXCHANGE(v2) S5: 상태는 여정 내내 EXCHANGE_ASSIGNED — STEP 으로 구간 결정
-                        // (10=origin 픽업 UNLOAD, 20~40=설비 교체 EXCHANGE, 50=반납 LOAD)
+                        // EXCHANGE(v2): 10=origin 픽업 UNLOAD, 20~40=설비 교체 EXCHANGE, 50=반납 LOAD
                         int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
-                        if (step == ExchangeSteps.STEP_PICKUP_NEW)
-                            jobType = TransportCommandEx.JOBTYPE_UNLOAD;
-                        else if (step == ExchangeSteps.STEP_MOVE_TO_EQUIP
-                                 || step == ExchangeSteps.STEP_UNLOAD_OLD
-                                 || step == ExchangeSteps.STEP_LOAD_NEW)
-                            jobType = TransportCommandEx.JOBTYPE_EXCHANGE;
-                        else if (step == ExchangeSteps.STEP_RETURN_OLD)
-                            jobType = TransportCommandEx.JOBTYPE_LOAD;
-                        else
+                        jobType = AmrReplyPolicy.ResolveExchangeJobType(step);
+                        if (jobType == null)
                         {
-                            logger.Warn($"HandleAmrReplyActivity: EXCHANGE STEP 매핑 실패. 라우팅 생략. cmdId={reply.CmdId}, step={step}");
+                            logger.Warn($"HandleAmrReplyActivity: EXCHANGE STEP 매핑 실패. 라우팅 생략. tcKey={tcKey}, step={step}");
                             return;
                         }
                     }
@@ -1208,7 +1229,7 @@ namespace ACS.Elsa.Activities
                         },
                         Data = new RailVehicleAcquireCompletedData
                         {
-                            CommandId = reply.CmdId ?? "",
+                            CommandId = tcKey ?? "",
                             VehicleId = dbVehicleId,
                             ResultCode = resultCode,
                             ErrorCode = errorCode,
@@ -1231,7 +1252,7 @@ namespace ACS.Elsa.Activities
                         },
                         Data = new RailVehicleDepositCompletedData
                         {
-                            CommandId = reply.CmdId ?? "",
+                            CommandId = tcKey ?? "",
                             VehicleId = dbVehicleId,
                             ResultCode = resultCode,
                             ErrorCode = errorCode,
@@ -1255,11 +1276,14 @@ namespace ACS.Elsa.Activities
                         },
                         Data = new RailVehicleExchangeCompletedData
                         {
-                            CommandId = reply.CmdId ?? "",
+                            CommandId = tcKey ?? "",
                             VehicleId = dbVehicleId,
                             ResultCode = resultCode,
                             ErrorCode = errorCode,
-                            ErrorMessage = errorMessage
+                            ErrorMessage = errorMessage,
+                            // v0.3 선택 필드 — Trans 가 ACT/슬롯 기대값과 대조 (없으면 null)
+                            Step = reply.Step,
+                            CarrierSlot = reply.CarrierSlot
                         }
                     };
                     json = JsonSerializer.Serialize(msg);
@@ -1289,28 +1313,28 @@ namespace ACS.Elsa.Activities
         }
 
         /// <summary>
-        /// FAILED reply 라우팅 — EXCHANGE TC 가 origin 픽업(STEP=10, jobType=UNLOAD) 중 실패하면
-        /// MAGAZINE_NOT_FOUND 즉시 종결 대상이므로 RAIL-VEHICLEJOBFAILED 를 Trans 로 전송한다.
-        /// 그 외 FAILED 는 로그만 남기고 무시 (해당 STEP 정지 + 운영자 개입 — 기존 정책).
+        /// FAILED / REJECTED reply 라우팅 — EXCHANGE TC 면 RAIL-VEHICLEJOBFAILED(status/resultCode/step 포함) 를 Trans 로 전송한다.
+        /// 처리 정책(FAILED@STEP10 → MAGAZINE_NOT_FOUND 종결, REJECTED@STEP10 → EXCHANGE_QUEUED 롤백, 그 외 로그)은
+        /// Trans 의 RailVehicleJobfailedWorkflow 가 AmrReplyPolicy.DecideFailed 로 결정한다.
+        /// 비EXCHANGE TC 의 FAILED/REJECTED 는 로그만 (기존 정책: 정지 + 운영자 개입).
         /// </summary>
-        private static void RouteExchangePickupFailure(Bridge.AutofacContainerAccessor accessor,
-            AmrReplyMessage reply, string vehicleId)
+        private static void RouteFailure(Bridge.AutofacContainerAccessor accessor,
+            AmrReplyMessage reply, string vehicleId, string tcKey)
         {
             var transferManager = accessor.Resolve<ITransferManagerEx>();
-            var tc = transferManager?.GetTransportCommand(reply.CmdId);
+            var tc = transferManager?.GetTransportCommand(tcKey);
             if (tc == null
-                || !TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase)
-                || ExchangeSteps.GetStep(tc.AdditionalInfo) != ExchangeSteps.STEP_PICKUP_NEW)
+                || !TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
             {
-                logger.Warn($"HandleAmrReplyActivity: FAILED reply — 라우팅 대상 아님 (정지+운영자 개입). " +
-                            $"cmdId={reply.CmdId}, vehicleId={vehicleId}, resultCode={reply.ResultCode}, msg={reply.Message}");
+                logger.Warn($"HandleAmrReplyActivity: {reply.Status} reply — 비EXCHANGE/TC없음, 라우팅 대상 아님 (정지+운영자 개입). " +
+                            $"tcKey={tcKey}, vehicleId={vehicleId}, resultCode={reply.ResultCode}, step={reply.Step}, msg={reply.Message}");
                 return;
             }
 
             var messageManager = accessor.Resolve<IMessageManagerEx>();
             if (messageManager == null)
             {
-                logger.Error("RouteExchangePickupFailure: IMessageManagerEx를 찾을 수 없습니다.");
+                logger.Error("RouteFailure: IMessageManagerEx를 찾을 수 없습니다.");
                 return;
             }
 
@@ -1325,15 +1349,53 @@ namespace ACS.Elsa.Activities
                 },
                 Data = new RailVehicleJobFailedData
                 {
-                    CommandId = reply.CmdId ?? "",
+                    CommandId = tcKey ?? "",
                     VehicleId = ResolveDbVehicleId(accessor, vehicleId),
                     ErrorCode = reply.ResultCode.ToString(),
-                    ErrorMessage = reply.Message ?? ""
+                    ErrorMessage = reply.Message ?? "",
+                    Status = reply.Status ?? "",
+                    ResultCode = reply.ResultCode,
+                    Step = reply.Step
                 }
             };
             messageManager.SendVehicleUpdateJson(JsonSerializer.Serialize(msg));
-            logger.Info($"HandleAmrReplyActivity: RAIL-VEHICLEJOBFAILED 전송 (EXCHANGE 픽업 실패). " +
-                        $"cmdId={reply.CmdId}, vehicleId={vehicleId}");
+            logger.Info($"HandleAmrReplyActivity: RAIL-VEHICLEJOBFAILED 전송 ({reply.Status}, EXCHANGE STEP={ExchangeSteps.GetStep(tc.AdditionalInfo)}). " +
+                        $"tcKey={tcKey}, vehicleId={vehicleId}, resultCode={reply.ResultCode}");
+        }
+
+        /// <summary>
+        /// ARRIVED reply 라우팅 — RAIL-VEHICLEARRIVED 를 Trans 로 전송한다.
+        /// Trans(RailVehicleArrivedWorkflow)는 이를 기존 RAIL-VEHICLEDESTARRIVED 진입점으로 수렴시키며,
+        /// pose 기반 도착 판정과의 중복 보고는 TC AdditionalInfo 의 ARRIVED 마커로 방어한다.
+        /// </summary>
+        private static void RouteArrived(Bridge.AutofacContainerAccessor accessor,
+            AmrReplyMessage reply, string vehicleId, string tcKey)
+        {
+            var messageManager = accessor.Resolve<IMessageManagerEx>();
+            if (messageManager == null)
+            {
+                logger.Error("RouteArrived: IMessageManagerEx를 찾을 수 없습니다.");
+                return;
+            }
+
+            var msg = new RailVehicleArrivedMessage
+            {
+                Header = new RailVehicleArrivedHeader
+                {
+                    MessageName = "RAIL-VEHICLEARRIVED",
+                    TransactionId = Guid.NewGuid().ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    Sender = "EI"
+                },
+                Data = new RailVehicleArrivedData
+                {
+                    CommandId = tcKey ?? "",
+                    VehicleId = ResolveDbVehicleId(accessor, vehicleId),
+                    Step = reply.Step
+                }
+            };
+            messageManager.SendVehicleUpdateJson(JsonSerializer.Serialize(msg));
+            logger.Info($"HandleAmrReplyActivity: RAIL-VEHICLEARRIVED 전송. tcKey={tcKey}, vehicleId={vehicleId}, step={reply.Step}");
         }
 
         /// <summary>

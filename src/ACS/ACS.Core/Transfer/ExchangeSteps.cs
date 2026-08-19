@@ -105,6 +105,53 @@ namespace ACS.Core.Transfer
             }
         }
 
+        /// <summary>stuck 복구 시 재푸시할 구간 (ResolveRecoverySegment 결과).</summary>
+        public sealed class RecoverySegment
+        {
+            /// <summary>moveCmd jobType: UNLOAD(→Origin) / EXCHANGE(→Mid) / LOAD(→Dest)</summary>
+            public string JobType { get; }
+            /// <summary>대상 waypoint: SOURCE / MID / DEST</summary>
+            public string Target { get; }
+            /// <summary>사용할 슬롯 키: ExchangeInfo.KEY_LOADSLOT / KEY_UNLOADSLOT</summary>
+            public string SlotKey { get; }
+            public RecoverySegment(string jobType, string target, string slotKey)
+            {
+                JobType = jobType; Target = target; SlotKey = slotKey;
+            }
+        }
+
+        public const string TARGET_SOURCE = "SOURCE";
+        public const string TARGET_MID = "MID";
+        public const string TARGET_DEST = "DEST";
+
+        /// <summary>
+        /// stuck 복구(RecoverStuckVehicles) 용: 현재 STEP/ACT 로부터 재푸시할 이동 구간을 유도한다.
+        /// 재푸시 대상이 아니면 null.
+        ///  - STEP=10                         → UNLOAD  /SOURCE/LOADSLOT   (Origin 픽업행)
+        ///  - STEP=20 &amp;&amp; ACT 빈값 &amp;&amp; 현재≠mid → EXCHANGE/MID/LOADSLOT     (설비행). ACT 설정 = 설비 게이트 대기 중 → 재푸시 금지
+        ///  - STEP=50                         → LOAD    /DEST/UNLOADSLOT   (반납행)
+        ///  - 그 외(30/40/60, 20 이면서 이미 mid 에 있음)         → null
+        /// jobType 문자열은 TransportCommandEx.JOBTYPE_* 과 동일 값("UNLOAD"/"EXCHANGE"/"LOAD").
+        /// </summary>
+        public static RecoverySegment ResolveRecoverySegment(int step, string act, string currentNodeId, string midStationId)
+        {
+            switch (step)
+            {
+                case STEP_PICKUP_NEW:
+                    return new RecoverySegment("UNLOAD", TARGET_SOURCE, ExchangeInfo.KEY_LOADSLOT);
+                case STEP_MOVE_TO_EQUIP:
+                    if (!string.IsNullOrEmpty(act))
+                        return null; // 설비 액션 진행/대기 중 — 이동 재푸시 금지
+                    if (NodeEquals(currentNodeId ?? "", midStationId))
+                        return null; // 이미 설비 노드 — MES ACTIONCMD 대기 중
+                    return new RecoverySegment("EXCHANGE", TARGET_MID, ExchangeInfo.KEY_LOADSLOT);
+                case STEP_RETURN_OLD:
+                    return new RecoverySegment("LOAD", TARGET_DEST, ExchangeInfo.KEY_UNLOADSLOT);
+                default:
+                    return null;
+            }
+        }
+
         private static bool NodeEquals(string a, string b)
         {
             return !string.IsNullOrEmpty(b) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

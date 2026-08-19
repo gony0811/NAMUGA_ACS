@@ -104,7 +104,7 @@ namespace ACS.Elsa.Workflows.Trans
                 // EXCHANGE(v2) S5: STEP 기반 waypoint(origin/mid/dest) 도착 판정 + ARRIVED(step) 보고 (D4 분기)
                 if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
                 {
-                    Activities.ExchangeTransHandlers.OnDestArrived(tc, vehicle, resourceManager, messageManager);
+                    Activities.ExchangeTransHandlers.OnDestArrived(tc, vehicle, transferManager, resourceManager, messageManager);
                     return;
                 }
 
@@ -139,6 +139,20 @@ namespace ACS.Elsa.Workflows.Trans
                 }
 
                 string matchedSide = matchesSource ? "source" : "dest";
+
+                // v0.3: 도착 보고 idempotency — pose 기반 판정(RailVehicleUpdate)과 AMR ARRIVED reply(RAIL-VEHICLEARRIVED)
+                // 가 같은 도착에 대해 이중 발화할 수 있으므로, TC AdditionalInfo 의 ARRIVED 마커("<nodeId>|<tcState>")로 방어한다.
+                string arrivedMarker = (vehicle.CurrentNodeId ?? "") + "|" + (tc.State ?? "");
+                string reportedMarker = ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_ARRIVED);
+                if (string.Equals(reportedMarker, arrivedMarker, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Info($"RailVehicleDestArrivedActivity: ARRIVED skip — reason=already-reported ({arrivedMarker}), " +
+                                $"vehicleId={vehicleId}, tc={tc.JobId}");
+                    return;
+                }
+                tc.AdditionalInfo = ExchangeInfo.Set(tc.AdditionalInfo, ExchangeInfo.KEY_ARRIVED, arrivedMarker);
+                transferManager.UpdateTransportCommand(tc);
+
                 messageManager.SendJobReportToHost(
                     "START", tc.JobId, vehicleId, tc.JobType ?? "", tc.Description ?? "");
 

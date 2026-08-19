@@ -136,18 +136,28 @@ ACS                           AMR
 | `resultCode` | int | 결과 코드 (0 = 성공) |
 | `message` | string | 상세 메시지 |
 | `timestamp` | string | 응답 시각 (ISO 8601) |
+| `jobId`, `jobType`, `step`, `stepName`, `carrierSlot` | (선택) | v0.3 확장 필드 — `mqtt_interface.md` §Command Reply, `ACS-AMR_mqtt_exchange.md` §5 참조 |
 
 ---
 
 ## 응답 상태 및 결과 코드
 
+전체 status/resultCode 표는 `mqtt_interface.md` §Command Reply 가 원본이다. moveCmd 에 해당하는 것만 발췌:
+
 | status | resultCode | 조건 | 설명 |
 |--------|-----------|------|------|
 | `ACCEPTED` | 0 | 정상 수행 | Task/Job 설정 완료, 이동 시작 |
+| `EXECUTING` | 0 | 이동 중 | (선택) |
+| `ARRIVED` | 0 | 목적 노드 도착 | (권장) ACS 도착 판정 보조 신호 |
+| `COMPLETED` | 0 | **작업(PICK/PLACE) 완료** | 도착 시점이 아니라 jobType 작업 완료 시점에 발행. EQP 도착(jobType=EXCHANGE)은 도킹 완료 시점 |
 | `REJECTED` | 2 | 지원하지 않는 명령 | `moveCmd` 외의 알 수 없는 command |
 | `REJECTED` | 10 | AMR 미연결 | Modbus TCP 연결이 끊어진 상태 |
 | `REJECTED` | 11 | 작업 중 | WorkStatus가 Idle이 아닌 상태 (Moving, Docking, Jog) |
 | `REJECTED` | 20 | 매핑 없음 | NodeId에 해당하는 위치 태그 매핑이 DB에 없음 |
+| `REJECTED` | 21 | 슬롯 상태 불일치 | amrSlot 이 기대 상태(빈/점유)가 아님 |
+| `REJECTED` | 22 | Cobot 준비 안 됨 | Manual/정지/미연결 |
+| `FAILED` | 30 | 매거진 부재 | 픽업지에 매거진 없음 (MAGAZINE_NOT_FOUND) |
+| `FAILED` | 31 | 슬롯/센서 불일치 | 시퀀스 중 슬롯 상태 불일치 |
 | `FAILED` | 99 | 내부 오류 | 명령 처리 중 예외 발생 |
 
 ---

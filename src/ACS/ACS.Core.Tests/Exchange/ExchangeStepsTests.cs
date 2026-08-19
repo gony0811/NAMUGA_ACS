@@ -151,5 +151,62 @@ namespace ACS.Core.Tests.Exchange
             Assert.Equal("", ExchangeSteps.CarrierSlotFor(10, null, "3"));
             Assert.Equal("", ExchangeSteps.CarrierSlotFor(30, "1", null));
         }
+    
+        // ── stuck 복구: STEP/ACT → 재푸시 구간 (v0.3 하이브리드) ──
+
+        [Fact]
+        public void ResolveRecoverySegment_Step10_OriginUnloadWithLoadSlot()
+        {
+            var seg = ExchangeSteps.ResolveRecoverySegment(10, "", "N1011", "N2002");
+            Assert.NotNull(seg);
+            Assert.Equal("UNLOAD", seg.JobType);
+            Assert.Equal(ExchangeSteps.TARGET_SOURCE, seg.Target);
+            Assert.Equal(ExchangeInfo.KEY_LOADSLOT, seg.SlotKey);
+        }
+
+        [Fact]
+        public void ResolveRecoverySegment_Step20_NotAtMid_NoAct_MidExchange()
+        {
+            var seg = ExchangeSteps.ResolveRecoverySegment(20, "", "N1011", "N2002");
+            Assert.NotNull(seg);
+            Assert.Equal("EXCHANGE", seg.JobType);
+            Assert.Equal(ExchangeSteps.TARGET_MID, seg.Target);
+            Assert.Equal(ExchangeInfo.KEY_LOADSLOT, seg.SlotKey);
+        }
+
+        [Theory]
+        [InlineData("UNLOAD")]
+        [InlineData("LOAD")]
+        public void ResolveRecoverySegment_Step20_ActSet_NoResend(string act)
+        {
+            // 설비 게이트 대기/액션 진행 중 — 이동 재푸시 금지
+            Assert.Null(ExchangeSteps.ResolveRecoverySegment(20, act, "N1011", "N2002"));
+        }
+
+        [Fact]
+        public void ResolveRecoverySegment_Step20_AlreadyAtMid_NoResend()
+        {
+            Assert.Null(ExchangeSteps.ResolveRecoverySegment(20, "", "n2002", "N2002"));
+        }
+
+        [Fact]
+        public void ResolveRecoverySegment_Step50_DestLoadWithUnloadSlot()
+        {
+            var seg = ExchangeSteps.ResolveRecoverySegment(50, "", "N2002", "N2002");
+            Assert.NotNull(seg);
+            Assert.Equal("LOAD", seg.JobType);
+            Assert.Equal(ExchangeSteps.TARGET_DEST, seg.Target);
+            Assert.Equal(ExchangeInfo.KEY_UNLOADSLOT, seg.SlotKey);
+        }
+
+        [Theory]
+        [InlineData(30)]
+        [InlineData(40)]
+        [InlineData(60)]
+        [InlineData(0)]
+        public void ResolveRecoverySegment_OtherSteps_Null(int step)
+        {
+            Assert.Null(ExchangeSteps.ResolveRecoverySegment(step, "", "N1011", "N2002"));
+        }
     }
 }

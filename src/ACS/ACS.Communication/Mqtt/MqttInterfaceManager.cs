@@ -438,7 +438,8 @@ namespace ACS.Communication.Mqtt
                 }
 
                 reply.VehicleId = vehicleId;
-                logger.Info($"AMR reply 수신: vehicleId={vehicleId}, cmdId={reply.CmdId}, status={reply.Status}, jobType={reply.JobType}, resultCode={reply.ResultCode}");
+                logger.Info($"AMR reply 수신: vehicleId={vehicleId}, cmdId={reply.CmdId}, status={reply.Status}, jobType={reply.JobType}, resultCode={reply.ResultCode}, " +
+                            $"jobId={reply.JobId}, step={reply.Step}, stepName={reply.StepName}, carrierSlot={reply.CarrierSlot}");
 
                 _workflowManager?.Execute("AMR-REPLY-RECEIVED",
                     new object[] { reply, vehicleId });
@@ -519,7 +520,7 @@ namespace ACS.Communication.Mqtt
         /// AMR에 액션 명령을 전송한다 (actionCmd).
         /// cmdId는 reply 매칭 및 TC(JobId) 조회에 사용되므로 caller가 TC JobId(=commandId)를 넘겨야 한다.
         /// </summary>
-        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string model = null, int amrSlot = 1)
+        public async Task<bool> SendAction(string vehicleId, string nodeId, string port = null, string jobType = null, string cmdId = null, string model = null, int amrSlot = 1, string type = null)
         {
             var command = new AmrCommandMessage
             {
@@ -528,6 +529,9 @@ namespace ACS.Communication.Mqtt
                 NodeId = nodeId,
                 Port = port ?? "",
                 JobType = jobType ?? "",
+                // v0.3: type = 액션 종류(UNLOAD=취출 / LOAD=투입; EXCHANGE TC 는 jobType=EXCHANGE 라 별도 필요) / jobId(=cmdId) — AMR 게이트 대조용
+                Type = !string.IsNullOrEmpty(type) ? type : (string.IsNullOrEmpty(jobType) ? null : jobType),
+                JobId = string.IsNullOrEmpty(cmdId) ? null : cmdId,
                 Model = model ?? "",
                 AmrSlot = amrSlot
             };
@@ -544,7 +548,9 @@ namespace ACS.Communication.Mqtt
             var command = new AmrCommandMessage
             {
                 CmdId = cmdId,
-                Command = "cancelCmd"
+                Command = "cancelCmd",
+                // v0.3: jobId(=cmdId) — AMR 이 진행 중 job 과 대조 (불일치 시 CANCELED resultCode=40)
+                JobId = string.IsNullOrEmpty(cmdId) ? null : cmdId
             };
 
             return await SendCommand(vehicleId, command);

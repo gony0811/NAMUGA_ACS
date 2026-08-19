@@ -5,8 +5,9 @@ namespace ACS.Communication.Mqtt.Model
 {
     /// <summary>
     /// EI → Trans 프로세스로 전송되는 RAIL-VEHICLEJOBFAILED JSON 메시지 모델.
-    /// AMR reply(status=FAILED) 중 사양 확정분 — EXCHANGE origin 픽업 실패
-    /// (MAGAZINE_NOT_FOUND 즉시 종결, "취소·오류" 시트 §2) — 을 Trans 로 라우팅한다.
+    /// AMR reply(status=FAILED / REJECTED) 를 EXCHANGE TC 에 한해 Trans 로 라우팅한다.
+    /// 처리 정책(AmrReplyPolicy)은 Trans 측 RailVehicleJobfailedWorkflow 가 결정한다:
+    ///  FAILED@STEP10 → MAGAZINE_NOT_FOUND 종결, REJECTED@STEP10 → EXCHANGE_QUEUED 롤백, 그 외 로그.
     /// (RailVehicleAcquireCompletedMessage 미러)
     /// </summary>
     public class RailVehicleJobFailedMessage
@@ -50,5 +51,17 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>AMR reply message</summary>
         [JsonPropertyName("errorMessage")]
         public string ErrorMessage { get; set; }
+
+        /// <summary>AMR reply status (FAILED / REJECTED)</summary>
+        [JsonPropertyName("status")]
+        public string Status { get; set; }
+
+        /// <summary>AMR reply resultCode (정수 원값)</summary>
+        [JsonPropertyName("resultCode")]
+        public int ResultCode { get; set; }
+
+        /// <summary>AMR reply step (선택)</summary>
+        [JsonPropertyName("step")]
+        public int? Step { get; set; }
     }
 }

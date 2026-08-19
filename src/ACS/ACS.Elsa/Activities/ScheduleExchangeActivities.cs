@@ -369,37 +369,14 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // 다른 워크플로우의 ChangeTracker 스냅샷 의존성을 끊기 위해 fresh 인스턴스 재조회
-                TransportCommandEx freshTc = transferManager.GetTransportCommand(tc.JobId) ?? tc;
-                VehicleEx freshVehicle = resourceManager.GetVehicle(vehicle.VehicleId) ?? vehicle;
-
-                // 슬롯 예약 해제는 상태와 무관하게 수행 (ReleaseAllByJobId 는 idempotent —
-                // ReserveExchangePair 성공 후 어느 지점에서 실패했든 잔여 예약을 정리)
-                slotManager.ReleaseAllByJobId(freshTc.JobId);
-
-                string tcState = freshTc.State ?? string.Empty;
-                if (!TransportCommandEx.STATE_EXCHANGE_ASSIGNED.Equals(tcState, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Warn($"RollbackExchangeAssignmentActivity: 롤백 스킵 - 예상외 상태 tc={freshTc.JobId}, state={tcState}");
-                    return;
-                }
-
-                // TC 롤백: EXCHANGE_QUEUED 복원 + 슬롯 기록 제거
-                freshTc.State = TransportCommandEx.STATE_EXCHANGE_QUEUED;
-                freshTc.VehicleId = null;
-                freshTc.AssignedTime = null;
-                freshTc.AdditionalInfo = ExchangeInfo.Set(
-                    ExchangeInfo.Set(freshTc.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT, ""),
-                    ExchangeInfo.KEY_UNLOADSLOT, "");
-                transferManager.UpdateTransportCommand(freshTc);
-
-                // Vehicle 롤백: NOTASSIGNED + IDLE 복원 + 슬롯 동반 초기화 (job 단위 해제의 보강)
-                resourceManager.UpdateVehicleTransferState(freshVehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
-                resourceManager.UpdateVehicleProcessingState(freshVehicle, VehicleEx.PROCESSINGSTATE_IDLE);
-                resourceManager.UpdateVehicleTransportCommandId(freshVehicle, "");
-                slotManager.ReleaseAllByVehicleId(freshVehicle.VehicleId);
-
-                logger.Info($"RollbackExchangeAssignmentActivity: 롤백 완료 - TC {freshTc.JobId} → EXCHANGE_QUEUED, Vehicle {freshVehicle.VehicleId} → NOTASSIGNED/IDLE, 슬롯 예약 해제");
+                // 롤백 본체는 ExchangeTransHandlers.RollbackToQueued 로 일원화 (REJECTED@STEP10 롤백과 공유).
+                // TC → EXCHANGE_QUEUED(슬롯 기록/ACT/ARRIVED 초기화, STEP=10), 슬롯 예약 해제, 차량 → NOTASSIGNED/IDLE.
+                bool rolled = ExchangeTransHandlers.RollbackToQueued(tc, vehicle,
+                    transferManager, resourceManager, slotManager, "assignment-rollback");
+                if (!rolled)
+                    logger.Warn($"RollbackExchangeAssignmentActivity: TC 상태 롤백 생략(예상외 상태) — tc={tc.JobId}");
+                else
+                    logger.Info($"RollbackExchangeAssignmentActivity: 롤백 완료 - TC {tc.JobId} → EXCHANGE_QUEUED, Vehicle {vehicle.VehicleId} → NOTASSIGNED/IDLE, 슬롯 예약 해제");
             }
             catch (Exception ex)
             {

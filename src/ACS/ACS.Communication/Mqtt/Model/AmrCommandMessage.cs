@@ -39,5 +39,21 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>AMR 슬롯 번호 (1~4, 기본 1)</summary>
         [JsonPropertyName("amrSlot")]
         public int AmrSlot { get; set; } = 1;
+
+        /// <summary>
+        /// ACS Job ID (= TC JobId = cmdId). actionCmd/cancelCmd 에서 진행 중 job 과의 대조용으로 실어 보낸다.
+        /// null 이면 직렬화 생략 (moveCmd 출력 불변).
+        /// </summary>
+        [JsonPropertyName("jobId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string JobId { get; set; }
+
+        /// <summary>
+        /// actionCmd 액션 종류 (UNLOAD=기존 취출 허가 / LOAD=신규 투입 허가). jobType 과 동일 값의 별칭.
+        /// null 이면 직렬화 생략.
+        /// </summary>
+        [JsonPropertyName("type")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Type { get; set; }
     }
 }

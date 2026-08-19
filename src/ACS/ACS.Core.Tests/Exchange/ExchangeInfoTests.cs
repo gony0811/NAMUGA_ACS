@@ -294,5 +294,30 @@ namespace ACS.Core.Tests.Exchange
             string info = ExchangeInfo.BuildInitial(longJobId, longJobId);
             Assert.True(info.Length < 500, $"additionalInfo too long: {info.Length}");
         }
+    
+        // ── ARRIVED 마커 (v0.3: pose/reply 이중 도착 트리거 중복 보고 방어) ──
+
+        [Fact]
+        public void KeyArrived_ContractValue()
+        {
+            Assert.Equal("ARRIVED", ExchangeInfo.KEY_ARRIVED);
+        }
+
+        [Fact]
+        public void KeyArrived_RoundTrip_AndAbsentOnInitial()
+        {
+            string info = ExchangeInfo.BuildInitial("EQL", "EQU");
+            Assert.False(ExchangeInfo.Has(info, ExchangeInfo.KEY_ARRIVED));
+            Assert.Equal("", ExchangeInfo.Get(info, ExchangeInfo.KEY_ARRIVED));
+
+            string marked = ExchangeInfo.Set(info, ExchangeInfo.KEY_ARRIVED, "20");
+            Assert.Equal("20", ExchangeInfo.Get(marked, ExchangeInfo.KEY_ARRIVED));
+            // 기존 키 보존
+            Assert.Equal("10", ExchangeInfo.Get(marked, ExchangeInfo.KEY_STEP));
+
+            // 일반 TC 형식 "<nodeId>|<tcState>" 도 값에 ';' 가 없어 허용
+            string general = ExchangeInfo.Set("", ExchangeInfo.KEY_ARRIVED, "N2002|ASSIGNED");
+            Assert.Equal("N2002|ASSIGNED", ExchangeInfo.Get(general, ExchangeInfo.KEY_ARRIVED));
+        }
     }
 }

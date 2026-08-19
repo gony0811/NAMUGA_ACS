@@ -963,6 +963,16 @@ namespace ACS.Elsa.Activities
                         logger.Warn($"RecoverStuckVehiclesActivity: TC 없음 vehicleId={vehicle.VehicleId}, transportCommandId={vehicle.TransportCommandId}");
                         continue;
                     }
+
+                    // EXCHANGE(v2) 분기 (v0.3 하이브리드): TC 상태는 여정 내내 EXCHANGE_ASSIGNED 라 아래 일반 매칭에 걸리지 않으므로
+                    // STEP/ACT 로 현재 이동 구간을 유도해 재푸시한다. 설비 게이트 대기(ACT 설정)·설비 앞 대기(이미 mid)·30/40/60 은 재푸시 안 함.
+                    if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (RecoverExchangeVehicle(vehicle, tc, resourceManager, messageManager))
+                            recovered++;
+                        continue;
+                    }
+
                     if (!string.Equals(tc.VehicleId, vehicle.VehicleId, StringComparison.OrdinalIgnoreCase))
                     {
                         // Vehicle 측 (TransportCommandId, TransferState) 을 진실 원천으로 간주하여 TC 재연결.
@@ -1039,6 +1049,56 @@ namespace ACS.Elsa.Activities
             {
                 logger.Error($"RecoverStuckVehiclesActivity: {ex.Message}", ex);
             }
+        }
+
+        /// <summary>
+        /// EXCHANGE TC stuck 복구: ExchangeSteps.ResolveRecoverySegment 로 구간을 유도해 RAIL-CARRIERTRANSFER 를 재푸시한다.
+        ///  - STEP=10 → Origin(tc.Source) UNLOAD, amrSlot=LOADSLOT
+        ///  - STEP=20 &amp;&amp; ACT 빈값 &amp;&amp; 현재≠mid → Mid(MidLoc:MidPortId) EXCHANGE, amrSlot=LOADSLOT
+        ///  - STEP=50 → Dest(tc.Dest) LOAD, amrSlot=UNLOADSLOT
+        /// 재푸시 시 AcsDestNodeId 도 해당 waypoint StationId 로 재설정한다. 재푸시했으면 true.
+        /// </summary>
+        private static bool RecoverExchangeVehicle(VehicleEx vehicle, TransportCommandEx tc,
+            IResourceManagerEx resourceManager, IMessageManagerEx messageManager)
+        {
+            if (!TransportCommandEx.STATE_EXCHANGE_ASSIGNED.Equals(tc.State, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.Warn($"RecoverStuckVehiclesActivity[EXCHANGE]: 예상외 TC 상태 — 재푸시 안 함 tc={tc.JobId}, state={tc.State}");
+                return false;
+            }
+
+            int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
+            string act = ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_ACT);
+            string midLocationId = ExchangeSteps.BuildMidLocationId(tc.MidLoc, tc.MidPortId);
+            string midStationId = ExchangeTransHandlers.ResolveStationId(resourceManager, midLocationId);
+
+            var seg = ExchangeSteps.ResolveRecoverySegment(step, act, vehicle.CurrentNodeId, midStationId);
+            if (seg == null)
+            {
+                logger.Info($"RecoverStuckVehiclesActivity[EXCHANGE]: 재푸시 대상 아님 tc={tc.JobId}, step={step}, act='{act}', " +
+                            $"currentNode={vehicle.CurrentNodeId}, mid={midStationId}");
+                return false;
+            }
+
+            string targetLocationId = seg.Target == ExchangeSteps.TARGET_SOURCE ? tc.Source
+                                    : seg.Target == ExchangeSteps.TARGET_MID ? midLocationId
+                                    : tc.Dest;
+            string targetStationId = ExchangeTransHandlers.ResolveStationId(resourceManager, targetLocationId);
+            if (string.IsNullOrEmpty(targetStationId))
+            {
+                logger.Error($"RecoverStuckVehiclesActivity[EXCHANGE]: waypoint StationId 조회 실패 tc={tc.JobId}, target={seg.Target}, loc={targetLocationId}");
+                return false;
+            }
+            string slot = ExchangeInfo.Get(tc.AdditionalInfo, seg.SlotKey);
+
+            resourceManager.UpdateVehicleAcsDestNodeId(vehicle, targetStationId, "SCHEDULE-CHECKVEHICLES");
+            vehicle.AcsDestNodeId = targetStationId;
+            ExchangeTransHandlers.SendCarrierTransfer(messageManager, resourceManager, tc, vehicle.VehicleId,
+                seg.JobType, targetLocationId, slot);
+
+            logger.Info($"RecoverStuckVehiclesActivity[EXCHANGE]: RAIL-CARRIERTRANSFER 재전송 vehicleId={vehicle.VehicleId}, tc={tc.JobId}, " +
+                        $"step={step}, target={seg.Target}({targetLocationId}→{targetStationId}), jobType={seg.JobType}, amrSlot={slot}");
+            return true;
         }
     }
 

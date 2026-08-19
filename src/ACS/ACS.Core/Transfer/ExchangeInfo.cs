@@ -40,6 +40,13 @@ namespace ACS.Core.Transfer
         /// <summary>KEY_ACT 값: 신규 매거진 투입 액션 (사양서 ACTIONCMD Type=LOAD).</summary>
         public const string ACT_LOAD = "LOAD";
 
+        /// <summary>
+        /// 도착(ARRIVED) 보고 idempotency 마커. 도착 보고를 발행한 뒤 기록하고, 같은 값이면 재보고를 생략한다.
+        /// pose 기반 도착 판정과 AMR reply(ARRIVED) 가 같은 도착에 대해 이중 트리거되는 것을 막는다.
+        /// 값: EXCHANGE TC = 보고한 step(예 "20"), 일반 TC = "&lt;nodeId&gt;|&lt;tcState&gt;".
+        /// </summary>
+        public const string KEY_ARRIVED = "ARRIVED";
+
         private const char ENTRY_SEPARATOR = ';';
         private const char KEYVALUE_SEPARATOR = '=';
 

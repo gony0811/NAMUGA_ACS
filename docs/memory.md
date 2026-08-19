@@ -1375,3 +1375,28 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **추가 (같은 날):** 행 선택 시 하부에 슬롯 4행 상세를 펼치는 `DataGrid.RowDetailsTemplate` 추가(`RowDetailsVisibilityMode=VisibleWhenSelected`, 저장소 첫 RowDetails 사용) — 헤더+슬롯행(slotNo/role/state/jobId/phase/updatedTime), phase 는 강조 표시. 이후 사용자 결정으로 **압축 컬럼(slot1~4)은 제거하고 RowDetails 로 일원화** (컬럼 전용 계산 프로퍼티도 함께 제거, `Slots` DTO 는 유지).
 
 **⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.
+
+---
+
+## 53. AMR↔ACS EXCHANGE 인터페이스 정합화 — 하이브리드(B안 유지 + reply/actionCmd/cancelCmd 확장, 사양 v0.3)
+
+**날짜:** 2026-08-19
+
+**배경:** `docs/ACS-AMR_mqtt_exchangecmd.docx`(초안 v0.2, 8/11)는 **exchangeCmd 단일 명령 + AMR 자율 시퀀스 + AMR 단계 보고** 모델(A안)인데, 실제 구현(§46/§48/§49)은 **ACS 구간별 moveCmd/actionCmd 오케스트레이션 + ACS STEP 추적** 모델(B안)로 E2E 완주까지 끝난 상태. 두 방식의 장단점을 비교(계획 파일 `~/.claude/plans/amr-pose-arrived-goofy-shannon.md`)한 결과 **B안 유지** 결정 — 근거: 2건 배칭(D2 "v2 일괄 개발") 확장성(A안은 1 exchangeCmd=1 job 이라 배칭에 새 명령 필요), 검증된 구현·시뮬레이터, AMR 벤더 공수 최소. A안의 실질 강점(명시적 도착/단계 보고, 오류코드 체계, 취소 응답)은 **reply 확장**으로 흡수.
+
+**인터페이스 v0.3 계약 (`docs/ACS-AMR_mqtt_exchange.md` 원본, `docs/ACS-AMR_mqtt_exchange_v0.3.docx` 벤더 전달용, `docs/mqtt_interface.md`·`ACS-AMR_mqtt_movecmd.md` 정정):**
+- command 선택 필드 `jobId`(=cmdId=TC JobId), `type`(actionCmd 액션 UNLOAD/LOAD — EXCHANGE 는 jobType=EXCHANGE 라 별도 필수, EI 는 MES ACTIONCMD Type 을 실음) — null 이면 미직렬화(moveCmd 출력 불변). cancelCmd 에 jobId (returnNode 없음 — C3 복귀는 ACS CHARGEMOVE).
+- reply 선택 필드 `jobId, step, stepName, carrierSlot`; status 추가 `ARRIVED`(도착, 권장) / `STEP_COMPLETE`(COMPLETED 별칭, step 필수) / `CANCELED`(40=CANCEL_REJECTED). resultCode int 계약: REJECTED 2/10/11/20/21/22, FAILED 30(MAGAZINE_NOT_FOUND)/31/32/99, CANCELED 40.
+- ACS 정책: ARRIVED 는 pose 판정과 OR(중복 보고 가드). REJECTED@STEP10 → EXCHANGE_QUEUED 롤백·재배차, FAILED@STEP10 → MAGAZINE_NOT_FOUND(현행), 그 외 로그(정지+운영자). CANCELED 는 로그만(TS 는 reply 대기 없이 취소 처리 완료).
+
+**구현:**
+- `ACS.Core/Transfer/AmrReplyPolicy.cs` 신설 — status/resultCode 상수, `Route`(EI), `DecideFailed`(TS), `ResolveExchangeJobType`(STEP→구간 jobType). `ExchangeInfo.KEY_ARRIVED`(도착 보고 idempotency 마커: EXCHANGE=step, 일반=`nodeId|tcState`), `ExchangeSteps.ResolveRecoverySegment`(stuck 복구 구간 유도).
+- 모델: `AmrCommandMessage`(JobId/Type, WhenWritingNull), `AmrReplyMessage`(JobId/Step/StepName/CarrierSlot), `RailVehicleJobFailedMessage`(status/resultCode/step), `RailVehicleExchangeCompletedMessage`(step/carrierSlot), 신규 `RailVehicleArrivedMessage`(RAIL-VEHICLEARRIVED). `MqttInterfaceManager.SendAction/SendCancel` 이 type/jobId 채움.
+- EI `HandleAmrReplyActivity`: `AmrReplyPolicy.Route` 분기 — ARRIVED→RAIL-VEHICLEARRIVED, STEP_COMPLETE→COMPLETED 경로, FAILED/REJECTED→RAIL-VEHICLEJOBFAILED(EXCHANGE 한정, EI측 STEP=10 게이트 제거→TS 이관), CANCELED 로그. TC 조회 키 `jobId ?? cmdId`.
+- TS: 신규 `RailVehicleArrivedWorkflow`(→ 기존 RAIL-VEHICLEDESTARRIVED 진입점 재사용, elsa-migration 등록). `RailVehicleDestArrivedWorkflow` 일반 경로·`ExchangeTransHandlers.OnDestArrived` 에 ARRIVED 마커 가드(보고 전 검사·후 기록). `OnExchangeCompleted(…, replyStep, replyCarrierSlot)` 오버로드 — step 불일치는 무시, carrierSlot 불일치는 경고(ACS 값 권위). `RailVehicleJobfailedWorkflow` 를 `DecideFailed` 기반으로 재작성(REJECTED@10 롤백). `ExchangeTransHandlers.RollbackToQueued` 헬퍼 신설 — `RollbackExchangeAssignmentActivity` 도 위임(STEP=10/ACT/ARRIVED 초기화·AcsDestNodeId/Path 클리어 추가). `RecoverStuckVehiclesActivity` EXCHANGE 분기(10→Origin UNLOAD/loadSlot, 20&ACT빈값&현재≠mid→Mid EXCHANGE, 50→Dest LOAD/unloadSlot; ACT 설정·이미 mid·30/40/60 은 재푸시 안 함).
+- 시뮬레이터 `VirtualAmr`: 도착 시 ARRIVED reply, cancelCmd → CANCELED(0/40), reply 에 jobId·carrierSlot(COMPLETED 시 amrSlot).
+- 테스트: `AmrReplyPolicyTests`(결정표), `ExchangeStepsTests`(RecoverySegment), `ExchangeInfoTests`(ARRIVED), 신규 `Mqtt/AmrMessageContractTests`(페이로드 스냅샷 — ACS.Core.Tests 가 ACS.Communication 참조 추가). **190건 통과**, `dotnet build ACS.sln` 0 오류.
+
+**미실시:** 런타임 E2E(시뮬레이터 ARRIVED/CANCELED 포함 완주, REJECTED@10 롤백→재배차, stuck 재푸시)는 다음 배포 테스트에서 확인. deploy 5부 재배포 필요(공유 어셈블리 + elsa-migration RAIL-VEHICLEARRIVED). v0.2 docx 는 미추적 상태로 남겨둠(사용자 판단으로 삭제).
+
+**남은 협의(AMR 벤더):** ARRIVED reply 발행 여부(선택), 일반 moveCmd 의 COMPLETED 시점(작업 완료 시점만 — 도착은 ARRIVED), 게이트 대기 상한, resultCode 21/22/30/31/32 채택.

@@ -36,7 +36,7 @@ namespace ACS.Elsa.Activities
         /// 설비 도착(ARRIVED, 20) 한 건만 발행한다. TC/Vehicle 전이는 없음.
         /// </summary>
         public static void OnDestArrived(TransportCommandEx tc, VehicleEx vehicle,
-            IResourceManagerEx rm, IMessageManagerEx mm)
+            ITransferManagerEx tm, IResourceManagerEx rm, IMessageManagerEx mm)
         {
             int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
 
@@ -62,6 +62,16 @@ namespace ACS.Elsa.Activities
                             $"step={arrivedStep.Value}({ExchangeSteps.StepName(arrivedStep.Value)}), node={vehicle.CurrentNodeId}");
                 return;
             }
+
+            // v0.3: 도착 보고 idempotency — pose 기반 판정과 AMR ARRIVED reply 의 이중 발화 방어 (마커 = 보고한 step)
+            string reportedStep = ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_ARRIVED);
+            if (string.Equals(reportedStep, arrivedStep.Value.ToString(), StringComparison.Ordinal))
+            {
+                logger.Info($"[EXCHANGE] ARRIVED skip — already-reported step={arrivedStep.Value}, tc={tc.JobId}, vehicleId={vehicle.VehicleId}");
+                return;
+            }
+            tc.AdditionalInfo = ExchangeInfo.Set(tc.AdditionalInfo, ExchangeInfo.KEY_ARRIVED, arrivedStep.Value.ToString());
+            tm.UpdateTransportCommand(tc);
 
             SendReport(mm, tc, vehicle.VehicleId, "ARRIVED", arrivedStep.Value);
             logger.Info($"[EXCHANGE] ARRIVED 보고: tc={tc.JobId}, vehicleId={vehicle.VehicleId}, " +
@@ -183,6 +193,18 @@ namespace ACS.Elsa.Activities
         public static void OnExchangeCompleted(TransportCommandEx tc, VehicleEx vehicle,
             ITransferManagerEx tm, IResourceManagerEx rm, ISlotManagerEx sm, IMessageManagerEx mm)
         {
+            OnExchangeCompleted(tc, vehicle, tm, rm, sm, mm, null, null);
+        }
+
+        /// <summary>
+        /// v0.3 오버로드: AMR reply 가 step/carrierSlot 을 실어 보낸 경우 ACS 기대값과 대조한다.
+        ///  - replyStep 이 있고 ACT 기대 단계(UNLOAD→30, LOAD→40)와 다르면 Warn + 무시 (ACS STEP 권위).
+        ///  - replyCarrierSlot 이 있고 ACS 슬롯(UNLOAD→UNLOADSLOT, LOAD→LOADSLOT)과 다르면 Warn 만 (ACS 값 권위, 진행은 계속).
+        /// </summary>
+        public static void OnExchangeCompleted(TransportCommandEx tc, VehicleEx vehicle,
+            ITransferManagerEx tm, IResourceManagerEx rm, ISlotManagerEx sm, IMessageManagerEx mm,
+            int? replyStep, int? replyCarrierSlot)
+        {
             const string MsgName = "RAIL-VEHICLEEXCHANGECOMPLETED";
 
             if (!GuardExchangeAssigned(tc, "OnExchangeCompleted")) return;
@@ -193,8 +215,35 @@ namespace ACS.Elsa.Activities
             if (string.IsNullOrEmpty(act))
             {
                 logger.Info($"[EXCHANGE] OnExchangeCompleted: 진행 중 액션 없음(ACT 빈값) — " +
-                            $"이동/도킹 완료 reply 로 간주하고 무시. STEP={step}, tc={tc.JobId}");
+                            $"이동/도킹 완료 reply 로 간주하고 무시. STEP={step}, replyStep={replyStep}, tc={tc.JobId}");
                 return;
+            }
+
+            // v0.3: reply step 대조 — AMR 이 보고한 완료 단계가 ACS 가 기대하는 단계와 다르면 무시
+            if (replyStep.HasValue)
+            {
+                int expectedStep = ExchangeInfo.ACT_UNLOAD.Equals(act, StringComparison.OrdinalIgnoreCase)
+                    ? ExchangeSteps.STEP_UNLOAD_OLD
+                    : ExchangeInfo.ACT_LOAD.Equals(act, StringComparison.OrdinalIgnoreCase)
+                        ? ExchangeSteps.STEP_LOAD_NEW : 0;
+                if (expectedStep != 0 && replyStep.Value != expectedStep)
+                {
+                    logger.Warn($"[EXCHANGE] OnExchangeCompleted: reply step={replyStep.Value} 이 ACT={act} 기대 단계({expectedStep})와 불일치 — 무시. " +
+                                $"STEP={step}, tc={tc.JobId}");
+                    return;
+                }
+            }
+            // v0.3: reply carrierSlot 대조 — 불일치는 경고만 (ACS 배정 슬롯이 권위)
+            if (replyCarrierSlot.HasValue)
+            {
+                string expectedSlot = ExchangeInfo.ACT_UNLOAD.Equals(act, StringComparison.OrdinalIgnoreCase)
+                    ? ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_UNLOADSLOT)
+                    : ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT);
+                if (!string.Equals(expectedSlot, replyCarrierSlot.Value.ToString(), StringComparison.Ordinal))
+                {
+                    logger.Warn($"[EXCHANGE] OnExchangeCompleted: reply carrierSlot={replyCarrierSlot.Value} 이 ACS 슬롯({expectedSlot})과 불일치 — " +
+                                $"ACS 값 기준으로 진행. ACT={act}, tc={tc.JobId}");
+                }
             }
 
             if (ExchangeInfo.ACT_UNLOAD.Equals(act, StringComparison.OrdinalIgnoreCase))
@@ -257,6 +306,62 @@ namespace ACS.Elsa.Activities
             logger.Warn($"[EXCHANGE] OnExchangeCompleted: 알 수 없는 ACT='{act}' — 진행 생략 tc={tc.JobId}");
         }
 
+        /// <summary>
+        /// EXCHANGE TC 를 배차 전 상태로 되돌린다 (실물 이동 전 안전 구간에서만 호출할 것):
+        /// TC → EXCHANGE_QUEUED(VehicleId/AssignedTime/슬롯 기록/ACT/ARRIVED 초기화, STEP=10),
+        /// 슬롯 예약 해제(job·vehicle), 차량 → NOTASSIGNED/IDLE + TransportCommandId/AcsDestNodeId/Path 클리어.
+        /// 배차 실패 롤백(RollbackExchangeAssignmentActivity)과 REJECTED@STEP10 (RailVehicleJobfailedWorkflow) 이 공유.
+        /// TC 상태가 EXCHANGE_ASSIGNED 가 아니면 TC 롤백은 생략하고(경고) 슬롯/차량 정리만 수행한다.
+        /// </summary>
+        public static bool RollbackToQueued(TransportCommandEx tc, VehicleEx vehicle,
+            ITransferManagerEx tm, IResourceManagerEx rm, ISlotManagerEx sm, string reason)
+        {
+            if (tc == null) return false;
+
+            // 다른 워크플로우의 ChangeTracker 스냅샷 의존성을 끊기 위해 fresh 인스턴스 재조회
+            TransportCommandEx freshTc = tm.GetTransportCommand(tc.JobId) ?? tc;
+            VehicleEx freshVehicle = vehicle != null ? (rm.GetVehicle(vehicle.VehicleId) ?? vehicle) : null;
+
+            // 슬롯 예약 해제는 상태와 무관하게 수행 (idempotent)
+            sm?.ReleaseAllByJobId(freshTc.JobId);
+
+            bool tcRolledBack = false;
+            string tcState = freshTc.State ?? string.Empty;
+            if (TransportCommandEx.STATE_EXCHANGE_ASSIGNED.Equals(tcState, StringComparison.OrdinalIgnoreCase))
+            {
+                freshTc.State = TransportCommandEx.STATE_EXCHANGE_QUEUED;
+                freshTc.VehicleId = null;
+                freshTc.AssignedTime = null;
+                string info = freshTc.AdditionalInfo;
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_STEP, ExchangeSteps.STEP_PICKUP_NEW.ToString());
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_LOADSLOT, "");
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_UNLOADSLOT, "");
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_ACT, "");
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_ARRIVED, "");
+                freshTc.AdditionalInfo = info;
+                tm.UpdateTransportCommand(freshTc);
+                tcRolledBack = true;
+            }
+            else
+            {
+                logger.Warn($"[EXCHANGE] RollbackToQueued: 예상외 TC 상태 — TC 롤백 생략 tc={freshTc.JobId}, state={tcState}, reason={reason}");
+            }
+
+            if (freshVehicle != null)
+            {
+                rm.UpdateVehicleTransferState(freshVehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED);
+                rm.UpdateVehicleProcessingState(freshVehicle, VehicleEx.PROCESSINGSTATE_IDLE);
+                rm.UpdateVehicleTransportCommandId(freshVehicle, "");
+                rm.UpdateVehicleAcsDestNodeId(freshVehicle, "", "EXCHANGE-ROLLBACK");
+                rm.UpdateVehicle(freshVehicle, "Path", "");
+                sm?.ReleaseAllByVehicleId(freshVehicle.VehicleId);
+            }
+
+            logger.Info($"[EXCHANGE] RollbackToQueued: tc={freshTc.JobId} → {(tcRolledBack ? "EXCHANGE_QUEUED" : "(상태 유지)")}, " +
+                        $"vehicle={freshVehicle?.VehicleId ?? "-"} → NOTASSIGNED/IDLE, 슬롯 해제. reason={reason}");
+            return tcRolledBack;
+        }
+
         // ─────────────────────────────────────────────────────────────
         //  내부 공통
         // ─────────────────────────────────────────────────────────────
@@ -272,7 +377,7 @@ namespace ACS.Elsa.Activities
         }
 
         /// <summary>LocationId → StationId. 조회 실패 시 "" (호출자가 무효 처리).</summary>
-        private static string ResolveStationId(IResourceManagerEx rm, string locationId)
+        internal static string ResolveStationId(IResourceManagerEx rm, string locationId)
         {
             if (string.IsNullOrEmpty(locationId)) return "";
             try
@@ -304,7 +409,7 @@ namespace ACS.Elsa.Activities
             return true;
         }
 
-        private static void SendCarrierTransfer(IMessageManagerEx mm, IResourceManagerEx rm,
+        internal static void SendCarrierTransfer(IMessageManagerEx mm, IResourceManagerEx rm,
             TransportCommandEx tc, string vehicleId, string jobType, string targetLocationId, string slot)
         {
             int amrSlot;

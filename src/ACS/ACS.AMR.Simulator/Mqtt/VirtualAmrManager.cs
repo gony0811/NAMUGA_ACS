@@ -167,7 +167,7 @@ public class VirtualAmrManager : IAsyncDisposable
         {
             string payload = JsonSerializer.Serialize(reply);
             await PublishAsync($"{TopicPrefix}{amr.CommId}/reply", payload);
-            Log?.Invoke($"[{amr.VehicleId}] reply 발행: status={reply.Status} cmdId={reply.CmdId} jobType={reply.JobType} resultCode={reply.ResultCode}");
+            Log?.Invoke($"[{amr.VehicleId}] reply 발행: status={reply.Status} cmdId={reply.CmdId} jobId={reply.JobId} jobType={reply.JobType} resultCode={reply.ResultCode} carrierSlot={reply.CarrierSlot}");
         }
         catch (Exception ex)
         {

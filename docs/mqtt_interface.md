@@ -15,10 +15,15 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 ## 토픽 구조
 
-| 토픽 | 방향 | 설명 |
-|------|------|------|
-| `amr/AMR001/status` | AMR → ACS | 로봇 상태 (주기적 퍼블리시, Retain) |
-| `amr/AMR001/command` | ACS → AMR | 로봇 제어 명령 |
+| 토픽 | 방향 | QoS | 설명 |
+|------|------|-----|------|
+| `amr/AMR001/status` | AMR → ACS | 1 | 로봇 상태 (주기적 퍼블리시, Retain). heartbeat 역할 겸함 |
+| `amr/AMR001/reply` | AMR → ACS | 1 | 명령 응답 (ACCEPTED/EXECUTING/ARRIVED/COMPLETED/STEP_COMPLETE/REJECTED/FAILED/CANCELED) |
+| `amr/AMR001/heartbeat` | AMR → ACS | 0 | (선택) 생존 신호. ACS 는 status/heartbeat 마지막 수신 시각으로 30초 무응답 시 DISCONNECT 처리 |
+| `amr/AMR001/alarm`, `amr/AMR001/response` | AMR → ACS | 1 | ACS 가 구독하나 **현재 처리 워크플로 없음** (예약). 알람은 status.error 로 보고할 것 |
+| `amr/AMR001/command` | ACS → AMR | 1 | 로봇 제어 명령 (moveCmd / actionCmd / cancelCmd) |
+
+`amr/` prefix 는 ACS `NA_C_MQTT.TopicPrefix` 설정값, `AMR001` 은 `NA_C_MQTT.Name`(= 차량 CommId).
 
 ---
 
@@ -35,8 +40,8 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 ```json
 {
   "state": {
-    "runState": "Running",
-    "fullState": "full",
+    "runState": "Run",
+    "fullState": "Full",
     "workState": "Idle",
     "vehicleDestNode": "N001"
   },
@@ -84,10 +89,10 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 | 필드                  | 타입            | 단위 | 설명                         |
 |---------------------|---------------|----|----------------------------|
-| `runState`          | string (enum) | -  | run/stop                   |
-| `fullState`         | string (enum) | -  | full/empty                 |
-| `workState`         | string (enum) | -  | standby/moving/docking/jog |
-| `vehicleDestNode`   | string (enum) | -  | 현재 설정된 목적지                 |
+| `runState`          | string (enum) | -  | Run / Stop (ACS: RunState 매핑, RUN→비RUN 전이가 도착 판정 트리거) |
+| `fullState`         | string (enum) | -  | Full / Empty               |
+| `workState`         | string (enum) | -  | Idle / Moving / Docking / Jog (숫자 1~4 도 허용, ACS 로그용) |
+| `vehicleDestNode`   | string        | -  | 현재 설정된 목적지 (ACS: VehicleDestNodeId 참고용) |
 
 #### `pose` 객체
 
@@ -101,7 +106,7 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 | 필드               | 타입     | 단위 | 설명                    |
 |------------------|--------|----|-----------------------|
-| `error`          | int    | -  | error code            |
+| `code`           | int    | -  | error code (0 = 정상, ≠0 → ACS 차량 ALARM) |
 | `message`        | string | -  | error message         |
 
 #### `battery` 객체
@@ -153,70 +158,115 @@ AMR과 ACS 간 MQTT 통신 인터페이스 정의서
 
 **토픽:** `amr/AMR001/command`
 
-> 단일 토픽에 JSON 페이로드로 명령 종류와 파라미터를 전송한다.
+> 단일 토픽에 JSON 페이로드로 명령 종류와 파라미터를 전송한다. 값이 없는 선택 필드(`jobId`, `type`)는 생략된다.
 
-### JSON 구조
+### JSON 구조 (전체 필드)
 
 ```json
 {
-  "cmdId": "20260325_160501_001 (년월일 시분초_일련번호)",
-  "command": "명령이름",
-  "nodeId": "명령 대상 노드 ID (ex: N0001)",
-  "port": "LEFT/RIGHT (선택적)",
-  "jobType": "LOAD/UNLOAD/EXCHANGE"
+  "cmdId": "EX20260706103000123",   // 명령 일련번호 = ACS Job ID (한 job 의 모든 명령이 동일 값)
+  "command": "moveCmd | actionCmd | cancelCmd",
+  "jobId": "EX20260706103000123",   // (선택) actionCmd/cancelCmd — 진행 중 job 대조용 (= cmdId)
+  "nodeId": "N0001",                // 명령 대상 노드 ID
+  "port": "LEFT",                   // LEFT / RIGHT (선택)
+  "jobType": "LOAD",                // TC 작업 유형: LOAD / UNLOAD / EXCHANGE
+  "type": "UNLOAD",                 // (선택) actionCmd 액션 종류 (UNLOAD=취출 허가 / LOAD=투입 허가). EXCHANGE 는 jobType=EXCHANGE, type=UNLOAD|LOAD
+  "portType": "EQP",                // LocationEx.Type 그대로: EQP / BUFFER / INPUT / OUTPUT / CHARGE / VBUFFER
+  "model": "CF203W",                // 매거진 모델 (Offset 보정, 비어있을 수 있음)
+  "amrSlot": 1                      // AMR 슬롯 1~4 (기본 1)
 }
 ```
 
-| 필드        | 타입     | 필수           | 설명                     |
+| 필드        | 타입   | 필수           | 설명                     |
 |-----------|--------|--------------|------------------------|
-| `cmdId`   | string | O            | 명령 일련번호 (년월일_시분초_일련번호)  |  
-| `command` | string | O            | 명령 종류                  |
-| `nodeId`  | string | 명령에 따라 다름    | 단일 값 파라미터              |
-| `port`    | string  | Port의 위치     | LEFT or RIGHT          |
-| `jobType` | string  | 목적지에 도착해서 할 일| LOAD, UNLOAD, EXCHANGE |
+| `cmdId`   | string | O            | 명령 일련번호. ACS 는 TC JobId(= MES JobID)를 그대로 사용. reply 에 그대로 반환할 것 |
+| `command` | string | O            | `moveCmd` / `actionCmd` / `cancelCmd` |
+| `jobId`   | string | actionCmd·cancelCmd | ACS Job ID (= cmdId). 진행 중 job 과 대조 |
+| `nodeId`  | string | moveCmd·actionCmd | 대상 노드 (위치 태그) |
+| `port`    | string | -            | LEFT or RIGHT (설비 포트) |
+| `jobType` | string | -            | 목적지에 도착해서 할 일: LOAD / UNLOAD / EXCHANGE(설비행, 도착 후 actionCmd 대기) |
+| `type`    | string | actionCmd    | UNLOAD(기존 매거진 취출 허가) / LOAD(신규 매거진 투입 허가). AMR 은 PICK/PLACE 결정에 `type` 우선, 없으면 `jobType` |
+| `portType`| string | -            | 포트 유형 (`ACS-AMR_mqtt_movecmd.md` §PortType 시퀀스 참조). 미지정 시 자재포트 |
+| `model`   | string | -            | 매거진 모델 |
+| `amrSlot` | int    | -            | 조작 슬롯 1~4 (기본 1). EXCHANGE: 투입 1\|2, 회수 3\|4 |
 
 ### 명령 목록
 
-#### `moveCmd` — 로봇 이동 명령
+#### `moveCmd` — 로봇 이동 명령 (상세: `ACS-AMR_mqtt_movecmd.md`)
 
 ```json
-{
-  "cmdId": "20260325_160501_001", 
-  "command": "moveCmd",
-  "nodeId": "N0001",
-  "port": "LEFT",
-  "jobType": "LOAD"
-}
+{"cmdId":"EX20260706103000123","command":"moveCmd","nodeId":"N0001","port":"LEFT",
+ "jobType":"LOAD","portType":"EQP","model":"CF203W","amrSlot":1}
 ```
 
-#### `actionCmd` — 로봇 행동 명령
+#### `actionCmd` — 로봇 행동 명령 (설비 게이트 허가, 상세: `ACS-AMR_mqtt_exchange.md` §4.2)
 
 ```json
-{"command": "actionCmd", "nodeId": "N0001", "port": "LEFT", "JobType": "UNLOAD"}
+{"cmdId":"EX20260706103000123","command":"actionCmd","jobId":"EX20260706103000123",
+ "nodeId":"N0001","port":"LEFT","jobType":"EXCHANGE","type":"UNLOAD","model":"CF203W","amrSlot":3}
 ```
 
-#### `cancelCmd` — 진행 중 명령 취소 (JOBCANCEL C2/C3)
+- MES ACTIONCMD(Type=UNLOAD/LOAD)를 ACS 가 중계. EXCHANGE 는 ACS 가 STEP=20 에서 UNLOAD, STEP=30 에서 LOAD 만 중계한다.
+- AMR 은 portType=EQP 도착 후 대기 중인 게이트와 `type` 이 일치할 때만 수용하고, 그 외는 무시(로그)한다.
+
+#### `cancelCmd` — 진행 중 명령 취소 (JOBCANCEL C2/C3, 상세: `ACS-AMR_mqtt_exchange.md` §4.3)
 
 ```json
-{"cmdId": "취소 대상 Job의 cmdId", "command": "cancelCmd"}
+{"cmdId":"EX20260706103000123","command":"cancelCmd","jobId":"EX20260706103000123"}
 ```
 
-- AMR 은 진행 중 명령(moveCmd/actionCmd)을 폐기하고 **현 위치에 정지 후 대기(Idle) 상태로 복귀**한다.
-- `nodeId`/`port`/`jobType` 은 사용하지 않는다.
-- reply 는 발행하지 않는다 (실 AMR 프로토콜 협의 시 CANCELED status 추가 여부 결정).
+- AMR 은 진행 중 명령(moveCmd/actionCmd)을 폐기하고 **현 위치에 정지 후 대기(Idle) 상태로 복귀**한 뒤 `CANCELED` reply 를 발행한다.
+- 진행 중 job 과 `jobId` 불일치/미진행이면 `CANCELED` resultCode=40(CANCEL_REJECTED).
+- 복귀 이동(충전소 등)은 AMR 이 하지 않는다 — ACS 가 별도 moveCmd 로 지시한다.
 
 ## Command Reply (AMR → ACS)
 
 **토픽:** `amr/AMR001/reply`
 
-### 'moveCmd_Reply' - 로봇 이동 명령에 대한 응답
+모든 command 에 대한 진행/완료 응답. `cmdId` 는 받은 명령의 값을 그대로 반환한다.
+확장 필드(`jobId`, `jobType`, `step`, `stepName`, `carrierSlot`)는 선택 — 없으면 ACS 가 TC 상태/STEP 으로 보완한다. (상세: `ACS-AMR_mqtt_exchange.md` §5)
 
 ```json
 {
-  "cmdId": "20260325_160501_001",
-  "status": "ACCEPTED", // ACCEPTED, REJECTED, EXECUTING, COMPLETED, FAILED
-  "resultCode": 0,      // 0: 성공, 기타: 에러 코드
-  "message": "Success",  // 상세 사유 (거부 시 사유 등)
-  "timestamp": "2026-03-25T16:05:05Z"
+  "cmdId": "EX20260706103000123",
+  "status": "COMPLETED",   // ACCEPTED, EXECUTING, ARRIVED, COMPLETED, STEP_COMPLETE, REJECTED, FAILED, CANCELED
+  "resultCode": 0,         // 0: 성공, 기타: 에러 코드 (아래 표)
+  "message": "Success",    // 상세 사유
+  "jobId": "EX20260706103000123",  // (선택) command.jobId
+  "jobType": "UNLOAD",     // (선택) command.jobType
+  "step": 30,              // (선택) EXCHANGE 단계 10~60. STEP_COMPLETE 에서는 필수
+  "stepName": "UNLOAD_OLD",// (선택)
+  "carrierSlot": 3,        // (선택) 조작한 AMR 슬롯 1~4
+  "timestamp": "2026-08-19T10:31:20Z"
 }
 ```
+
+### status
+
+| status | 의미 | ACS 처리 |
+|---|---|---|
+| ACCEPTED | 명령 수락 | 무시 |
+| EXECUTING | 실행 시작 | 무시 |
+| ARRIVED | 목적 노드 도착 (moveCmd) — 권장 | 도착 판정 진입점으로 수렴 (pose 판정과 OR, 중복 보고 방지) |
+| COMPLETED | 명령 완료 — moveCmd 는 **작업(PICK/PLACE) 완료 시점**, actionCmd 는 액션 완료 시점 | jobType/TC 상태에 따라 acquire/deposit/exchange 완료 처리 |
+| STEP_COMPLETE | COMPLETED 별칭 (step 필수) | COMPLETED 와 동일 |
+| REJECTED | 수락 거부 | EXCHANGE 첫 moveCmd(STEP=10)면 배차 롤백·재배차, 그 외 로그(정지+운영자) |
+| FAILED | 실패 종결 | EXCHANGE 픽업(STEP=10)면 MAGAZINE_NOT_FOUND 종결, 그 외 로그(정지+운영자) |
+| CANCELED | cancelCmd 처리 결과 | 로그 (40 이면 경고) |
+
+### resultCode
+
+| resultCode | status | 의미 |
+|---|---|---|
+| 0 | - | 정상 |
+| 2 | REJECTED | 지원하지 않는 command |
+| 10 | REJECTED | AMR Modbus 미연결 |
+| 11 | REJECTED | 작업 중 (Idle 아님) |
+| 20 | REJECTED | NodeId 위치 태그 매핑 없음 |
+| 21 | REJECTED | 슬롯 상태 불일치 (amrSlot 점유/비어있음) |
+| 22 | REJECTED | Cobot 준비 안 됨 |
+| 30 | FAILED | MAGAZINE_NOT_FOUND — 픽업지 매거진 부재 |
+| 31 | FAILED | 시퀀스 중 슬롯/센서 상태 불일치 |
+| 32 | FAILED | actionCmd 게이트 대기 상한 초과 (상한 설정 시) |
+| 40 | CANCELED | CANCEL_REJECTED — 취소 불가 (종료 상태/jobId 불일치) |
+| 99 | FAILED | 내부 예외 |

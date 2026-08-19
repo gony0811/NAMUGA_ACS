@@ -78,11 +78,18 @@ namespace ACS.Elsa.Workflows.Trans
                 string resultCode = null;
                 string errorCode = null;
                 string errorMessage = null;
+                int? replyStep = null;
+                int? replyCarrierSlot = null;
 
                 using (var doc = JsonDocument.Parse(jsonMessage))
                 {
                     if (doc.RootElement.TryGetProperty("data", out var dataEl))
                     {
+                        // v0.3 선택 필드 (AMR reply step/carrierSlot 대조용)
+                        if (dataEl.TryGetProperty("step", out var st) && st.ValueKind == JsonValueKind.Number)
+                            replyStep = st.GetInt32();
+                        if (dataEl.TryGetProperty("carrierSlot", out var cs) && cs.ValueKind == JsonValueKind.Number)
+                            replyCarrierSlot = cs.GetInt32();
                         if (dataEl.TryGetProperty("commandId", out var cid))
                             commandId = cid.GetString();
                         if (dataEl.TryGetProperty("vehicleId", out var vid))
@@ -96,7 +103,8 @@ namespace ACS.Elsa.Workflows.Trans
                     }
                 }
 
-                logger.Info($"HandleVehicleExchangeCompletedActivity: commandId={commandId}, vehicleId={vehicleId}, resultCode={resultCode}, errorCode={errorCode}");
+                logger.Info($"HandleVehicleExchangeCompletedActivity: commandId={commandId}, vehicleId={vehicleId}, resultCode={resultCode}, errorCode={errorCode}, " +
+                            $"replyStep={replyStep}, replyCarrierSlot={replyCarrierSlot}");
 
                 if (string.IsNullOrEmpty(commandId))
                 {
@@ -154,7 +162,8 @@ namespace ACS.Elsa.Workflows.Trans
 
                 // 본체: 슬롯 전이 + STEP=50 + dest행 LOAD 전송 + STEP_COMPLETE(30, 40)
                 ExchangeTransHandlers.OnExchangeCompleted(tc, vehicle,
-                    transferManager, resourceManager, slotManager, messageManager);
+                    transferManager, resourceManager, slotManager, messageManager,
+                    replyStep, replyCarrierSlot);
             }
             catch (Exception ex)
             {

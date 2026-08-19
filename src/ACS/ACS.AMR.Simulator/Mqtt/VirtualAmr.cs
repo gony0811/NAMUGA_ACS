@@ -76,11 +76,27 @@ public class VirtualAmr
     {
         lock (_sync)
         {
-            // cancelCmd: 진행 중 명령 폐기 → 현 위치 정지 후 Idle 복귀 (reply 없음 — 실 AMR 협의 전 최소 동작)
+            // cancelCmd (v0.3): 진행 중 명령 폐기 → 현 위치 정지 후 Idle 복귀, CANCELED reply 발행.
+            //  - 진행 중 명령이 있고 jobId(없으면 cmdId) 가 일치 → CANCELED(0)
+            //  - Idle 이거나 jobId 불일치 → CANCELED(40 CANCEL_REJECTED)
             if ("cancelCmd".Equals(cmd.Command, StringComparison.OrdinalIgnoreCase))
             {
-                RaiseLog($"취소 명령 수신: cmdId={cmd.CmdId} — 현재 명령(cmdId={CurrentCommand?.CmdId}, 상태={State}) 폐기 후 Idle 복귀");
-                ToIdle();
+                string targetJob = cmd.JobId ?? cmd.CmdId;
+                string currentJob = CurrentCommand?.JobId ?? CurrentCommand?.CmdId;
+                bool active = State != VirtualAmrState.Idle && CurrentCommand != null;
+                bool match = active && (string.IsNullOrEmpty(targetJob)
+                                        || string.Equals(targetJob, currentJob, StringComparison.OrdinalIgnoreCase));
+                if (match)
+                {
+                    RaiseLog($"취소 명령 수신: jobId={targetJob} — 현재 명령(cmdId={CurrentCommand?.CmdId}, 상태={State}) 폐기 후 Idle 복귀 → CANCELED(0)");
+                    ToIdle();
+                    SendReply("CANCELED", 0, "canceled by simulator", cmdIdOverride: cmd.CmdId, jobIdOverride: targetJob);
+                }
+                else
+                {
+                    RaiseLog($"취소 명령 수신: jobId={targetJob} — 진행 중 명령 없음/불일치(현재 {currentJob}, 상태={State}) → CANCELED(40 CANCEL_REJECTED)");
+                    SendReply("CANCELED", 40, "cancel rejected: no matching active job", cmdIdOverride: cmd.CmdId, jobIdOverride: targetJob);
+                }
                 StateChanged?.Invoke(this);
                 return;
             }
@@ -251,7 +267,9 @@ public class VirtualAmr
         Y = _targetY;
         State = VirtualAmrState.Arrived;
         _workingElapsedMs = 0;
-        RaiseLog($"도착: nodeId={CurrentCommand?.NodeId} pose=({X:F2},{Y:F2})");
+        RaiseLog($"도착: nodeId={CurrentCommand?.NodeId} pose=({X:F2},{Y:F2}) → ARRIVED");
+        // v0.3: 명시적 도착 보고 (ACS 는 pose 기반 판정과 OR 로 처리, 중복 보고는 ACS 가 방어)
+        SendReply("ARRIVED", 0, null);
     }
 
     private void CompleteInternal()
@@ -283,16 +301,21 @@ public class VirtualAmr
         State = VirtualAmrState.Idle;
     }
 
-    private void SendReply(string status, int resultCode, string message)
+    private void SendReply(string status, int resultCode, string message,
+        string cmdIdOverride = null, string jobIdOverride = null)
     {
+        var cmd = CurrentCommand;
         var reply = new AmrReplyMessage
         {
-            CmdId = CurrentCommand?.CmdId,
+            CmdId = cmdIdOverride ?? cmd?.CmdId,
             Status = status,
             ResultCode = resultCode,
             Message = message ?? "",
-            JobType = CurrentCommand?.JobType ?? "",
-            Timestamp = DateTime.UtcNow
+            JobType = cmd?.JobType ?? "",
+            Timestamp = DateTime.UtcNow,
+            // v0.3 선택 필드: jobId(=command.jobId ?? cmdId), carrierSlot(=command.amrSlot, 완료 계열만). step 은 시뮬레이터가 알 수 없어 미기재.
+            JobId = jobIdOverride ?? cmd?.JobId ?? cmd?.CmdId,
+            CarrierSlot = ("COMPLETED".Equals(status, StringComparison.OrdinalIgnoreCase) && cmd != null) ? cmd.AmrSlot : (int?)null
         };
         ReplyRequested?.Invoke(this, reply);
     }

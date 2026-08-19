@@ -54,5 +54,13 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>오류 메시지 (정상 시 빈 문자열)</summary>
         [JsonPropertyName("errorMessage")]
         public string ErrorMessage { get; set; }
+
+        /// <summary>AMR reply step (선택). 있으면 Trans 가 ACT 기대 단계와 대조한다.</summary>
+        [JsonPropertyName("step")]
+        public int? Step { get; set; }
+
+        /// <summary>AMR reply carrierSlot (선택). 있으면 Trans 가 LOADSLOT/UNLOADSLOT 과 대조한다.</summary>
+        [JsonPropertyName("carrierSlot")]
+        public int? CarrierSlot { get; set; }
     }
 }
