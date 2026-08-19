@@ -1378,7 +1378,6 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 ---
 
-<<<<<<< Updated upstream
 **⚠ 교훈 (컴파일 바인딩):** ACS.UI 는 XAML 컴파일 바인딩 사용 — DataTemplate(CellTemplate/RowDetailsTemplate/ItemTemplate)에는 반드시 `x:DataType` 지정 필요. 누락 시 AVLN2000 이 나는데, **시뮬레이터 bin 잠금(MSB3027) 오류에 섞이면 놓치기 쉽고**, 그 상태의 어셈블리는 기동 시 "No precompiled XAML" 크래시를 낸다. 빌드 오류 필터는 ' error CS' 가 아니라 ' error ' 전체로 볼 것.
 
 ---
@@ -1405,22 +1404,5 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **미실시:** 런타임 E2E(시뮬레이터 ARRIVED/CANCELED 포함 완주, REJECTED@10 롤백→재배차, stuck 재푸시)는 다음 배포 테스트에서 확인. deploy 5부 재배포 필요(공유 어셈블리 + elsa-migration RAIL-VEHICLEARRIVED). v0.2 docx 는 미추적 상태로 남겨둠(사용자 판단으로 삭제).
 
 **남은 협의(AMR 벤더):** ARRIVED reply 발행 여부(선택), 일반 moveCmd 의 COMPLETED 시점(작업 완료 시점만 — 도착은 ARRIVED), 게이트 대기 상한, resultCode 21/22/30/31/32 채택.
-=======
-## 53. ACS↔AMR exchangeCmd 인터페이스 — EI 프로토콜 계층 정합 (정의서 v0.2)
 
-**날짜:** 2026-08-19
-
-**범위:** `docs/ACS-AMR_mqtt_exchangecmd.docx`(v0.2 초안, 협의 #1만 확정) 기준으로 **EI 프로토콜 계층만** 정합. 문서의 "협의 확정 전 구현 착수 금지" 단서에 따라 **TS 오케스트레이션 전환(단일 exchangeCmd 위임)과 시뮬레이터 시퀀스는 S8 로 보류** — 사용자 승인 하에 프로토콜 준비만 선행.
-
-**변경 (전부 additive — 신규 필드 null 시 직렬화 생략, 기존 moveCmd/actionCmd 페이로드 불변):**
-- `AmrCommandMessage`: jobId / loadSourceNode·equipNode·unloadDestNode / loadSlot·unloadSlot / loadSourcePortType·unloadDestPortType / type(게이트) / returnNode(취소 복귀) 추가
-- `AmrReplyMessage`: jobId / step / stepName / carrierSlot 추가 (status 신규 값 STEP_COMPLETE·CANCELED 수신 대비)
-- `MqttInterfaceManager`: **`SendExchange()`** 신설(§4 exchangeCmd 발행), `SendAction()` 에 actionType/jobId(§6 게이트), `SendCancel()` 에 jobId/returnNode(§7)
-- EI `HandleActionCmdActivity`: actionCmd 에 type=actionType, jobId=commandId 동봉(게이트 허가 신 스펙 — 구 스펙 AMR 은 미지 필드 무시로 하위 호환). `HandleCancelCmdActivity`: RAIL-CANCELCMD 의 returnNode 파싱·전달 (`RailCancelCmdData.ReturnNode` 추가 — TS 는 아직 미전송, 옵션 필드)
-- EI `HandleAmrReplyActivity`: 신 스펙 status(STEP_COMPLETE/ARRIVED/CANCELED) 수신 시 필드 포함 Info 로그 후 보류 — **Trans 라우팅은 S8 에서 연결** (현행 구간별 흐름과 혼선 방지)
-- `docs/mqtt_interface.md`: §exchangeCmd / actionCmd 게이트 확장 / cancelCmd returnNode / reply 단계 보고 확장 반영
-
-**검증:** ACS.Communication/ACS.Elsa 빌드 0 오류, 테스트 136건 통과, 5부 재배포·재기동. 기존 흐름 무변경(신규 필드는 발행 시 생략 또는 부가 필드).
-
-**S8 남은 범위 (협의 #2~#7 확정 후):** TS 가 배차 시 단일 RAIL-EXCHANGECMD→exchangeCmd 로 위임, EI 단계 보고 라우팅→TS STEP/슬롯 미러링, C3 returnNode 전달, 시뮬레이터 exchangeCmd 시퀀스(2중 게이트)·CANCELED reply.
->>>>>>> Stashed changes
+**정리 (2026-08-19):** v0.2(exchangeCmd 단일 명령) 기준의 EI 선반영 커밋(`7863c05`)은 v0.3 폐기 결정에 따라 **본 §53 구현으로 대체·제거**됨 — exchangeCmd 필드/`SendExchange()`/cancelCmd `returnNode` 는 삭제, actionCmd type·jobId 와 reply 확장 필드는 v0.3 계약으로 흡수. 충돌 파일(AmrCommandMessage/AmrReplyMessage/MqttInterfaceManager/MqttActivities/mqtt_interface.md 등)은 v0.3 커밋(`6f2ad88`) 기준으로 복원.

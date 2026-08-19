@@ -58,25 +58,5 @@ namespace ACS.Communication.Mqtt.Model
         /// <summary>토픽에서 파싱한 AMR vehicleId (payload에 없으므로 handler가 채움)</summary>
         [JsonIgnore]
         public string VehicleId { get; set; }
-
-        // ── EXCHANGE 단계 보고 확장 (ACS-AMR_mqtt_exchangecmd.docx §5) ──
-        //  기존 moveCmd 응답에는 없는 필드 — 미수신 시 null/0 유지.
-        //  status 신규 값: STEP_COMPLETE(단계 완료), CANCELED(취소 처리 완료)
-
-        /// <summary>exchangeCmd 의 jobId 그대로 반환</summary>
-        [JsonPropertyName("jobId")]
-        public string JobId { get; set; }
-
-        /// <summary>단계 코드 (10/20/30/40/50/60 — MES 사양과 동일 값)</summary>
-        [JsonPropertyName("step")]
-        public int? Step { get; set; }
-
-        /// <summary>PICKUP_NEW / MOVE_TO_EQUIP / UNLOAD_OLD / LOAD_NEW / RETURN_OLD / DONE</summary>
-        [JsonPropertyName("stepName")]
-        public string StepName { get; set; }
-
-        /// <summary>해당 단계에서 사용한 AMR 슬롯 (STEP_COMPLETE 30/40/50 에서 필수)</summary>
-        [JsonPropertyName("carrierSlot")]
-        public int? CarrierSlot { get; set; }
     }
 }

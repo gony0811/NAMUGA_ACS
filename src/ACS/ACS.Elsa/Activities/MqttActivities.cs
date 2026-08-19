@@ -976,27 +976,16 @@ namespace ACS.Elsa.Activities
                 // jobType 이 비어있으면 MES 가 보낸 actionType 으로 폴백
                 string effectiveJobType = string.IsNullOrEmpty(jobType) ? (actionType ?? "") : jobType;
 
-<<<<<<< Updated upstream
                 // v0.3: type = MES ACTIONCMD Type(UNLOAD/LOAD) 우선 — EXCHANGE TC 는 jobType=EXCHANGE 라 AMR 이 PICK/PLACE 를 결정하려면 type 이 필요
                 string actionCmdType = string.IsNullOrEmpty(actionType) ? effectiveJobType : actionType;
                 var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model, amrSlot, actionCmdType)
-=======
-                // EXCHANGE 게이트 허가(신 스펙 §6): type=UNLOAD/LOAD + jobId 를 함께 발행.
-                // 구 스펙 AMR/시뮬레이터는 미지 필드를 무시하므로 하위 호환.
-                var result = mqttManager.SendAction(vehicle.CommId, nodeId, port, effectiveJobType, commandId, model, amrSlot,
-                        actionType: actionType, jobId: commandId)
->>>>>>> Stashed changes
                     .GetAwaiter().GetResult();
 
                 if (result)
                 {
                     logger.Info($"HandleActionCmdActivity: MQTT actionCmd 전송 완료. " +
                         $"commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, " +
-<<<<<<< Updated upstream
                         $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, type={actionCmdType}, model={model}, amrSlot={amrSlot}");
-=======
-                        $"nodeId={nodeId}, port={port}, jobType={effectiveJobType}, type={actionType}, model={model}, amrSlot={amrSlot}");
->>>>>>> Stashed changes
                 }
                 else
                 {
@@ -1041,7 +1030,6 @@ namespace ACS.Elsa.Activities
 
                 string vehicleId = null;
                 string commandId = null;
-                string returnNode = null;
                 using (var doc = JsonDocument.Parse(jsonMessage))
                 {
                     if (doc.RootElement.TryGetProperty("data", out var dataEl))
@@ -1050,8 +1038,6 @@ namespace ACS.Elsa.Activities
                             vehicleId = vid.GetString();
                         if (dataEl.TryGetProperty("commandId", out var cid))
                             commandId = cid.GetString();
-                        if (dataEl.TryGetProperty("returnNode", out var rn))
-                            returnNode = rn.GetString();
                     }
                 }
 
@@ -1083,11 +1069,9 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                // 신 스펙(§7): jobId=취소 대상 Job, returnNode=C3 복귀 노드(생략 시 AMR 자동충전 노드)
-                var result = mqttManager.SendCancel(vehicle.CommId, commandId, jobId: commandId, returnNode: returnNode)
-                    .GetAwaiter().GetResult();
+                var result = mqttManager.SendCancel(vehicle.CommId, commandId).GetAwaiter().GetResult();
                 if (result)
-                    logger.Info($"HandleCancelCmdActivity: MQTT cancelCmd 전송 완료. commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}, returnNode={returnNode}");
+                    logger.Info($"HandleCancelCmdActivity: MQTT cancelCmd 전송 완료. commandId={commandId}, vehicleId={vehicleId}, commId={vehicle.CommId}");
                 else
                     logger.Error($"HandleCancelCmdActivity: MQTT cancelCmd 전송 실패. vehicleId={vehicleId}, commId={vehicle.CommId}");
             }
@@ -1179,35 +1163,9 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-<<<<<<< Updated upstream
                 // AMR reply 에 jobType 이 없으면 TC 를 조회해 구간을 결정한다.
                 //  - EXCHANGE TC: 여정 내내 EXCHANGE_ASSIGNED 이므로 STEP 으로 결정 (AmrReplyPolicy.ResolveExchangeJobType)
                 //  - 일반 TC: TC.State(TransferringState) 기준 LOAD/UNLOAD
-=======
-                // 신 스펙 단계 보고 (ACS-AMR_mqtt_exchangecmd.docx §5 — exchangeCmd 자율 시퀀스의 진행 보고).
-                // 프로토콜 수신은 여기서 완결하되, Trans 라우팅은 exchangeCmd 오케스트레이션 전환(S8,
-                // 정의서 협의 #2~#7 확정 후)에서 연결한다 — 현행 구간별 moveCmd 흐름과 혼선 방지.
-                if ("STEP_COMPLETE".Equals(reply.Status, StringComparison.OrdinalIgnoreCase)
-                    || "ARRIVED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase)
-                    || "CANCELED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Info($"HandleAmrReplyActivity: 신 스펙 단계 보고 수신 — status={reply.Status}, " +
-                        $"jobId={reply.JobId}, step={reply.Step}, stepName={reply.StepName}, carrierSlot={reply.CarrierSlot}, " +
-                        $"resultCode={reply.ResultCode}, cmdId={reply.CmdId}, vehicleId={vehicleId}. " +
-                        "Trans 라우팅은 exchangeCmd 오케스트레이션 전환(S8) 대기.");
-                    return;
-                }
-
-                // COMPLETED 만 Trans에 보고. ACCEPTED/EXECUTING/REJECTED 는 현재 라우팅 대상 아님.
-                if (!"COMPLETED".Equals(reply.Status, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.Debug($"HandleAmrReplyActivity: status={reply.Status}, 전송 생략. cmdId={reply.CmdId}");
-                    return;
-                }
-
-                // AMR reply 스펙(docs/mqtt_interface.md)에는 jobType이 없으므로 reply.JobType이 비어있으면
-                // cmdId(=TC JobId)로 TC를 조회해 TC.State(TransferringState) 기준으로 LOAD/UNLOAD 를 결정한다.
->>>>>>> Stashed changes
                 // tc.JobType 은 상위 분류(AUTOCALL/ACSCALL/CHARGEMOVE 등)라서 LOAD/UNLOAD phase 구분에 부적합 — 사용하지 않음.
                 string jobType = reply.JobType;
                 if (string.IsNullOrEmpty(jobType))
