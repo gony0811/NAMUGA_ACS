@@ -957,6 +957,33 @@ namespace ACS.Elsa.Activities
                     if (vehicle.CurrentNodeId.Equals(vehicle.AcsDestNodeId, StringComparison.OrdinalIgnoreCase))
                         continue;   // 이미 도착한 상태면 재전송하지 않음
 
+                    // EXCHANGE(v2) S7 배칭 트립: TransportCommandId="TRIP..." 는 TC 직조회 불가 —
+                    // 활성 EXCHANGE TC 들의 STEP 조합에서 현재 진행 leg 를 유도해 그 TC 만 재푸시한다.
+                    if (ExchangeTour.IsTripId(vehicle.TransportCommandId))
+                    {
+                        var tripJobs = new List<TransportCommandEx>();
+                        foreach (var item in transferManager.GetActiveExchangeTransportCommandsByVehicleId(vehicle.VehicleId))
+                            if (item is TransportCommandEx t)
+                                tripJobs.Add(t);
+
+                        var tripSteps = tripJobs.ConvertAll(j => (j.JobId, ExchangeSteps.GetStep(j.AdditionalInfo)));
+                        var tourAction = ExchangeTour.NextAfter(tripSteps);
+                        var legTc = tourAction.JobId != null
+                            ? tripJobs.Find(j => string.Equals(j.JobId, tourAction.JobId, StringComparison.OrdinalIgnoreCase))
+                            : null;
+                        if (legTc != null)
+                        {
+                            if (RecoverExchangeVehicle(vehicle, legTc, resourceManager, messageManager))
+                                recovered++;
+                        }
+                        else
+                        {
+                            logger.Warn($"RecoverStuckVehiclesActivity: 트립 활성 TC 없음(action={tourAction.Kind}) — " +
+                                        $"vehicleId={vehicle.VehicleId}, transportCommandId={vehicle.TransportCommandId} (reset 필요 가능)");
+                        }
+                        continue;
+                    }
+
                     TransportCommandEx tc = transferManager.GetTransportCommand(vehicle.TransportCommandId);
                     if (tc == null)
                     {

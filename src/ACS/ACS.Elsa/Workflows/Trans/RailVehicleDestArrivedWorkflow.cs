@@ -87,24 +87,39 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // EXCHANGE(v2) S5/S7: 활성 EXCHANGE TC(단독 1건/배칭 트립 2건) 중 현재 진행 leg 의 TC 에만
+                // STEP 기반 waypoint 도착 판정 위임 — 배칭 시 같은 waypoint 를 공유하는 대기 TC 의 오보고 방지 (D4 분기)
+                var exchangeTcs = transferManager.GetActiveExchangeTransportCommandsByVehicleId(vehicleId);
+                if (exchangeTcs != null && exchangeTcs.Count > 0)
+                {
+                    var jobs = new System.Collections.Generic.List<TransportCommandEx>();
+                    foreach (var item in exchangeTcs)
+                        if (item is TransportCommandEx exTc)
+                            jobs.Add(exTc);
+
+                    var steps = jobs.ConvertAll(j => (j.JobId, ExchangeSteps.GetStep(j.AdditionalInfo)));
+                    var action = ExchangeTour.NextAfter(steps);
+                    var current = action.JobId != null
+                        ? jobs.Find(j => string.Equals(j.JobId, action.JobId, StringComparison.OrdinalIgnoreCase))
+                        : null;
+                    if (current != null)
+                        Activities.ExchangeTransHandlers.OnDestArrived(current, vehicle, transferManager, resourceManager, messageManager);
+                    else
+                        logger.Info($"RailVehicleDestArrivedActivity: EXCHANGE 진행 leg 없음(action={action.Kind}) — skip. vehicleId={vehicleId}");
+                    return;
+                }
+
                 TransportCommandEx tc = transferManager.GetTransportCommandByVehicleId(vehicleId);
                 if (tc == null)
                 {
                     logger.Warn($"RailVehicleDestArrivedActivity: TC 없음 vehicleId={vehicleId}");
                     return;
                 }
-                
+
                 if (TransportCommandEx.JOBTYPE_CHARGEMOVE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
                 {
                     logger.Info($"RailVehicleDestArrivedActivity: CHARGEMOVE 작업 — skip. " +
                                 $"vehicleId={vehicleId}, tc={tc.JobId}");
-                    return;
-                }
-
-                // EXCHANGE(v2) S5: STEP 기반 waypoint(origin/mid/dest) 도착 판정 + ARRIVED(step) 보고 (D4 분기)
-                if (TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase))
-                {
-                    Activities.ExchangeTransHandlers.OnDestArrived(tc, vehicle, transferManager, resourceManager, messageManager);
                     return;
                 }
 

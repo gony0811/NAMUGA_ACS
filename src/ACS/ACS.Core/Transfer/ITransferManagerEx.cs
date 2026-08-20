@@ -45,6 +45,13 @@ namespace ACS.Core.Transfer
         /// <summary>EXCHANGE(v2) S4: state=EXCHANGE_QUEUED + BayId, VehicleId 빈 것만 (배차 대기 EXCHANGE TC).</summary>
         IList GetExchangeQueuedTransportCommandsByBayId(String bayId);
 
+        /// <summary>
+        /// EXCHANGE(v2) S7 배칭: 차량에 할당된 활성 EXCHANGE TC 목록
+        /// (State=EXCHANGE_ASSIGNED &amp; JobType=EXCHANGE &amp; VehicleId 일치, LOADSLOT 오름차순 = 트립 순서).
+        /// 단독이면 1건, 배칭 트립이면 2건. 종결된 TC 는 삭제되므로 포함되지 않는다.
+        /// </summary>
+        IList GetActiveExchangeTransportCommandsByVehicleId(String vehicleId);
+
         IList GetTransportCommandsByStateAndBayId(String paramString1, String paramString2);
 
         int GetTransportCommandCount();

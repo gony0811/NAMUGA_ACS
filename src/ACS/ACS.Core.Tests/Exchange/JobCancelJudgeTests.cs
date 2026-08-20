@@ -68,6 +68,34 @@ namespace ACS.Core.Tests.Exchange
                 JobCancelJudge.Judge("EXCHANGE_ASSIGNED", EX, step, slotOccupied));
         }
 
+        // ── C5: 배칭 중 1건 적재 후 취소 — 페어 연대 종결 ──
+
+        [Theory]
+        [InlineData(20, false)]
+        [InlineData(30, true)]
+        [InlineData(50, true)]
+        public void Exchange_AfterLoad_WithTripMate_C5(int step, bool slotOccupied)
+        {
+            Assert.Equal(JobCancelVerdict.CancelAfterLoadBatch,
+                JobCancelJudge.Judge("EXCHANGE_ASSIGNED", EX, step, slotOccupied, hasActiveTripMate: true));
+        }
+
+        [Fact]
+        public void Exchange_BeforePickup_WithTripMate_StaysC2()
+        {
+            // 픽업 전 취소는 배칭이어도 C2 — 페어는 계속 진행
+            Assert.Equal(JobCancelVerdict.CancelBeforePickup,
+                JobCancelJudge.Judge("EXCHANGE_ASSIGNED", EX, ExchangeSteps.STEP_PICKUP_NEW, false, hasActiveTripMate: true));
+        }
+
+        [Fact]
+        public void Generic_AfterLoad_TripMateFlag_Ignored()
+        {
+            // 일반 반송에는 트립 개념 없음 — C3 유지
+            Assert.Equal(JobCancelVerdict.CancelAfterLoad,
+                JobCancelJudge.Judge("TRANSFERRING_DEST", LOAD, 0, false, hasActiveTripMate: true));
+        }
+
         // ── C4: 종료/취소 진행 상태 거부 ──
 
         [Theory]

@@ -83,12 +83,14 @@ namespace ACS.Elsa.Activities
 
                 bool anySlotOccupied = HasOccupiedSlot(sm, tc.VehicleId);
                 int step = ExchangeSteps.GetStep(tc.AdditionalInfo);
-                var verdict = JobCancelJudge.Judge(tc.State, tc.JobType, step, anySlotOccupied);
+                List<TransportCommandEx> tripMates = GetTripMates(tm, tc);
+                var verdict = JobCancelJudge.Judge(tc.State, tc.JobType, step, anySlotOccupied,
+                    hasActiveTripMate: tripMates.Count > 0);
 
                 string actionType = tc.JobType ?? "";
                 string materialType = tc.GetMaterialType() ?? "";
                 logger.Info($"[JOBCANCEL] 판정={verdict} — jobId={jobId}, state={tc.State}, jobType={tc.JobType}, " +
-                            $"step={step}, slotOccupied={anySlotOccupied}, vehicleId={tc.VehicleId}");
+                            $"step={step}, slotOccupied={anySlotOccupied}, vehicleId={tc.VehicleId}, tripMates={tripMates.Count}");
 
                 switch (verdict)
                 {
@@ -102,11 +104,18 @@ namespace ACS.Elsa.Activities
                         break;
 
                     case JobCancelVerdict.CancelBeforePickup:
-                        ExecuteC2(tm, rm, hm, sm, mm, tc, actionType, materialType);
+                        if (tripMates.Count > 0)
+                            ExecuteC2TripMember(tm, rm, hm, sm, mm, tc, actionType, materialType);
+                        else
+                            ExecuteC2(tm, rm, hm, sm, mm, tc, actionType, materialType);
                         break;
 
                     case JobCancelVerdict.CancelAfterLoad:
                         ExecuteC3(tm, rm, hm, mm, cm, tc, actionType, materialType);
+                        break;
+
+                    case JobCancelVerdict.CancelAfterLoadBatch:
+                        ExecuteC5(tm, rm, hm, sm, mm, cm, tc, tripMates, actionType, materialType);
                         break;
                 }
 
@@ -215,7 +224,138 @@ namespace ACS.Elsa.Activities
                         "충전소 복귀 지시 + ALARM (작업자 실물 회수 후 차량 reset 필요, 슬롯 점유 유지)");
         }
 
+        // ── C2 (트립 멤버): X 만 종결, 트립은 잔여 TC 로 계속 ────────────
+        //    X 가 현재 진행 leg 였으면 cancelCmd 후 AdvanceTour 재개, 아니면 cancelCmd 생략
+        //    (다른 잡의 진행 명령을 죽이지 않음). 잔여 1건이면 단독 잡 의미론으로 강등.
+        private static void ExecuteC2TripMember(ITransferManagerEx tm, IResourceManagerEx rm, IHistoryManagerEx hm,
+            ISlotManagerEx sm, IMessageManagerEx mm, TransportCommandEx tc, string actionType, string materialType)
+        {
+            const string MsgName = "TRANS-JOBCANCEL";
+            string vehicleId = tc.VehicleId;
+
+            // 현재 진행 leg 판정 — 호출 시점에 완료 이벤트가 없었으므로 NextAfter = 실행 중 명령
+            var steps = new List<(string JobId, int Step)>();
+            foreach (var item in tm.GetActiveExchangeTransportCommandsByVehicleId(vehicleId))
+                if (item is TransportCommandEx t)
+                    steps.Add((t.JobId, ExchangeSteps.GetStep(t.AdditionalInfo)));
+            var action = ExchangeTour.NextAfter(steps);
+            bool isCurrentLeg = string.Equals(action.JobId, tc.JobId, StringComparison.OrdinalIgnoreCase);
+
+            // 재수신 방어 마킹, 현재 leg 였을 때만 AMR 진행 명령 중단
+            tc.State = TransportCommandEx.STATE_CANCELING;
+            tm.UpdateTransportCommand(tc);
+            if (isCurrentLeg)
+                SendCancelCmd(mm, tc.JobId, vehicleId);
+
+            // X 만 종결 (픽업 전 — 슬롯은 예약분만 존재)
+            tc.State = TransportCommandEx.STATE_CANCELED;
+            tm.UpdateTransportCommand(tc);
+            hm.CreateTransportCommandHistory(tc, "", JobCancelJudge.CAUSE_JOBCANCEL);
+            tm.DeleteTransportCommand(tc);
+            sm?.ReleaseAllByJobId(tc.JobId);
+
+            VehicleEx vehicle = string.IsNullOrEmpty(vehicleId) ? null : rm.GetVehicle(vehicleId);
+            if (vehicle != null)
+            {
+                var remain = new List<TransportCommandEx>();
+                foreach (var item in tm.GetActiveExchangeTransportCommandsByVehicleId(vehicleId))
+                    if (item is TransportCommandEx t)
+                        remain.Add(t);
+
+                if (remain.Count == 1)
+                {
+                    var solo = remain[0];
+                    solo.AdditionalInfo = ExchangeInfo.Set(solo.AdditionalInfo, ExchangeInfo.KEY_TRIP, "");
+                    tm.UpdateTransportCommand(solo);
+                    rm.UpdateVehicleTransportCommandId(vehicle, solo.JobId, MsgName);
+                    vehicle.TransportCommandId = solo.JobId;
+                    logger.Info($"[JOBCANCEL] C2(트립): 잔여 1건 — 단독 잡으로 강등 solo={solo.JobId}, vehicleId={vehicleId}");
+                }
+
+                if (isCurrentLeg)
+                    ExchangeTransHandlers.AdvanceTour(vehicle, tm, rm, mm, MsgName);
+            }
+
+            logger.Info($"[JOBCANCEL] C2(트립 멤버) 취소 완료 — jobId={tc.JobId}, vehicleId={vehicleId}, " +
+                        $"currentLeg={isCurrentLeg} (트립 잔여 계속)");
+            SendCancelReport(mm, tc.JobId, vehicleId ?? "", actionType, materialType, JobCancelJudge.ERR_OK, "");
+        }
+
+        // ── C5: 배칭 중 1건 적재 후 취소 — X 는 C3 시퀀스, 페어는 연대 종결 ──
+        //    페어 보고: EXCHANGE-JOBREPORT(COMPLETE, ErrorCode=EXCHANGE_CANCELED).
+        //    슬롯은 실물(OCCUPIED)만 유지, 예약분 해제 — 작업자 회수 후 차량 reset 이 해소.
+        private static void ExecuteC5(ITransferManagerEx tm, IResourceManagerEx rm, IHistoryManagerEx hm,
+            ISlotManagerEx sm, IMessageManagerEx mm, ICacheManagerEx cm, TransportCommandEx tc,
+            List<TransportCommandEx> mates, string actionType, string materialType)
+        {
+            string vehicleId = tc.VehicleId;
+
+            // 진행 중 명령이 페어 것일 수 있으므로 먼저 중단 (C3 의 충전 복귀 지시보다 앞서야 함)
+            foreach (var mate in mates)
+                SendCancelCmd(mm, mate.JobId, vehicleId);
+
+            // X: C3 시퀀스 그대로 (승인 보고 → cancelCmd → 종결 → 충전 복귀 + ALARM)
+            ExecuteC3(tm, rm, hm, mm, cm, tc, actionType, materialType);
+
+            // 페어 연대 종결
+            foreach (var mate in mates)
+            {
+                try
+                {
+                    int mateStep = ExchangeSteps.GetStep(mate.AdditionalInfo);
+                    string loadSlot = ExchangeInfo.Get(mate.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT) ?? "";
+                    mm.SendExchangeJobReportToHost(
+                        "COMPLETE", mate.JobId, vehicleId ?? "",
+                        mateStep.ToString(), ExchangeSteps.StepName(mateStep), loadSlot,
+                        "EXCHANGE", mate.GetMaterialType() ?? "",
+                        JobCancelJudge.ERR_EXCHANGE_CANCELED, $"trip mate canceled by JOBCANCEL({tc.JobId})");
+
+                    mate.State = TransportCommandEx.STATE_CANCELED;
+                    tm.UpdateTransportCommand(mate);
+                    hm.CreateTransportCommandHistory(mate, "", JobCancelJudge.CAUSE_JOBCANCEL);
+                    tm.DeleteTransportCommand(mate);
+                    ReleaseReservedSlots(sm, vehicleId, mate.JobId);
+
+                    logger.Info($"[JOBCANCEL] C5 페어 연대 종결 — mate={mate.JobId}, step={mateStep} " +
+                                "(COMPLETE + EXCHANGE_CANCELED, OCCUPIED 슬롯 유지)");
+                }
+                catch (Exception ex)
+                {
+                    logger.Error($"[JOBCANCEL] C5 페어 종결 실패 — mate={mate.JobId}: {ex.Message}", ex);
+                }
+            }
+        }
+
         // ── 공통 헬퍼 ────────────────────────────────────────────────
+
+        /// <summary>배칭 트립의 다른 활성 EXCHANGE TC 목록 (단독/비EXCHANGE 는 빈 목록).</summary>
+        private static List<TransportCommandEx> GetTripMates(ITransferManagerEx tm, TransportCommandEx tc)
+        {
+            var mates = new List<TransportCommandEx>();
+            if (!TransportCommandEx.JOBTYPE_EXCHANGE.Equals(tc.JobType, StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrEmpty(tc.VehicleId))
+                return mates;
+
+            foreach (var item in tm.GetActiveExchangeTransportCommandsByVehicleId(tc.VehicleId))
+            {
+                if (item is TransportCommandEx t
+                    && !string.Equals(t.JobId, tc.JobId, StringComparison.OrdinalIgnoreCase))
+                    mates.Add(t);
+            }
+            return mates;
+        }
+
+        /// <summary>해당 jobId 의 예약 슬롯만 해제 — OCCUPIED(실물) 는 유지.</summary>
+        private static void ReleaseReservedSlots(ISlotManagerEx sm, string vehicleId, string jobId)
+        {
+            if (sm == null || string.IsNullOrEmpty(vehicleId) || string.IsNullOrEmpty(jobId)) return;
+            foreach (var slot in sm.GetSlots(vehicleId))
+            {
+                if (jobId.Equals(slot.JobId, StringComparison.OrdinalIgnoreCase)
+                    && !VehicleSlotEx.STATE_OCCUPIED.Equals(slot.State, StringComparison.OrdinalIgnoreCase))
+                    sm.Release(vehicleId, slot.SlotNo);
+            }
+        }
 
         private static bool HasOccupiedSlot(ISlotManagerEx sm, string vehicleId)
         {

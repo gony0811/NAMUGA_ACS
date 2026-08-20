@@ -102,6 +102,29 @@ namespace ACS.Core.Tests
         }
 
         [Fact]
+        public void SelectExchangePair_FirstPairReserved_Returns2And4()
+        {
+            // S7 배칭 회귀: 예약은 EMPTY + jobId 기록 — 상태만 보면 1·3 을 다시 집는다.
+            // mate(B) 예약은 A 의 예약 슬롯을 건너뛰고 2·4 를 받아야 한다 (D3).
+            var slots = AllEmpty();
+            slots[0].JobId = "JOB_A";
+            slots[2].JobId = "JOB_A";
+            var pair = VehicleSlotExs.SelectExchangePair(slots);
+            Assert.NotNull(pair);
+            Assert.Equal(2, pair.Item1);
+            Assert.Equal(4, pair.Item2);
+        }
+
+        [Fact]
+        public void AreAllEmpty_ReservedSlot_False()
+        {
+            // 예약 잔류(EMPTY + jobId) 차량은 배차 부적격 — 이중 배정 방지
+            var slots = AllEmpty();
+            slots[1].JobId = "STALE_JOB";
+            Assert.False(VehicleSlotExs.AreAllEmpty(slots));
+        }
+
+        [Fact]
         public void SelectExchangePair_InsertGroupFull_ReturnsNull()
         {
             // INSERT 군(1·2)만 다 찬 경우 — 페어 불가 (§4.7 DoD 명시 케이스)

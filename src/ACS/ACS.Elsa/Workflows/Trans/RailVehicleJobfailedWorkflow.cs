@@ -142,14 +142,33 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // S7 배칭: 트립 페어(다른 활성 EXCHANGE TC) 존재 여부 — 있으면 X 만 이탈시키고 잔여로 계속
+                bool hasTripMate = false;
+                if (!string.IsNullOrEmpty(effectiveVehicleId))
+                {
+                    foreach (var item in tm.GetActiveExchangeTransportCommandsByVehicleId(effectiveVehicleId))
+                    {
+                        if (item is TransportCommandEx t
+                            && !string.Equals(t.JobId, tc.JobId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasTripMate = true;
+                            break;
+                        }
+                    }
+                }
+
                 if (disposition == AmrFailedDisposition.RollbackToQueued)
                 {
                     // REJECTED@STEP10: 첫 moveCmd(Origin 픽업행) 거부 — 실물 이동 전이므로 배차 전 상태로 롤백 → 다음 틱 재배차
+                    // 트립 페어가 있으면 차량은 유지(페어가 실물 적재 중일 수 있음)하고 X 만 환원 후 잔여로 투어 계속.
                     VehicleEx rejVehicle = string.IsNullOrEmpty(effectiveVehicleId) ? null : rm.GetVehicle(effectiveVehicleId);
                     bool rolled = ACS.Elsa.Activities.ExchangeTransHandlers.RollbackToQueued(
-                        tc, rejVehicle, tm, rm, sm, $"AMR REJECTED resultCode={resultCode}");
+                        tc, hasTripMate ? null : rejVehicle, tm, rm, sm, $"AMR REJECTED resultCode={resultCode}");
                     logger.Warn($"[EXCHANGE] AMR REJECTED@STEP10 → 롤백 {(rolled ? "완료" : "부분(TC 상태 유지)")} — " +
-                                $"tc={tc.JobId}, vehicleId={effectiveVehicleId}, resultCode={resultCode}, msg={errorMessage}. 다음 틱 재배차 대상.");
+                                $"tc={tc.JobId}, vehicleId={effectiveVehicleId}, resultCode={resultCode}, msg={errorMessage}, " +
+                                $"tripMate={hasTripMate}. 다음 틱 재배차 대상.");
+                    if (hasTripMate && rejVehicle != null)
+                        ACS.Elsa.Activities.ExchangeTransHandlers.ContinueTripAfterMemberRemoved(rejVehicle, tm, rm, mm, MsgName);
                     return;
                 }
 
@@ -170,20 +189,28 @@ namespace ACS.Elsa.Workflows.Trans
                 tm.DeleteTransportCommand(tc);
                 sm?.ReleaseAllByJobId(tc.JobId);
 
-                // ③ 차량 초기화 (재배차 가능 상태로 복귀 — 실물 미적재)
+                // ③ 차량 처리 — 트립 페어가 있으면 차량 유지(페어 실물 적재 가능) 후 잔여로 투어 계속,
+                //    단독이면 기존대로 초기화 (재배차 가능 상태로 복귀 — 실물 미적재)
                 VehicleEx vehicle = string.IsNullOrEmpty(effectiveVehicleId) ? null : rm.GetVehicle(effectiveVehicleId);
                 if (vehicle != null)
                 {
-                    rm.UpdateVehicleTransportCommandId(vehicle, "", MsgName);
-                    rm.UpdateVehicle(vehicle, "Path", "");
-                    rm.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
-                    rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
-                    rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
-                    sm?.ReleaseAllByVehicleId(effectiveVehicleId);
+                    if (hasTripMate)
+                    {
+                        ACS.Elsa.Activities.ExchangeTransHandlers.ContinueTripAfterMemberRemoved(vehicle, tm, rm, mm, MsgName);
+                    }
+                    else
+                    {
+                        rm.UpdateVehicleTransportCommandId(vehicle, "", MsgName);
+                        rm.UpdateVehicle(vehicle, "Path", "");
+                        rm.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
+                        rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
+                        rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
+                        sm?.ReleaseAllByVehicleId(effectiveVehicleId);
+                    }
                 }
 
-                logger.Info($"[EXCHANGE] MAGAZINE_NOT_FOUND 즉시 종결 — tc={tc.JobId}, vehicleId={effectiveVehicleId} " +
-                            "(재교체는 MES 가 새 EXCHANGECMD 로 재요청)");
+                logger.Info($"[EXCHANGE] MAGAZINE_NOT_FOUND 즉시 종결 — tc={tc.JobId}, vehicleId={effectiveVehicleId}, " +
+                            $"tripMate={hasTripMate} (재교체는 MES 가 새 EXCHANGECMD 로 재요청)");
             }
             catch (Exception ex)
             {

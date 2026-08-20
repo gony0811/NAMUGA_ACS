@@ -170,6 +170,8 @@ namespace ACS.App.Web.Controllers
                 return NotFound(new { error = "Vehicle not found: " + vehicleId });
 
             // 차량에 묶여 있던 TransportCommand 환원 (있는 경우만)
+            // S7 배칭: TransportCommandId="TRIP..." 는 TC 직조회가 안 되므로, 차량 기준
+            // 활성 EXCHANGE TC 전부를 환원한다 (단독/트립 공통 — prevJobId 조회 실패 시의 안전망 겸용).
             var prevJobId = vehicle.TransportCommandId;
             if (!string.IsNullOrEmpty(prevJobId))
             {
@@ -178,6 +180,15 @@ namespace ACS.App.Web.Controllers
                 {
                     TransportCommandResetHelper.ResetToQueued(cmd, _slotManager);
                     _transferManager.UpdateTransportCommand(cmd);
+                }
+                else
+                {
+                    foreach (var item in _transferManager.GetActiveExchangeTransportCommandsByVehicleId(vehicleId))
+                    {
+                        if (item is not TransportCommandEx exCmd) continue;
+                        TransportCommandResetHelper.ResetToQueued(exCmd, _slotManager);
+                        _transferManager.UpdateTransportCommand(exCmd);
+                    }
                 }
             }
 
@@ -209,6 +220,8 @@ namespace ACS.App.Web.Controllers
                 cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT, "");
                 cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_UNLOADSLOT, "");
                 cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_ACT, "");
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_TRIP, "");
+                cmd.AdditionalInfo = ExchangeInfo.Set(cmd.AdditionalInfo, ExchangeInfo.KEY_ARRIVED, "");
             }
             else
             {

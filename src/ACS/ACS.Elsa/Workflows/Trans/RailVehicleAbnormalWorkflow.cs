@@ -156,45 +156,59 @@ namespace ACS.Elsa.Workflows.Trans
                 return;
             }
 
-            // 2) TC 조회
+            // 2) TC 조회 — S7 배칭 트립("TRIP..." ID)은 직조회가 안 되므로
+            //    차량 기준 활성 EXCHANGE TC 전부(트립 2건)를 정리 대상으로 수집한다.
+            var targets = new System.Collections.Generic.List<TransportCommandEx>();
             TransportCommandEx tc = transferManager.GetTransportCommand(vehicle.TransportCommandId);
             if (tc != null)
             {
+                targets.Add(tc);
+            }
+            else
+            {
+                foreach (var item in transferManager.GetActiveExchangeTransportCommandsByVehicleId(vehicle.VehicleId))
+                    if (item is TransportCommandEx exTc)
+                        targets.Add(exTc);
+            }
+
+            if (targets.Count == 0)
+            {
+                logger.Warn($"RailVehicleAbnormalActivity: Vehicle.TransportCommandId={vehicle.TransportCommandId} 에 해당하는 TC 가 없음 vehicleId={vehicle.VehicleId} - JOBREPORT/히스토리/삭제 생략");
+            }
+
+            foreach (var target in targets)
+            {
                 // 3) JOBREPORT(COMPLETE) → HS → MES 송신.
                 // errCode/errMsg 에 OPERATOR_ABORT 정보를 실어 MES 가 정상 종료 vs abort-driven COMPLETE 를 구분 가능.
-                // 삭제 이후엔 tc.JobType / tc.Description 이 무효해질 수 있으므로 history/delete 보다 반드시 먼저.
+                // 삭제 이후엔 JobType / Description 이 무효해질 수 있으므로 history/delete 보다 반드시 먼저.
                 if (messageManager != null)
                 {
                     messageManager.SendJobReportToHost(
                         reportType: "COMPLETE",
-                        jobId: tc.JobId,
+                        jobId: target.JobId,
                         amrId: vehicle.VehicleId,
-                        actionType: tc.JobType ?? "",
-                        materialType: tc.Description ?? "",
+                        actionType: target.JobType ?? "",
+                        materialType: target.Description ?? "",
                         errCode: RailVehicleAbnormalData.CODE_OPERATOR_ABORT,
                         errMsg: RailVehicleAbnormalData.TYPE_OPERATOR_ABORT);
-                    logger.Info($"RailVehicleAbnormalActivity: JOBREPORT(COMPLETE, ErrorCode={RailVehicleAbnormalData.CODE_OPERATOR_ABORT}, ErrorMsg={RailVehicleAbnormalData.TYPE_OPERATOR_ABORT}) 전송 tc={tc.JobId}, vehicleId={vehicle.VehicleId}");
+                    logger.Info($"RailVehicleAbnormalActivity: JOBREPORT(COMPLETE, ErrorCode={RailVehicleAbnormalData.CODE_OPERATOR_ABORT}, ErrorMsg={RailVehicleAbnormalData.TYPE_OPERATOR_ABORT}) 전송 tc={target.JobId}, vehicleId={vehicle.VehicleId}");
                 }
                 else
                 {
-                    logger.Warn($"RailVehicleAbnormalActivity: IMessageManagerEx 미등록 - JOBREPORT 송신 생략 tc={tc.JobId}");
+                    logger.Warn($"RailVehicleAbnormalActivity: IMessageManagerEx 미등록 - JOBREPORT 송신 생략 tc={target.JobId}");
                 }
 
                 // 4) TC 히스토리 이관 + 삭제
                 if (historyManager != null)
                 {
-                    historyManager.CreateTransportCommandHistory(tc, "", MsgName);
+                    historyManager.CreateTransportCommandHistory(target, "", MsgName);
                 }
                 else
                 {
-                    logger.Warn($"RailVehicleAbnormalActivity: IHistoryManagerEx 미등록 - 히스토리 생성 생략 tc={tc.JobId}");
+                    logger.Warn($"RailVehicleAbnormalActivity: IHistoryManagerEx 미등록 - 히스토리 생성 생략 tc={target.JobId}");
                 }
-                int deleted = transferManager.DeleteTransportCommand(tc);
-                logger.Info($"RailVehicleAbnormalActivity: TC 삭제 vehicleId={vehicle.VehicleId}, tcId={tc.JobId}, deleted={deleted}");
-            }
-            else
-            {
-                logger.Warn($"RailVehicleAbnormalActivity: Vehicle.TransportCommandId={vehicle.TransportCommandId} 에 해당하는 TC 가 없음 vehicleId={vehicle.VehicleId} - JOBREPORT/히스토리/삭제 생략");
+                int deleted = transferManager.DeleteTransportCommand(target);
+                logger.Info($"RailVehicleAbnormalActivity: TC 삭제 vehicleId={vehicle.VehicleId}, tcId={target.JobId}, deleted={deleted}");
             }
 
             // 3) Vehicle 할당 정보 초기화

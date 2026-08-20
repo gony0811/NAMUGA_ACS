@@ -57,21 +57,23 @@ namespace ACS.Core.Resource.Model
             return null;
         }
 
-        /// <summary>4슬롯 전부 EMPTY 인가 (배차 적격 판정 — 슬롯 행이 4개 미만이면 false)</summary>
+        /// <summary>4슬롯 전부 EMPTY·미예약인가 (배차 적격 판정 — 슬롯 행이 4개 미만이면 false).
+        /// 예약(EMPTY + jobId 기록) 잔류도 부적격 — 이중 배정 방지.</summary>
         public static bool AreAllEmpty(IList<VehicleSlotEx> slots)
         {
             if (slots == null || slots.Count < 4) return false;
             foreach (var s in slots)
             {
-                if (!VehicleSlotEx.STATE_EMPTY.Equals(s.State, StringComparison.OrdinalIgnoreCase))
+                if (!IsAvailable(s))
                     return false;
             }
             return true;
         }
 
         /// <summary>
-        /// 교환 페어 선택: INSERT 군(1·2)에서 빈 슬롯 1개 + RETRIEVE 군(3·4)에서 빈 슬롯 1개.
+        /// 교환 페어 선택: INSERT 군(1·2)에서 가용 슬롯 1개 + RETRIEVE 군(3·4)에서 가용 슬롯 1개.
         /// 낮은 번호 우선(교환A=1+3, 교환B=2+4). 둘 중 하나라도 없으면 null.
+        /// 가용 = EMPTY 이면서 미예약(jobId 없음) — 배칭 시 선예약(A=1·3) 을 건너뛰어 B=2·4 가 되게 한다 (D3).
         /// 선택만 하고 상태는 바꾸지 않는다 — 영속 전이는 SlotManager 트랜잭션에서.
         /// </summary>
         public static Tuple<int, int> SelectExchangePair(IList<VehicleSlotEx> slots)
@@ -80,7 +82,7 @@ namespace ACS.Core.Resource.Model
             int load = 0, unload = 0;
             foreach (var s in Sorted(slots))
             {
-                if (!VehicleSlotEx.STATE_EMPTY.Equals(s.State, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!IsAvailable(s)) continue;
                 if (load == 0 && VehicleSlotEx.ROLE_INSERT.Equals(s.Role, StringComparison.OrdinalIgnoreCase))
                     load = s.SlotNo;
                 else if (unload == 0 && VehicleSlotEx.ROLE_RETRIEVE.Equals(s.Role, StringComparison.OrdinalIgnoreCase))
@@ -88,6 +90,13 @@ namespace ACS.Core.Resource.Model
             }
             if (load == 0 || unload == 0) return null;
             return Tuple.Create(load, unload);
+        }
+
+        /// <summary>슬롯 가용 판정: EMPTY 이면서 예약(jobId) 없음.</summary>
+        private static bool IsAvailable(VehicleSlotEx s)
+        {
+            return VehicleSlotEx.STATE_EMPTY.Equals(s.State, StringComparison.OrdinalIgnoreCase)
+                   && string.IsNullOrEmpty(s.JobId);
         }
 
         private static IEnumerable<VehicleSlotEx> Sorted(IList<VehicleSlotEx> slots)

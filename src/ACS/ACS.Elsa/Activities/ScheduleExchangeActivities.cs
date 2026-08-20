@@ -157,6 +157,18 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
+                // S7 배칭: fresh 상태 가드 — 같은 틱에서 앞선 배차의 페어(mate)로 이미 할당된 TC 는
+                // ForEach 의 자기 차례에서 건너뛴다 (여기서 걸러야 Else 경로의 롤백이 오발동하지 않음).
+                var freshTc = transferManager.GetTransportCommand(tc.JobId);
+                if (freshTc == null
+                    || !TransportCommandEx.STATE_EXCHANGE_QUEUED.Equals(freshTc.State, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Info($"FindSuitableExchangeVehicleActivity: TC 상태 변경됨(state={freshTc?.State ?? "삭제"}) — " +
+                                $"이번 틱에서 건너뜀 (배칭 페어 선할당 등) tc={tc.JobId}");
+                    context.Set(Found, false);
+                    return;
+                }
+
                 // Origin(=Source) Location 조회 — 픽업 지점 기준 최근접 차량
                 LocationEx sourceLocation = cacheManager.GetLocationByLocationId(tc.Source);
                 if (sourceLocation == null)
@@ -316,6 +328,11 @@ namespace ACS.Elsa.Activities
                 }
 
                 logger.Info($"AssignExchangeVehicleActivity: TC {tc.JobId} → Vehicle {vehicle.VehicleId}, slots load={pair.Item1}/unload={pair.Item2}, state={tc.State}");
+
+                // ── S7 배칭 (D2): 같은 Bay 의 다음 EXCHANGE_QUEUED 를 페어로 묶어 한 반송(트립)으로 배차 ──
+                //    대기창 없음 — 이 틱에 2건 가능하면 2건, 아니면 단독. 페어 실패는 단독으로 강등(트립 미설정).
+                TryBatchMate(transferManager, resourceManager, slotManager, tc, vehicle);
+
                 context.Set(LoadSlot, pair.Item1.ToString());
                 context.Set(Success, true);
             }
@@ -324,6 +341,77 @@ namespace ACS.Elsa.Activities
                 logger.Error($"AssignExchangeVehicleActivity: {ex.Message}", ex);
                 context.Set(LoadSlot, "");
                 context.Set(Success, false);
+            }
+        }
+
+        /// <summary>
+        /// 배칭 페어(mate) 할당 시도: 같은 Bay 의 다음 EXCHANGE_QUEUED TC 를 같은 차량에 묶는다.
+        /// 성공 시 두 TC 에 TRIP=tripId 기록 + vehicle.TransportCommandId=tripId (구현사양서 §4.9).
+        /// 실패(후보 없음/슬롯 부족/예외)는 단독 배차로 강등 — 첫 TC 할당에는 영향 없음.
+        /// 슬롯은 D3: A=1·3 이 이미 예약됐으므로 mate 는 자연히 2·4 를 받는다.
+        /// </summary>
+        private static void TryBatchMate(ITransferManagerEx transferManager, IResourceManagerEx resourceManager,
+            ISlotManagerEx slotManager, TransportCommandEx tcA, VehicleEx vehicle)
+        {
+            TransportCommandEx mate = null;
+            try
+            {
+                var queued = transferManager.GetExchangeQueuedTransportCommandsByBayId(tcA.BayId);
+                if (queued != null)
+                {
+                    foreach (var item in queued)
+                    {
+                        if (item is TransportCommandEx cand
+                            && !string.Equals(cand.JobId, tcA.JobId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mate = cand;
+                            break;
+                        }
+                    }
+                }
+                if (mate == null)
+                {
+                    logger.Info($"AssignExchangeVehicleActivity: 단독 배차 (같은 Bay 대기 EXCHANGE 없음) tc={tcA.JobId}, bay={tcA.BayId}");
+                    return;
+                }
+
+                Tuple<int, int> matePair = slotManager.ReserveExchangePair(vehicle.VehicleId, mate.JobId);
+                if (matePair == null)
+                {
+                    logger.Warn($"AssignExchangeVehicleActivity: 페어 슬롯 예약 실패 — 단독 배차로 강등. mate={mate.JobId}, vehicle={vehicle.VehicleId}");
+                    return;
+                }
+
+                string tripId = ExchangeTour.NewTripId(DateTime.Now);
+
+                // mate TC 할당
+                mate.VehicleId = vehicle.VehicleId;
+                mate.State = TransportCommandEx.STATE_EXCHANGE_ASSIGNED;
+                mate.AssignedTime = DateTime.Now;
+                string mateInfo = mate.AdditionalInfo;
+                mateInfo = ExchangeInfo.Set(mateInfo, ExchangeInfo.KEY_LOADSLOT, matePair.Item1.ToString());
+                mateInfo = ExchangeInfo.Set(mateInfo, ExchangeInfo.KEY_UNLOADSLOT, matePair.Item2.ToString());
+                mateInfo = ExchangeInfo.Set(mateInfo, ExchangeInfo.KEY_TRIP, tripId);
+                mate.AdditionalInfo = mateInfo;
+                transferManager.UpdateTransportCommand(mate);
+
+                // 첫 TC 에도 TRIP 기록
+                tcA.AdditionalInfo = ExchangeInfo.Set(tcA.AdditionalInfo, ExchangeInfo.KEY_TRIP, tripId);
+                transferManager.UpdateTransportCommand(tcA);
+
+                // 차량은 트립 ID 를 가리킴 (TRIP prefix 로 배칭 트립 식별 — reset/복구 분기 근거)
+                resourceManager.UpdateVehicleTransportCommandId(vehicle, tripId);
+                vehicle.TransportCommandId = tripId;
+
+                logger.Info($"AssignExchangeVehicleActivity: 배칭 배차 — trip={tripId}, jobs=[{tcA.JobId}, {mate.JobId}], " +
+                            $"vehicle={vehicle.VehicleId}, slots A={ExchangeInfo.Get(tcA.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT)}·{ExchangeInfo.Get(tcA.AdditionalInfo, ExchangeInfo.KEY_UNLOADSLOT)} / " +
+                            $"B={matePair.Item1}·{matePair.Item2}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"AssignExchangeVehicleActivity: 페어 배칭 실패 — 단독 배차로 강등. {ex.Message}", ex);
+                if (mate != null)
+                    ExchangeTransHandlers.RollbackToQueued(mate, null, transferManager, resourceManager, slotManager, "batch-mate-rollback");
             }
         }
     }
@@ -370,7 +458,23 @@ namespace ACS.Elsa.Activities
                 }
 
                 // 롤백 본체는 ExchangeTransHandlers.RollbackToQueued 로 일원화 (REJECTED@STEP10 롤백과 공유).
-                // TC → EXCHANGE_QUEUED(슬롯 기록/ACT/ARRIVED 초기화, STEP=10), 슬롯 예약 해제, 차량 → NOTASSIGNED/IDLE.
+                // TC → EXCHANGE_QUEUED(슬롯 기록/ACT/ARRIVED/TRIP 초기화, STEP=10), 슬롯 예약 해제, 차량 → NOTASSIGNED/IDLE.
+                // S7 배칭: 트립 페어(mate)도 함께 환원 — 첫 moveCmd 실패는 트립 전체 무효.
+                var tripTcs = transferManager.GetActiveExchangeTransportCommandsByVehicleId(vehicle.VehicleId);
+                if (tripTcs != null)
+                {
+                    foreach (var item in tripTcs)
+                    {
+                        if (item is TransportCommandEx mate
+                            && !string.Equals(mate.JobId, tc.JobId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ExchangeTransHandlers.RollbackToQueued(mate, null,
+                                transferManager, resourceManager, slotManager, "assignment-rollback(trip-mate)");
+                            logger.Info($"RollbackExchangeAssignmentActivity: 트립 페어 롤백 — mate={mate.JobId}");
+                        }
+                    }
+                }
+
                 bool rolled = ExchangeTransHandlers.RollbackToQueued(tc, vehicle,
                     transferManager, resourceManager, slotManager, "assignment-rollback");
                 if (!rolled)
@@ -420,6 +524,7 @@ namespace ACS.Elsa.Activities
             {
                 var accessor = context.GetService<AutofacContainerAccessor>();
                 var messageManager = accessor?.Resolve<IMessageManagerEx>();
+                var transferManager = accessor?.Resolve<ITransferManagerEx>();
                 if (messageManager == null)
                 {
                     logger.Error("SendExchangeJobReportStartActivity: IMessageManagerEx not resolved");
@@ -427,14 +532,29 @@ namespace ACS.Elsa.Activities
                     return;
                 }
 
-                string loadSlot = ExchangeInfo.Get(tc.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT) ?? "";
+                // S7 배칭: 트립이면 두 job 모두 START 보고 — 차량 기준 활성 EXCHANGE TC 전부 (단독이면 1건 = tc 자신)
+                var targets = new List<TransportCommandEx>();
+                var active = transferManager?.GetActiveExchangeTransportCommandsByVehicleId(vehicleId);
+                if (active != null)
+                {
+                    foreach (var item in active)
+                        if (item is TransportCommandEx atc)
+                            targets.Add(atc);
+                }
+                if (targets.Count == 0)
+                    targets.Add(tc);
 
-                messageManager.SendExchangeJobReportToHost(
-                    "START", tc.JobId, vehicleId,
-                    "10", "PICKUP_NEW", loadSlot,
-                    "EXCHANGE", tc.GetMaterialType() ?? "", "0", "");
+                foreach (var target in targets)
+                {
+                    string loadSlot = ExchangeInfo.Get(target.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT) ?? "";
 
-                logger.Info($"SendExchangeJobReportStartActivity: EXCHANGE-JOBREPORT(START, Step=10) sent for TC {tc.JobId}, amr={vehicleId}, loadSlot={loadSlot}");
+                    messageManager.SendExchangeJobReportToHost(
+                        "START", target.JobId, vehicleId,
+                        "10", "PICKUP_NEW", loadSlot,
+                        "EXCHANGE", target.GetMaterialType() ?? "", "0", "");
+
+                    logger.Info($"SendExchangeJobReportStartActivity: EXCHANGE-JOBREPORT(START, Step=10) sent for TC {target.JobId}, amr={vehicleId}, loadSlot={loadSlot}");
+                }
                 context.Set(Success, true);
             }
             catch (Exception ex)

@@ -12,6 +12,8 @@ namespace ACS.Core.Transfer
         CancelBeforePickup,
         /// <summary>C3: 적재 후 — 승인 보고 + 충전소 복귀 + Job 삭제 + 차량 ALARM (작업자 실물 회수).</summary>
         CancelAfterLoad,
+        /// <summary>C5: 배칭 중 1건 적재 후 취소 — C3 수행 + 페어 Job 연대 종결(COMPLETE + EXCHANGE_CANCELED).</summary>
+        CancelAfterLoadBatch,
         /// <summary>C4: 종료/취소 진행 상태 — 거부 (ErrorCode=CANCEL_REJECTED).</summary>
         Reject
     }
@@ -35,13 +37,15 @@ namespace ACS.Core.Transfer
         public const string CAUSE_JOBCANCEL = "JOBCANCEL";
 
         /// <summary>
-        /// C1~C4 판정.
+        /// C1~C5 판정.
         /// </summary>
         /// <param name="tcState">TC 상태 (null/빈값 = TC 부재 → 거부)</param>
         /// <param name="jobType">TC JobType (EXCHANGE 분기용)</param>
         /// <param name="exchangeStep">EXCHANGE STEP (ExchangeSteps.GetStep 결과; 비EXCHANGE 는 무시)</param>
         /// <param name="anySlotOccupied">차량 슬롯 중 OCCUPIED 존재 여부 (실물 적재 판단)</param>
-        public static JobCancelVerdict Judge(string tcState, string jobType, int exchangeStep, bool anySlotOccupied)
+        /// <param name="hasActiveTripMate">배칭 트립의 다른 활성 TC 존재 여부 — 적재 후 취소가 C5 로 승격</param>
+        public static JobCancelVerdict Judge(string tcState, string jobType, int exchangeStep, bool anySlotOccupied,
+            bool hasActiveTripMate = false)
         {
             if (string.IsNullOrEmpty(tcState))
                 return JobCancelVerdict.Reject;
@@ -65,11 +69,12 @@ namespace ACS.Core.Transfer
                 return JobCancelVerdict.CancelBeforeAssign;
 
             // EXCHANGE 여정: STEP=10(픽업 전) & 실물 미적재 → C2, 그 외(20~50 또는 적재) → C3
+            // 배칭 트립에 다른 활성 TC 가 있으면 적재 후 취소는 C5 (페어 연대 종결)
             if (Is(tcState, TransportCommandEx.STATE_EXCHANGE_ASSIGNED))
             {
                 if (exchangeStep == ExchangeSteps.STEP_PICKUP_NEW && !anySlotOccupied)
                     return JobCancelVerdict.CancelBeforePickup;
-                return JobCancelVerdict.CancelAfterLoad;
+                return hasActiveTripMate ? JobCancelVerdict.CancelAfterLoadBatch : JobCancelVerdict.CancelAfterLoad;
             }
 
             // 일반 반송: 적재 전(소스행) → C2, 적재 후(목적지행) → C3

@@ -109,16 +109,9 @@ namespace ACS.Elsa.Activities
             // ② 슬롯 실물 적재: 신자재 → loadSlot (PHASE_NEW)
             OccupySlot(sm, vehicle.VehicleId, loadSlot, tc.JobId, VehicleSlotEx.PHASE_NEW, "loadSlot");
 
-            // ③ 차량 이동 상태 + 다음 waypoint(mid) 설정
-            rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, MsgName);
-            string midLocationId = ExchangeSteps.BuildMidLocationId(tc.MidLoc, tc.MidPortId);
-            if (!UpdateAcsDestNode(rm, vehicle, midLocationId, MsgName, tc))
-                return;
-
-            // ④ mid행 RAIL-CARRIERTRANSFER(jobType=EXCHANGE, amrSlot=loadSlot)
-            //    (사양서 Scenario 상 Step=10 은 RECEIVE/START 보고만 정의 — STEP_COMPLETE(10) 미발행)
-            SendCarrierTransfer(mm, rm, tc, vehicle.VehicleId,
-                TransportCommandEx.JOBTYPE_EXCHANGE, midLocationId, loadSlot);
+            // ③④ 다음 행동은 투어 전진 로직이 유도 — 단독: mid행 / 배칭: 다음 잡 픽업행 (D9 순서)
+            //     (사양서 Scenario 상 Step=10 은 RECEIVE/START 보고만 정의 — STEP_COMPLETE(10) 미발행)
+            AdvanceTour(vehicle, tm, rm, mm, MsgName);
         }
 
         /// <summary>
@@ -168,16 +161,119 @@ namespace ACS.Elsa.Activities
             int deleted = tm.DeleteTransportCommand(tc);
             logger.Info($"[EXCHANGE] TC 히스토리 이관+삭제 tc={tc.JobId}, deleted={deleted}");
 
-            // ⑥ 차량 정리 (기존 Deposit Step12/14~17 과 동일 primitive)
-            rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, MsgName);
-            rm.UpdateVehicleTransportCommandId(vehicle, "", MsgName);
+            // ⑥ 다음 행동은 투어 전진 로직이 유도 — 배칭: 다음 잡 반납행 / 잔여 없음: 차량 초기화(트립 종결)
+            AdvanceTour(vehicle, tm, rm, mm, MsgName);
+        }
+
+        /// <summary>
+        /// S7 배칭: 트립의 다음 행동을 STEP 조합에서 유도해 발행한다 (구현사양서 §4.10 / D9).
+        /// 단독 교환은 활성 TC 1건으로 자연 축약 — 기존 단독 흐름과 동일한 명령이 나간다.
+        ///  - PickupMove: 다음 잡의 Origin 픽업행 (moveCmd UNLOAD, amrSlot=loadSlot)
+        ///  - MidPhase(step=20): 해당 잡의 설비행 (moveCmd EXCHANGE, amrSlot=loadSlot) / step 30·40 은 게이트 대기(발행 없음)
+        ///  - DestMove: 해당 잡의 반납행 (moveCmd LOAD, amrSlot=unloadSlot)
+        ///  - TripComplete: 차량 초기화 (트립 종결)
+        /// </summary>
+        internal static void AdvanceTour(VehicleEx vehicle,
+            ITransferManagerEx tm, IResourceManagerEx rm, IMessageManagerEx mm, string msgName)
+        {
+            var actives = tm.GetActiveExchangeTransportCommandsByVehicleId(vehicle.VehicleId);
+            var steps = new System.Collections.Generic.List<(string JobId, int Step)>();
+            var byJob = new System.Collections.Generic.Dictionary<string, TransportCommandEx>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in actives)
+            {
+                if (item is not TransportCommandEx t) continue;
+                steps.Add((t.JobId, ExchangeSteps.GetStep(t.AdditionalInfo)));
+                byJob[t.JobId] = t;
+            }
+
+            var action = ExchangeTour.NextAfter(steps);
+            switch (action.Kind)
+            {
+                case ExchangeTourActionKind.PickupMove:
+                {
+                    var y = byJob[action.JobId];
+                    string loadSlot = ExchangeInfo.Get(y.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT);
+                    rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_ASSIGNED, msgName);
+                    if (!UpdateAcsDestNode(rm, vehicle, y.Source, msgName, y)) return;
+                    SendCarrierTransfer(mm, rm, y, vehicle.VehicleId,
+                        TransportCommandEx.JOBTYPE_UNLOAD, y.Source, loadSlot);
+                    logger.Info($"[EXCHANGE] 투어 전진: 다음 잡 픽업행 tc={y.JobId}, target={y.Source}");
+                    return;
+                }
+                case ExchangeTourActionKind.MidPhase:
+                {
+                    if (action.Step != ExchangeSteps.STEP_MOVE_TO_EQUIP)
+                    {
+                        // 30/40 = 설비 게이트 진행 중 — 발행 없음 (ACTIONCMD 대기). 완료 이벤트 경계에선 정상적으로 도달하지 않음.
+                        logger.Info($"[EXCHANGE] 투어 전진: 설비 게이트 대기 중 (step={action.Step}) — 발행 없음 tc={action.JobId}");
+                        return;
+                    }
+                    var y = byJob[action.JobId];
+                    string loadSlot = ExchangeInfo.Get(y.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT);
+                    string midLocationId = ExchangeSteps.BuildMidLocationId(y.MidLoc, y.MidPortId);
+                    rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, msgName);
+                    if (!UpdateAcsDestNode(rm, vehicle, midLocationId, msgName, y)) return;
+                    SendCarrierTransfer(mm, rm, y, vehicle.VehicleId,
+                        TransportCommandEx.JOBTYPE_EXCHANGE, midLocationId, loadSlot);
+                    logger.Info($"[EXCHANGE] 투어 전진: 설비행 tc={y.JobId}, target={midLocationId}");
+                    return;
+                }
+                case ExchangeTourActionKind.DestMove:
+                {
+                    var y = byJob[action.JobId];
+                    string unloadSlot = ExchangeInfo.Get(y.AdditionalInfo, ExchangeInfo.KEY_UNLOADSLOT);
+                    rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_TRANSFERING_DEST, msgName);
+                    if (!UpdateAcsDestNode(rm, vehicle, y.Dest, msgName, y)) return;
+                    SendCarrierTransfer(mm, rm, y, vehicle.VehicleId,
+                        TransportCommandEx.JOBTYPE_LOAD, y.Dest, unloadSlot);
+                    logger.Info($"[EXCHANGE] 투어 전진: 반납행 tc={y.JobId}, target={y.Dest}");
+                    return;
+                }
+                default: // TripComplete
+                    CompleteTripVehicle(vehicle, rm, msgName);
+                    return;
+            }
+        }
+
+        /// <summary>트립 종결 — 차량 초기화 (기존 Deposit Step12/14~17 과 동일 primitive).</summary>
+        internal static void CompleteTripVehicle(VehicleEx vehicle, IResourceManagerEx rm, string msgName)
+        {
+            rm.UpdateVehicleTransferState(vehicle, VehicleEx.TRANSFERSTATE_NOTASSIGNED, msgName);
+            rm.UpdateVehicleTransportCommandId(vehicle, "", msgName);
             vehicle.TransportCommandId = "";
             rm.UpdateVehicle(vehicle, "Path", "");
             vehicle.Path = "";
-            rm.UpdateVehicleAcsDestNodeId(vehicle, "", MsgName);
+            rm.UpdateVehicleAcsDestNodeId(vehicle, "", msgName);
             vehicle.AcsDestNodeId = "";
-            rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, MsgName);
-            logger.Info($"[EXCHANGE] 여정 완료 — 차량 초기화 vehicleId={vehicle.VehicleId}, tc={tc.JobId}");
+            rm.UpdateVehicleProcessingState(vehicle, VehicleEx.PROCESSINGSTATE_IDLE, msgName);
+            logger.Info($"[EXCHANGE] 투어 종결 — 차량 초기화 vehicleId={vehicle.VehicleId}");
+        }
+
+        /// <summary>
+        /// S7 배칭: 트립 멤버 1건이 이탈(취소/REJECTED 롤백/MAGAZINE_NOT_FOUND 종결)한 뒤
+        /// 잔여 TC 로 트립을 계속한다. 잔여 1건이면 단독 잡 의미론으로 강등
+        /// (TRIP="" + vehicle.TransportCommandId=잔여 jobId) 후 투어 전진.
+        /// 잔여 0건이면 AdvanceTour 가 TripComplete 로 차량을 초기화한다.
+        /// </summary>
+        internal static void ContinueTripAfterMemberRemoved(VehicleEx vehicle,
+            ITransferManagerEx tm, IResourceManagerEx rm, IMessageManagerEx mm, string msgName)
+        {
+            var remain = new System.Collections.Generic.List<TransportCommandEx>();
+            foreach (var item in tm.GetActiveExchangeTransportCommandsByVehicleId(vehicle.VehicleId))
+                if (item is TransportCommandEx t)
+                    remain.Add(t);
+
+            if (remain.Count == 1)
+            {
+                var solo = remain[0];
+                solo.AdditionalInfo = ExchangeInfo.Set(solo.AdditionalInfo, ExchangeInfo.KEY_TRIP, "");
+                tm.UpdateTransportCommand(solo);
+                rm.UpdateVehicleTransportCommandId(vehicle, solo.JobId, msgName);
+                vehicle.TransportCommandId = solo.JobId;
+                logger.Info($"[EXCHANGE] 트립 멤버 이탈: 잔여 1건 — 단독 잡으로 강등 solo={solo.JobId}, vehicleId={vehicle.VehicleId}");
+            }
+
+            AdvanceTour(vehicle, tm, rm, mm, msgName);
         }
 
         /// <summary>
@@ -292,11 +388,8 @@ namespace ACS.Elsa.Activities
                 // ② 슬롯 실물 전이: 신자재 투입 완료 → loadSlot 하치
                 ReleaseSlot(sm, vehicle.VehicleId, loadSlot, "loadSlot");
 
-                // ③ 다음 waypoint(dest) 설정 + dest행 RAIL-CARRIERTRANSFER(jobType=LOAD, amrSlot=unloadSlot)
-                if (!UpdateAcsDestNode(rm, vehicle, tc.Dest, MsgName, tc))
-                    return;
-                SendCarrierTransfer(mm, rm, tc, vehicle.VehicleId,
-                    TransportCommandEx.JOBTYPE_LOAD, tc.Dest, unloadSlot);
+                // ③ 다음 행동은 투어 전진 로직이 유도 — 단독: dest행 / 배칭: 다음 잡 설비행 (D9 순서)
+                AdvanceTour(vehicle, tm, rm, mm, MsgName);
 
                 // ④ 보고: 투입 단계 완료 (STEP=40, CarrierSlot=loadSlot)
                 SendReport(mm, tc, vehicle.VehicleId, "STEP_COMPLETE", ExchangeSteps.STEP_LOAD_NEW);
@@ -338,6 +431,7 @@ namespace ACS.Elsa.Activities
                 info = ExchangeInfo.Set(info, ExchangeInfo.KEY_UNLOADSLOT, "");
                 info = ExchangeInfo.Set(info, ExchangeInfo.KEY_ACT, "");
                 info = ExchangeInfo.Set(info, ExchangeInfo.KEY_ARRIVED, "");
+                info = ExchangeInfo.Set(info, ExchangeInfo.KEY_TRIP, "");
                 freshTc.AdditionalInfo = info;
                 tm.UpdateTransportCommand(freshTc);
                 tcRolledBack = true;

@@ -271,6 +271,40 @@ namespace ACS.Manager.Transfer
             return FilterUnassignedTransportCommands(transportCommands, excludeExchange: true);
         }
 
+        // EXCHANGE(v2) S7 배칭: 차량의 활성 EXCHANGE TC 목록 (트립 형제 조회 — LOADSLOT 오름차순).
+        public IList GetActiveExchangeTransportCommandsByVehicleId(String vehicleId)
+        {
+            var result = new List<TransportCommandEx>();
+            if (string.IsNullOrEmpty(vehicleId)) return result;
+
+            var attributes = new Dictionary<string, object>
+            {
+                { "VehicleId", vehicleId },
+                { "State", TransportCommandEx.STATE_EXCHANGE_ASSIGNED },
+                { "JobType", TransportCommandEx.JOBTYPE_EXCHANGE }
+            };
+            IList rows = this.PersistentDao.FindByAttributes(typeof(TransportCommandEx), attributes);
+            if (rows == null) return result;
+
+            foreach (var row in rows)
+            {
+                if (row is TransportCommandEx tc) result.Add(tc);
+            }
+            result.Sort((a, b) =>
+            {
+                int sa = ParseSlotOrMax(ExchangeInfo.Get(a.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT));
+                int sb = ParseSlotOrMax(ExchangeInfo.Get(b.AdditionalInfo, ExchangeInfo.KEY_LOADSLOT));
+                int cmp = sa.CompareTo(sb);
+                return cmp != 0 ? cmp : string.CompareOrdinal(a.JobId, b.JobId);
+            });
+            return result;
+        }
+
+        private static int ParseSlotOrMax(string slot)
+        {
+            return int.TryParse(slot, out int n) ? n : int.MaxValue;
+        }
+
         // EXCHANGE(v2) S4: 배차 대기 EXCHANGE TC 조회 — 기존 QUEUED 조회와 상태 격리 (D5).
         public IList GetExchangeQueuedTransportCommandsByBayId(String bayId)
         {
