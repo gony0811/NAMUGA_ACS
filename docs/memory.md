@@ -1406,3 +1406,23 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **남은 협의(AMR 벤더):** ARRIVED reply 발행 여부(선택), 일반 moveCmd 의 COMPLETED 시점(작업 완료 시점만 — 도착은 ARRIVED), 게이트 대기 상한, resultCode 21/22/30/31/32 채택.
 
 **정리 (2026-08-19):** v0.2(exchangeCmd 단일 명령) 기준의 EI 선반영 커밋(`7863c05`)은 v0.3 폐기 결정에 따라 **본 §53 구현으로 대체·제거**됨 — exchangeCmd 필드/`SendExchange()`/cancelCmd `returnNode` 는 삭제, actionCmd type·jobId 와 reply 확장 필드는 v0.3 계약으로 흡수. 충돌 파일(AmrCommandMessage/AmrReplyMessage/MqttInterfaceManager/MqttActivities/mqtt_interface.md 등)은 v0.3 커밋(`6f2ad88`) 기준으로 복원.
+
+## 54. EXCHANGE S7 — 배칭(트립당 2건) + JOBCANCEL C5 + trip 인지 복구/reset (2026-08-20, 커밋 0b77aa6 + 후속)
+
+**설계 (구현사양서 D2/D3/D9/§4.9~4.10):** 같은 Bay 의 EXCHANGE 2건을 한 차량이 한 반송(트립)으로 처리. 대기창 없음 — 배차 틱에 2건 가능하면 2건, 아니면 단독. 순서 고정: 픽업×2 → 설비×2(각 게이트 UNLOAD→LOAD) → 반납×2. 슬롯 A=1·3, B=2·4. 트립 식별: 두 TC 의 AdditionalInfo `TRIP=TRIP+timestamp` + `vehicle.TransportCommandId=tripId`(단독은 기존대로 jobId — 단독 경로 무변경). 형제 조회는 `GetActiveExchangeTransportCommandsByVehicleId`(EXCHANGE_ASSIGNED & JobType=EXCHANGE & VehicleId, LOADSLOT 오름차순).
+
+**구현:**
+- `ACS.Core/Transfer/ExchangeTour.cs` 신설 — 순수 투어 전진 로직 `NextAfter((jobId,step)[])`: STEP=10 존재→PickupMove / {20,30,40}→MidPhase(20만 발행, 30/40 게이트 대기) / 50→DestMove / 없음→TripComplete. `NewTripId`/`IsTripId`(TRIP prefix). 호출 시점을 완료 이벤트 직후로 한정해 이중 발행 없음, crash 후 STEP 조합만으로 재개 가능.
+- 배차(`ScheduleExchangeActivities`): `AssignExchangeVehicleActivity.TryBatchMate` — A 할당 후 같은 Bay 다음 EXCHANGE_QUEUED 를 페어 예약·할당, 실패는 단독 강등(트립 미설정). `FindSuitableExchangeVehicleActivity` 에 fresh-state 가드(같은 틱 mate 선할당 TC skip — Else 롤백 오발동 방지). START 보고·배차 롤백은 트립 전체 대상.
+- 투어 인터리브(`ExchangeTransHandlers`): `AdvanceTour`(형제 조회→NextAfter→발행)·`CompleteTripVehicle`·`ContinueTripAfterMemberRemoved`(멤버 이탈 시 잔여 1건이면 TRIP=""+vehicle.TransportCommandId=jobId 로 단독 강등 후 전진). OnAcquire/OnExchange(LOAD)/OnDeposit 완료가 모두 AdvanceTour 로 수렴. `RailVehicleDestArrivedWorkflow` EXCHANGE 분기는 현재 진행 leg TC(NextAfter 결과)에만 OnDestArrived 위임 — 같은 waypoint 공유 시 오보고 방지.
+- JOBCANCEL: `JobCancelJudge` 에 `hasActiveTripMate` → 적재 후 취소는 C5(`CancelAfterLoadBatch`). C5 실행 = X 는 C3 그대로(승인 CANCEL(0)→cancelCmd→종결→충전 복귀+ALARM, OCCUPIED 슬롯 유지) + 각 mate: cancelCmd → COMPLETE(EXCHANGE_CANCELED) 보고 → CANCELED 이력 이관·삭제 → 예약 슬롯만 해제. C2 트립 멤버는 X 만 종결, X 가 현재 leg 였으면 cancelCmd 후 AdvanceTour 재개.
+- trip 인지 복구/reset: RecoverStuck(TRIP prefix → 현재 leg 유도 후 기존 ResolveRecoverySegment 재푸시), REST vehicle reset·RailVehicleAbnormal(단건 조회 실패 시 차량 기준 활성 EXCHANGE 전부 환원/정리), REJECTED@10·MAGAZINE_NOT_FOUND@10(트립이면 차량 유지 + X 만 이탈 + ContinueTrip), `ResetToQueued`/`RollbackToQueued` 에 TRIP·ARRIVED 초기화.
+- **슬롯 예약 버그 수정**: `VehicleSlotExs.SelectExchangePair`/`AreAllEmpty` 가 예약(EMPTY+jobId) 슬롯을 가용으로 오판 — 배칭에서 mate 가 A 의 1·3 을 재예약(첫 실배차에서 실측 발견). 가용 = EMPTY && jobId 없음으로 수정 + 회귀 테스트.
+- **노드 동기화 수정**: 실기 AMR 이 status 에 currentNodeId/pose 를 안 실어 DB CurrentNodeId 미갱신 → 노드 매칭 도착 판정 영구 skip. `RailVehicleArrivedWorkflow` 에서 명시적 ARRIVED reply 수신 시 `CurrentNodeId ← AcsDestNodeId` 동기화 후 도착 판정 진입.
+- 테스트: `ExchangeTourTests`(배칭 전 시퀀스 전이표/단독 축약/부분 취소 잔여), JobCancelJudge C5, 슬롯 예약 회귀 — **206건 통과**.
+
+**실기 E2E (2026-08-20, AMR 실기 + Validator MES):** EXCHANGECMD 2건(A→192.168.32.36:LEFT/N2002, B→192.168.32.16:LEFT/N2003, bay DEMO) → 1트립 배차(슬롯 1·3/2·4, vehicle.TransportCommandId=TRIP...) → START(10)×2 → 픽업A→픽업B(슬롯1·2 OCCUPIED NEW) → A: ARRIVED(20)→SC30(slot3)→SC40(slot1) → B: ARRIVED(20)→SC30(slot4)→SC40(slot2) → 반납A: SC50(slot3)+COMPLETE(60)→TC 삭제 → 반납B: SC50(slot4)+COMPLETE(60) → 차량 1회 초기화·슬롯 4개 EMPTY·TC 0건. **D9 순서 그대로 완주.** 도중 REJECTED@10 자가 회복(트립 유지→잔여 계속→환원→재배차)도 실측 확인.
+
+**운영 노트:** AMR 시뮬레이터/실기가 이전 명령 sequence 를 점유하면 신규 moveCmd 가 REJECTED(resultCode=11) 반복 — cancelCmd(jobId=점유 job)로 해제(RabbitMQ 관리 API 로 amr.AMR001.command 발행 가능). localhost:5100 은 HD.Acs.App 이 선점 시 404 — 172.18.48.1:5100 사용.
+
+**남은 것:** 단독 회귀 실측(코드 경로는 동일 — AdvanceTour 1건 축약), C5 실측(배칭 중 JOBCANCEL), STEP≥30 일반 실패 경로(EXCHANGEFAILED_MANUAL — MES 협의), 구현사양서 §2.4 상태 모델 정정.

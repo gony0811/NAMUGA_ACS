@@ -113,6 +113,19 @@ namespace ACS.Elsa.Workflows.Trans
                     return;
                 }
 
+                // 노드 동기화: AMR 이 status 에 currentNodeId/pose 를 싣지 않는 기체(실기 v0.3)에서는
+                // DB CurrentNodeId 가 갱신되지 않아 노드 매칭 기반 도착 판정이 영원히 skip 된다.
+                // 명시적 ARRIVED reply 는 "지시받은 노드에 도착했다"는 권위 보고이므로,
+                // 진행 중 목적지(AcsDestNodeId)로 CurrentNodeId 를 동기화한 뒤 도착 판정에 진입한다.
+                if (!string.IsNullOrEmpty(vehicle.AcsDestNodeId)
+                    && !string.Equals(vehicle.CurrentNodeId, vehicle.AcsDestNodeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    rm.UpdateVehicleLocation(vehicle, vehicle.AcsDestNodeId, "RAIL-VEHICLEARRIVED");
+                    vehicle.CurrentNodeId = vehicle.AcsDestNodeId;
+                    logger.Info($"HandleVehicleArrivedActivity: ARRIVED reply 기반 노드 동기화 — " +
+                                $"vehicleId={vehicleId}, currentNode→{vehicle.AcsDestNodeId} (status 노드 미보고 기체 대응)");
+                }
+
                 logger.Info($"HandleVehicleArrivedActivity: AMR ARRIVED reply → RAIL-VEHICLEDESTARRIVED dispatch. " +
                             $"vehicleId={vehicleId}, commandId={commandId}, step={step}, currentNode={vehicle.CurrentNodeId}");
                 workflowManager.Execute("RAIL-VEHICLEDESTARRIVED", (object)vehicleId);
