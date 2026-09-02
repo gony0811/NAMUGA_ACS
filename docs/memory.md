@@ -1125,6 +1125,7 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 **현재 상태:** S4 코드 완성. 다음 슬라이스(S5)는 Origin 도착/픽업 완료 → MOVE_TO_EQUIP(Step=20) 진행 — RailVehicleDestArrived/AcquireCompleted 계열에 EXCHANGE 분기 필요.
 
+<<<<<<< Updated upstream
 ---
 
 ## 42. ACS.UI v1.0.0 최초 실배포 (CS 서버, 절차 A)
@@ -1426,3 +1427,25 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **운영 노트:** AMR 시뮬레이터/실기가 이전 명령 sequence 를 점유하면 신규 moveCmd 가 REJECTED(resultCode=11) 반복 — cancelCmd(jobId=점유 job)로 해제(RabbitMQ 관리 API 로 amr.AMR001.command 발행 가능). localhost:5100 은 HD.Acs.App 이 선점 시 404 — 172.18.48.1:5100 사용.
 
 **남은 것:** 단독 회귀 실측(코드 경로는 동일 — AdvanceTour 1건 축약), C5 실측(배칭 중 JOBCANCEL), STEP≥30 일반 실패 경로(EXCHANGEFAILED_MANUAL — MES 협의), 구현사양서 §2.4 상태 모델 정정.
+=======
+
+---
+
+## 로컬 DB 백업 → 다른 서버 이전 스크립트 (backup-local.ps1)
+
+**날짜:** 2026-08-12
+**작업:** 로컬 docker 컨테이너(acs-postgres-db)의 acsdb 를 .sql 파일로 백업해 다른 테스트 서버로 수동 전달·복원하는 스크립트 추가
+
+**신규 파일:** `docker/scripts/backup-local.ps1`
+- `dump-from-prod.ps1` 패턴 재사용 (컨테이너 내부 pg_dump, PS5.1 인용 버그 회피용 .sh 합성 → docker cp → bash 실행)
+- 원격 -h 옵션 없이 컨테이너 자신의 로컬 소켓으로 접속하는 점만 다름
+- 이력(NA_H_*) 10개 + 로그(NA_L_*) 2개 테이블 --exclude-table-and-children 제외 (기존 스크립트와 동일 목록)
+- 출력: `docker/backups/acs-local-<timestamp>.sql`
+- 복원은 기존 `restore-prod-dump.ps1 -InputFile <파일>` 을 대상 서버에서 그대로 사용
+
+**주의 (Windows PowerShell 5.1 호환):**
+- .ps1 은 UTF-8 **BOM 포함**으로 저장해야 함 — BOM 없으면 5.1 이 ANSI(CP949)로 읽어 한글 주석에서 파서 에러
+- param 기본값에서 `$PSScriptRoot` 가 비어 `C:\backups` 로 새는 문제 → 본문에서 `$MyInvocation.MyCommand.Path` 로 계산
+
+**검증:** DryRun 으로 합성 명령 확인 후 실제 실행 — CREATE TABLE 30, COPY 30, NA_H_*/NA_L_* 누출 0, 47KB 덤프 생성 확인. 대상 서버에서의 복원은 미실시.
+>>>>>>> Stashed changes
