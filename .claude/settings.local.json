@@ -13,10 +13,19 @@
       "Bash(git -C \"D:\\\\github\\\\NAMUGA_ACS\" log --oneline --all)",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --oneline --all -- \"*Velopack*\" \"*publish-ui*\" \"*release*\")",
       "Bash(git -C \"C:\\\\Users\\\\user\\\\Documents\\\\GitHub\\\\NAMUGA_ACS\" log --all --oneline)",
+<<<<<<< HEAD
       "Read(//c/acs/deploy/HS01_P/**)",
       "Read(//c/acs/deploy/HS01_P/logs/**)",
       "Read(//c/Users/user/Downloads/ACS프로그램 테스트/Namuga_ACS_MES_IF_Validator_Deploy_20260806_151023/**)",
       "Bash(PGPASSWORD=1234 psql -h localhost -U postgres -d acsdb -t -c \"SELECT location_id, station_id FROM na_r_location ORDER BY location_id LIMIT 40;\")"
+=======
+      "Bash(echo \"exit=$?\")",
+      "Bash(netstat -ano)",
+      "PowerShell(docker exec acs-postgres-db *)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:5100/api/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"userId\":\"admin\",\"password\":\"__wrong__\"}' -UseBasicParsing -TimeoutSec 5 } catch { $r = $_.Exception.Response }; if \\($r -is [System.Net.HttpWebResponse]\\) { \"Status: $\\([int]$r.StatusCode\\)\"; \\(New-Object IO.StreamReader\\($r.GetResponseStream\\(\\)\\)\\).ReadToEnd\\(\\) } else { \"Status: $\\($r.StatusCode\\)\"; $r.Content })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:5100/api/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"userId\":\"admin\",\"password\":\"admin\"}' -UseBasicParsing -TimeoutSec 5; \"Status: $\\([int]$r.StatusCode\\)\"; $r.Content } catch { \"Status: $\\([int]$_.Exception.Response.StatusCode\\)\" })",
+      "PowerShell(Join-Path *)"
+>>>>>>> main
     ]
   }
 }

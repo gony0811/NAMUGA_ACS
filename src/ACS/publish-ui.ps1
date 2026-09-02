@@ -9,7 +9,8 @@
 # 3) -ReleaseDir 지정 시 CS 서빙 경로(예: C:\acs\releases\ui)로 복사
 #    - /MIR 절대 금지 — 델타/이전 릴리스 파일을 피드에 누적 유지해야 함
 #
-# 클라이언트 최초 설치: http://<CS호스트>:5100/releases/ui/AcsUi-win-Setup.exe 다운로드 후 실행
+# 클라이언트 최초 설치: http://<CS호스트>:5100/releases/ui/AcsUi-win-Setup.zip 다운로드 → 압축 해제 → 실행
+#   (.exe 직접 다운로드는 Edge가 "안전하지 않은 다운로드"로 차단 — docs/deploy-ui.md 참조)
 # 사이트별 Backend.Host 설정: C:\ProgramData\ACS.UI\appsettings.json (업데이트에도 보존됨)
 #
 # 사용법:
@@ -57,7 +58,7 @@ Write-Host ""
 
 # 1) Publish — self-contained win-x64 (클라이언트 PC 에 .NET 런타임 불필요)
 if (-not $SkipPublish) {
-    Write-Host "[1/3] dotnet publish ..." -ForegroundColor Cyan
+    Write-Host "[1/4] dotnet publish ..." -ForegroundColor Cyan
     if (Test-Path $Staging) { Remove-Item -Recurse -Force $Staging }
     & dotnet publish $proj -c $Configuration -r win-x64 --self-contained -o $Staging -p:Version=$Version
     if ($LASTEXITCODE -ne 0) {
@@ -66,7 +67,7 @@ if (-not $SkipPublish) {
     }
     Write-Host ""
 } else {
-    Write-Host "[1/3] Skipped publish (-SkipPublish)" -ForegroundColor Yellow
+    Write-Host "[1/4] Skipped publish (-SkipPublish)" -ForegroundColor Yellow
     Write-Host ""
 }
 
@@ -76,7 +77,7 @@ if (-not (Test-Path (Join-Path $Staging 'ACS.UI.exe'))) {
 }
 
 # 2) vpk pack — outputDir 에 이전 릴리스가 있으면 델타 자동 생성
-Write-Host "[2/3] vpk pack ..." -ForegroundColor Cyan
+Write-Host "[2/4] vpk pack ..." -ForegroundColor Cyan
 & vpk pack --packId AcsUi --packVersion $Version --packDir $Staging `
            --mainExe ACS.UI.exe --packTitle 'ACS UI' --outputDir $outDir
 if ($LASTEXITCODE -ne 0) {
@@ -85,9 +86,21 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host ""
 
-# 3) 릴리스 피드 복사 (누적 — /MIR 금지)
+# 3) Setup.exe → Setup.zip — Edge가 평문 HTTP의 .exe 다운로드를 차단하므로 zip 으로도 제공
+#    (폐쇄망에서 SmartScreen 평판 조회 실패 시 추가 차단됨. zip 은 차단 대상이 아님)
+Write-Host "[3/4] Compress Setup.exe -> Setup.zip ..." -ForegroundColor Cyan
+$setupExe = Join-Path $outDir 'AcsUi-win-Setup.exe'
+if (Test-Path $setupExe) {
+    Compress-Archive -Path $setupExe -DestinationPath (Join-Path $outDir 'AcsUi-win-Setup.zip') -Force
+    Write-Host "Created: AcsUi-win-Setup.zip"
+} else {
+    Write-Warning "Setup.exe not found: $setupExe — zip 생성 생략"
+}
+Write-Host ""
+
+# 4) 릴리스 피드 복사 (누적 — /MIR 금지)
 if ($ReleaseDir) {
-    Write-Host "[3/3] Copy to release feed: $ReleaseDir ..." -ForegroundColor Cyan
+    Write-Host "[4/4] Copy to release feed: $ReleaseDir ..." -ForegroundColor Cyan
     & robocopy $outDir $ReleaseDir /E /R:1 /W:1 /NJH /NJS /NDL /NP | Out-Host
     if ($LASTEXITCODE -ge 8) {
         Write-Error "robocopy failed (exit=$LASTEXITCODE)"
@@ -95,6 +108,6 @@ if ($ReleaseDir) {
     }
     Write-Host "Release v$Version published to feed" -ForegroundColor Green
 } else {
-    Write-Host "[3/3] ReleaseDir 미지정 — 피드 복사 생략. 출력: $outDir" -ForegroundColor Yellow
+    Write-Host "[4/4] ReleaseDir 미지정 — 피드 복사 생략. 출력: $outDir" -ForegroundColor Yellow
 }
 exit 0

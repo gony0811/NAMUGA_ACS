@@ -1078,6 +1078,7 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 **핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).
 
+<<<<<<< HEAD
 ## 40. EXCHANGE S3 배선 완성 — EXCHANGECMD "Unknown host message" 해결
 
 **날짜:** 2026-08-12
@@ -1449,3 +1450,40 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 **검증:** DryRun 으로 합성 명령 확인 후 실제 실행 — CREATE TABLE 30, COPY 30, NA_H_*/NA_L_* 누출 0, 47KB 덤프 생성 확인. 대상 서버에서의 복원은 미실시.
 >>>>>>> Stashed changes
+=======
+---
+
+## 40. CS 기동 시 UI 릴리스 피드 자동 부트스트랩
+
+**날짜:** 2026-08-10
+**작업:** CS(control) 기동 시 릴리스 피드(`Acs:Api:ClientReleasePath`)가 **완전히 비어 있으면** 자동으로 채우는 부트스트랩 추가.
+
+**구현:**
+- 신규 `ACS.App/Web/ReleaseFeedBootstrapper.cs` — `Program.cs` RunWebHost의 `Directory.CreateDirectory(releasePath)` 직후 `Bootstrap(releasePath)` 호출.
+- 우선순위: (1) 배포본 시드 `{BaseDirectory}\releases-seed\ui\`에 `releases.win.json` 존재 → 동기 복사, (2) 상위 디렉토리에서 `publish-ui.ps1` 탐색(소스 실행 감지) 후 그 옆 `releases\ui\`에 기존 산출물 존재 → 동기 복사, (3) 산출물 없음 + `vpk --help` 실행 가능 → `Task.Run`으로 `publish-ui.ps1 -Version <v> -ReleaseDir <피드>` 백그라운드 실행, (4) 모두 불가 → 경고 로그만.
+- 버전은 `ACS.UI.csproj`의 `<Version>` XDocument 파싱(실패 시 1.0.0). 스크립트 stdout/stderr는 Serilog `[ReleaseFeed]` 로 중계.
+
+**핵심 사실:**
+- 피드에 파일이 하나라도 있으면 아무것도 안 함 — 델타 체인 보호.
+- **vpk 중복 버전 거부는 피드가 아니라 출력 폴더(`src/ACS/releases/ui`) 기준** — 출력 폴더에 산출물이 남아 있으면(예: v1.2.3) 빈 피드라도 재패키징이 실패한다. 그래서 (2) 기존 산출물 복사 단계가 필수. csproj `<Version>`(1.0.0)은 스크립트 `-p:Version` 덮어쓰기 방식이라 실제 릴리스 버전과 다를 수 있음.
+- ACS.UI는 ACS.App의 ProjectReference가 아니므로 `dotnet watch`로 CS 실행 중 백그라운드 UI publish가 watch 재시작을 유발하지 않음.
+- 런타임 자동 빌드는 소스 트리 + .NET SDK + vpk가 있는 개발 머신 전용. 프로덕션 CS는 시드 복사 경로 사용(배포본 제작 시 `src/ACS/releases/ui` → `releases-seed\ui` 동봉).
+- 모든 실패는 `Log.Warning`으로만 처리 — CS 기동 비차단.
+
+**검증:** `dotnet build ACS.App.csproj` 0 오류. **런타임 미검증**: 빈 피드 + 소스 실행 → 백그라운드 패키징 → `releases.win.json` 생성, 시드 복사 경로, vpk 부재 시 경고 로그 (docs/deploy-ui.md "피드 자동 부트스트랩" 섹션 참조).
+
+---
+
+## 41. Edge의 Setup.exe 다운로드 차단 대응 (Setup.zip 동봉)
+
+**날짜:** 2026-08-11
+**작업:** 운영 PC에서 Edge가 피드의 `AcsUi-win-Setup.exe` 다운로드를 차단하는 문제 대응.
+
+**원인:** 피드가 평문 HTTP(5100)로 서빙되는데 Edge는 HTTP로 전송되는 .exe를 "안전하지 않은 다운로드"로 차단. 폐쇄망이라 SmartScreen 평판 조회도 실패해 추가 경고.
+
+**구현:**
+- `publish-ui.ps1`에 [3/4] 단계 추가 — vpk pack 후 `AcsUi-win-Setup.exe`를 `Compress-Archive`로 `AcsUi-win-Setup.zip` 생성. 출력 폴더에 만들어지므로 robocopy 피드 복사·ReleaseFeedBootstrapper·디렉토리 브라우저에 자동 포함(다른 코드 수정 없음).
+- `docs/deploy-ui.md` — 신규 설치 안내를 zip 경로로 변경, "Edge 다운로드 차단 대응" 섹션 신설(수동 우회 Keep-anyway, `ExemptDomainFileTypePairsFromFileTypeDownloadWarnings` + `SmartScreenAllowListDomains` 레지스트리 정책 .reg 예시).
+
+**미완료:** 기존 피드에는 zip이 없음 — 다음 회차 배포 시 자동 포함되거나, 즉시 필요하면 CS 피드 폴더에서 수동으로 Setup.exe를 zip으로 압축해 두면 됨.
+>>>>>>> main

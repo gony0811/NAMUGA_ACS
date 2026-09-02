@@ -63,6 +63,30 @@ ACS.UI는 고객 현장 PC에 설치되는 Avalonia 데스크탑 앱이며, **Ve
 
 ---
 
+## 피드 자동 부트스트랩 (CS 기동 시)
+
+CS(control)는 기동 시 피드 폴더가 **완전히 비어 있으면** 자동으로 릴리스를 구성한다
+(`ACS.App/Web/ReleaseFeedBootstrapper.cs`). 파일이 하나라도 있으면 델타 체인 보호를 위해 건드리지 않는다.
+
+우선순위:
+
+1. **시드 복사 (배포본)** — CS 실행 폴더의 `releases-seed\ui\`에 `releases.win.json`이 있으면
+   해당 폴더 전체를 피드로 복사. CS 배포본을 만들 때 `src/ACS/releases/ui` 산출물을
+   `releases-seed\ui\`로 함께 담아두면 된다. 소스/SDK 없는 프로덕션 서버에서도 동작.
+2. **소스 트리 기존 산출물 복사 (개발)** — 실행 폴더 상위에서 `publish-ui.ps1`이 발견되고(소스
+   실행) 그 옆 `releases\ui\`에 이미 패키징된 산출물이 있으면 그대로 피드로 복사.
+   재패키징하지 않는 이유: vpk가 기존 버전 이하의 재패키징을 거부한다(중복 버전).
+3. **런타임 자동 빌드 (개발, 산출물 없음)** — 위 둘 다 없고 `vpk` CLI가 설치되어 있으면
+   **백그라운드로** `publish-ui.ps1 -Version <csproj Version> -ReleaseDir <피드경로>`를 실행한다.
+   버전은 `ACS.UI.csproj`의 `<Version>`을 사용. CS 기동은 지연되지 않으며, 진행/실패 내역은
+   CS 로그의 `[ReleaseFeed]` 항목으로 확인한다.
+4. 모두 불가하면 경고 로그만 남기고 기존처럼 빈 피드로 기동한다.
+
+> 자동 구성은 **최초 1회(빈 피드) 전용**이다. 이후 회차 배포는 아래 절차 A/B를 그대로 따른다.
+> 폐쇄망 빌드 PC에서는 restore 지연으로 백그라운드 빌드가 오래 걸릴 수 있다(기동에는 영향 없음).
+
+---
+
 ## 절차 A — CS 서버에서 직접 빌드
 
 CS 서버에서 빌드/배포를 모두 수행하는 경우, 한 줄로 끝난다.
@@ -142,14 +166,51 @@ pwsh src/ACS/publish-ui.ps1 -Version <새버전>
 - 업데이트 준비되면 UI 상단에 재시작 배너 표시 → 즉시 재시작 적용도 가능.
 
 ### 신규 PC (최초 설치)
-1. 브라우저로 Setup 다운로드 후 실행:
+1. 브라우저로 Setup **zip** 다운로드 → 압축 해제 → `AcsUi-win-Setup.exe` 실행:
    ```
-   http://<CS호스트>:5100/releases/ui/AcsUi-win-Setup.exe
+   http://<CS호스트>:5100/releases/ui/AcsUi-win-Setup.zip
    ```
+   - `.exe` 직접 다운로드는 Edge가 차단한다 — 아래 "Edge 다운로드 차단 대응" 참조.
+   - 실행 시 SmartScreen 경고("Windows의 PC 보호")가 뜨면 **추가 정보 → 실행**.
 2. 사이트별 백엔드 주소 설정 — `C:\ProgramData\ACS.UI\appsettings.json` (업데이트에도 보존됨):
    ```json
    { "Backend": { "Host": "10.0.26.2", "Port": 5100 } }
    ```
+
+---
+
+## Edge 다운로드 차단 대응
+
+Edge는 **평문 HTTP로 전송되는 실행 파일(.exe)** 다운로드를 "안전하게 다운로드할 수 없음"으로
+차단한다. 폐쇄망에서는 SmartScreen 평판 조회도 실패하므로 추가 경고가 발생한다.
+피드가 HTTP(5100)로 서빙되는 구조상 다음 중 하나로 대응한다.
+
+### 방법 1 — zip 다운로드 (기본, 권장)
+
+`publish-ui.ps1`이 `AcsUi-win-Setup.zip`을 함께 생성한다. zip은 Edge 차단 대상이 아니므로
+신규 설치는 zip 경로를 사용한다 (위 "신규 PC" 절차).
+
+### 방법 2 — 수동 우회 (1회성)
+
+`.exe`를 직접 받아야 할 때: Edge 우측 상단 다운로드 알림에서
+**"…" 메뉴 → 유지(Keep) → 자세히 표시 → 그래도 유지(Keep anyway)**.
+
+### 방법 3 — 레지스트리 정책 (운영 PC 1회 설정)
+
+운영 PC에서 반복 다운로드가 필요하면 Edge 정책으로 CS 호스트를 예외 처리한다.
+아래 내용을 `.reg` 파일로 저장 후 관리자 권한으로 실행 (`<CS호스트>`를 실제 IP/호스트명으로 교체):
+
+```reg
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge]
+"ExemptDomainFileTypePairsFromFileTypeDownloadWarnings"="[{\"file_extension\":\"exe\",\"domains\":[\"<CS호스트>\"]}]"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\SmartScreenAllowListDomains]
+"1"="<CS호스트>"
+```
+
+적용 확인: Edge 재시작 후 `edge://policy`에서 두 정책이 보이는지 확인.
 
 ---
 
@@ -161,6 +222,8 @@ pwsh src/ACS/publish-ui.ps1 -Version <새버전>
 | 일정 회차 뒤 업데이트가 깨짐 | 복사 시 `/MIR`로 이전 파일 삭제 → 델타 체인 붕괴 | `/MIR` 금지, 누적 복사 유지 |
 | `vpk pack` 실패 | 버전 미증가(중복) | `-Version`을 직전보다 증가 |
 | 피드 파일이 404 | ACS.App 미실행 또는 `ClientReleasePath` 경로 불일치 | ACS.App 기동 / `appsettings.json` 경로 확인 |
+| 피드 자동 구성이 안 됨 | 피드에 파일이 이미 있음 / vpk 미설치 / 소스 트리 아님 / 시드 폴더 없음 | CS 로그의 `[ReleaseFeed]` 경고 확인 후 조건 충족 또는 수동 배포 |
+| Setup.exe 다운로드가 차단됨 | Edge의 HTTP .exe 다운로드 차단 + 폐쇄망 SmartScreen 실패 | `AcsUi-win-Setup.zip` 사용 또는 "Edge 다운로드 차단 대응" 섹션의 정책 적용 |
 
 ---
 

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using ACS.App.Web;
 using ACS.App.Web.Hubs;
 using ACS.Core.Host;
 using Serilog;
@@ -187,6 +188,8 @@ static class Program
 
         builder.Services.AddSignalR();
 
+        builder.Services.AddDirectoryBrowser();
+
         // 로그인 세션 보관소 — 메모리 기반 토큰 스토어 (싱글톤)
         builder.Services.AddSingleton<ACS.App.Web.Auth.SessionStore>();
 
@@ -214,12 +217,19 @@ static class Program
         // 피드 파일(.nupkg, RELEASES, releases.win.json)은 기본 MIME 매핑에 없으므로 ServeUnknownFileTypes 필수.
         string releasePath = configuration["Acs:Api:ClientReleasePath"] ?? @"C:\acs\releases\ui";
         System.IO.Directory.CreateDirectory(releasePath);   // PhysicalFileProvider는 폴더 부재 시 예외
+        ReleaseFeedBootstrapper.Bootstrap(releasePath);     // 피드가 비어 있으면 시드 복사 또는 백그라운드 자동 빌드
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(releasePath),
             RequestPath = "/releases/ui",
             ServeUnknownFileTypes = true,
             DefaultContentType = "application/octet-stream"
+        });
+        // 폴더 경로(/releases/ui) 접속 시 파일 목록 표시 — 운영 PC에서 Setup.exe를 클릭으로 다운로드
+        app.UseDirectoryBrowser(new DirectoryBrowserOptions
+        {
+            FileProvider = new PhysicalFileProvider(releasePath),
+            RequestPath = "/releases/ui"
         });
 
         app.MapControllers();
