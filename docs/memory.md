@@ -1078,7 +1078,8 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 **핵심 사실(재확인):** 델타는 `vpk pack` 시 출력 폴더에 직전 `.nupkg`가 있어야 생성됨 → 빌드 PC가 CS와 분리되면 빌드 전 `vpk download http --url http://<CS>:5100/releases/ui`로 동기화 필수. 피드 복사 시 `/MIR` 금지(이전 회차/델타 삭제 = 체인 붕괴). 버전은 회차마다 증가(SemVer, vpk 중복 거부).
 
-<<<<<<< HEAD
+---
+
 ## 40. EXCHANGE S3 배선 완성 — EXCHANGECMD "Unknown host message" 해결
 
 **날짜:** 2026-08-12
@@ -1126,7 +1127,6 @@ private void FlattenSection(IConfigurationSection section, string prefix, NameVa
 
 **현재 상태:** S4 코드 완성. 다음 슬라이스(S5)는 Origin 도착/픽업 완료 → MOVE_TO_EQUIP(Step=20) 진행 — RailVehicleDestArrived/AcquireCompleted 계열에 EXCHANGE 분기 필요.
 
-<<<<<<< Updated upstream
 ---
 
 ## 42. ACS.UI v1.0.0 최초 실배포 (CS 서버, 절차 A)
@@ -1428,11 +1428,10 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 **운영 노트:** AMR 시뮬레이터/실기가 이전 명령 sequence 를 점유하면 신규 moveCmd 가 REJECTED(resultCode=11) 반복 — cancelCmd(jobId=점유 job)로 해제(RabbitMQ 관리 API 로 amr.AMR001.command 발행 가능). localhost:5100 은 HD.Acs.App 이 선점 시 404 — 172.18.48.1:5100 사용.
 
 **남은 것:** 단독 회귀 실측(코드 경로는 동일 — AdvanceTour 1건 축약), C5 실측(배칭 중 JOBCANCEL), STEP≥30 일반 실패 경로(EXCHANGEFAILED_MANUAL — MES 협의), 구현사양서 §2.4 상태 모델 정정.
-=======
 
 ---
 
-## 로컬 DB 백업 → 다른 서버 이전 스크립트 (backup-local.ps1)
+## 55. 로컬 DB 백업 → 다른 서버 이전 스크립트 (backup-local.ps1)
 
 **날짜:** 2026-08-12
 **작업:** 로컬 docker 컨테이너(acs-postgres-db)의 acsdb 를 .sql 파일로 백업해 다른 테스트 서버로 수동 전달·복원하는 스크립트 추가
@@ -1449,11 +1448,10 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 - param 기본값에서 `$PSScriptRoot` 가 비어 `C:\backups` 로 새는 문제 → 본문에서 `$MyInvocation.MyCommand.Path` 로 계산
 
 **검증:** DryRun 으로 합성 명령 확인 후 실제 실행 — CREATE TABLE 30, COPY 30, NA_H_*/NA_L_* 누출 0, 47KB 덤프 생성 확인. 대상 서버에서의 복원은 미실시.
->>>>>>> Stashed changes
-=======
+
 ---
 
-## 40. CS 기동 시 UI 릴리스 피드 자동 부트스트랩
+## 56. CS 기동 시 UI 릴리스 피드 자동 부트스트랩
 
 **날짜:** 2026-08-10
 **작업:** CS(control) 기동 시 릴리스 피드(`Acs:Api:ClientReleasePath`)가 **완전히 비어 있으면** 자동으로 채우는 부트스트랩 추가.
@@ -1474,7 +1472,7 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 
 ---
 
-## 41. Edge의 Setup.exe 다운로드 차단 대응 (Setup.zip 동봉)
+## 57. Edge의 Setup.exe 다운로드 차단 대응 (Setup.zip 동봉)
 
 **날짜:** 2026-08-11
 **작업:** 운영 PC에서 Edge가 피드의 `AcsUi-win-Setup.exe` 다운로드를 차단하는 문제 대응.
@@ -1486,4 +1484,26 @@ START → ARRIVED(20) → ACTIONCMD(UNLOAD, ACT=UNLOAD·slot3) → SC(30) → AC
 - `docs/deploy-ui.md` — 신규 설치 안내를 zip 경로로 변경, "Edge 다운로드 차단 대응" 섹션 신설(수동 우회 Keep-anyway, `ExemptDomainFileTypePairsFromFileTypeDownloadWarnings` + `SmartScreenAllowListDomains` 레지스트리 정책 .reg 예시).
 
 **미완료:** 기존 피드에는 zip이 없음 — 다음 회차 배포 시 자동 포함되거나, 즉시 필요하면 CS 피드 폴더에서 수동으로 Setup.exe를 zip으로 압축해 두면 됨.
->>>>>>> main
+
+---
+
+## 58. 맵 알람 실시간 표시 + hover 사유 표시 (VehicleAlarm SignalR 경로 신설)
+
+**날짜:** 2026-08-28 (병합 충돌로 유실됐던 기록 복원 — 2026-09-03)
+**작업:** AMR error/alarm 발생 시 맵에서 즉시 알 수 있게 하고, 차량에 마우스를 올리면 사유(errorCode/errorMessage)가 보이도록 구현.
+
+**배경(기존 한계):** AMR error의 사유는 EI→Trans RAIL-VEHICLEALARM 메시지에 실려 오지만 Trans가 `Vehicle.AlarmState`(ALARM/NOALARM)만 DB에 반영하고 사유는 로그로만 남김. SignalR VehicleUpdate(1Hz)에는 AlarmState가 아예 없어 맵의 알람 표시는 REST 초기 로드 이후 갱신되지 않았음.
+
+**구현 (경로: Trans → UI/SENDER → SignalR → 맵):**
+- `RailVehicleAlarmWorkflow.cs` — AlarmState 전이가 실제로 일어난 경우에만 수신 JSON을 `UiAgentSender`로 UI에 forward (RailVehicleUpdateWorkflow의 ForwardToUi 패턴 복제).
+- `PoseTelemetrySubscriber.cs` — 같은 fanout exchange에 두 messageName이 오므로 `header.messageName == "RAIL-VEHICLEALARM"` 분기 신설 → SignalR `VehicleAlarm` 이벤트 브로드캐스트 (vehicleId/commId/type/errorCode/errorMessage/eventTime). **분기 없이 두면 알람 메시지가 VehicleUpdate로 오파싱되어 BatteryRate=0 오염 발생.**
+- UI: 신규 `VehicleAlarmDto`, `VehicleHubClient.VehicleAlarmReceived` 이벤트, `App.axaml.cs` 배선, `VehicleDto`에 `AlarmCode/AlarmText/AlarmTime` 추가.
+- `MapViewModel.ApplyVehicleAlarm()` — SET→ALARM+사유 저장, RESET→NOALARM+클리어 (매칭 규칙은 ApplyVehicleUpdate와 동일). `UpdateVehicles()` REST merge에 알람 사유 3필드 보존 추가 (REST에는 사유가 없으므로).
+- `MapCanvas.cs` — AlarmState=ALARM 차량에 빨간 링(상시) + 깜빡이는 글로우(500ms DispatcherTimer, 알람 차량 있을 때만 재렌더) + '!' 배지. hover 팝업에 Alarm 행 빨간색 강조 + Alarm Code/Reason/Time 행 추가(사유 60자 초과 시 말줄임).
+
+**핵심 사실:**
+- 알람 사유는 DB에 저장되지 않음 — SignalR 전이 이벤트로만 전달. **UI가 알람 발생 후에 시작되면 AlarmState=ALARM(REST)은 보이지만 코드/사유는 "-"로 표시됨.** 완전하게 하려면 Vehicle 테이블에 AlarmCode/AlarmText 컬럼 추가 또는 알람 이력 REST 신설 필요(미착수).
+- MQTT `amr/{id}/alarm` 토픽은 "AMR-ALARM-RECEIVED" 워크플로우를 호출하지만 해당 DefinitionId의 워크플로우가 없어 사실상 미구현 — 현재 알람 판정은 status 메시지의 `error.code != 0` 경로가 유일.
+- 빌드는 Telerik NuGet 소스 401 때문에 기본 restore가 실패 — `dotnet restore <proj> -s https://api.nuget.org/v3/index.json --ignore-failed-sources` 후 `dotnet build --no-restore` 사용.
+
+**검증:** ACS.App/ACS.UI `dotnet build` 0 오류. **런타임 미검증:** 시뮬레이터로 error.code≠0 status 발행 → 맵 강조/hover 사유 표시 확인 필요.
