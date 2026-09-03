@@ -20,6 +20,12 @@ public class VehicleHubClient : IAsyncDisposable
     /// </summary>
     public event Action<VehicleUpdateDto> VehicleUpdated;
 
+    /// <summary>
+    /// VehicleAlarm(알람 SET/RESET 전이) 수신 시 발생. 전이 시에만 오므로 놓치면 안 된다.
+    /// 핸들러는 SignalR 워커 스레드에서 호출된다 — UI 갱신 시 Dispatcher 마샬링 필요.
+    /// </summary>
+    public event Action<VehicleAlarmDto> VehicleAlarmReceived;
+
     public VehicleHubClient(string baseUrl)
     {
         _connection = new HubConnectionBuilder()
@@ -30,6 +36,11 @@ public class VehicleHubClient : IAsyncDisposable
         _connection.On<VehicleUpdateDto>("VehicleUpdate", dto =>
         {
             VehicleUpdated?.Invoke(dto);
+        });
+
+        _connection.On<VehicleAlarmDto>("VehicleAlarm", dto =>
+        {
+            VehicleAlarmReceived?.Invoke(dto);
         });
     }
 

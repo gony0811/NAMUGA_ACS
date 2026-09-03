@@ -4,6 +4,7 @@ using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Activities;
 using Elsa.Workflows.Attributes;
+using ACS.Communication.Msb;
 using ACS.Communication.Mqtt.Model;
 using ACS.Core.Logging;
 using ACS.Core.Resource;
@@ -122,10 +123,35 @@ namespace ACS.Elsa.Workflows.Trans
                 string previousAlarmState = vehicle.AlarmState;
                 resourceManager.UpdateVehicleAlarmState(vehicle, nextAlarmState, MsgName);
                 logger.Info($"RailVehicleAlarmActivity: vehicleId={data.VehicleId}, AlarmState {previousAlarmState} → {nextAlarmState} (type={data.Type}, errorCode={data.ErrorCode})");
+
+                // 상태 전이가 실제로 일어난 경우에만 UI 프로세스로 forward.
+                // UI BackgroundService(PoseTelemetrySubscriber)가 SignalR "VehicleAlarm"으로
+                // 브로드캐스트하여 맵의 알람 표시/사유(errorCode, errorMessage)를 실시간 갱신한다.
+                ForwardToUi(accessor, json);
             }
             catch (Exception e)
             {
                 logger.Error("RailVehicleAlarmActivity 오류", e);
+            }
+        }
+
+        private static void ForwardToUi(Bridge.AutofacContainerAccessor accessor, string json)
+        {
+            try
+            {
+                var uiAgent = accessor.ResolveNamed<IMessageAgent>("UiAgentSender");
+                if (uiAgent == null)
+                {
+                    logger.Warn("RailVehicleAlarmActivity: UiAgentSender 미등록 — UI forward skip");
+                    return;
+                }
+                uiAgent.Send((object)json);
+                if (logger.IsDebugEnabled)
+                    logger.Debug($"RailVehicleAlarmActivity: UI forward 완료, len={json?.Length ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                logger.Warn($"RailVehicleAlarmActivity: UI forwarding 실패 - {ex.Message}");
             }
         }
     }

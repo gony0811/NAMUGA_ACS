@@ -166,6 +166,14 @@ public partial class App : Application
                 mainViewModel.MapViewModel.ApplyVehicleUpdate(dto);
             });
         };
+        // 알람 SET/RESET 전이 → 맵 알람 강조 + hover 팝업 사유(errorCode/errorMessage) 갱신
+        _vehicleHub.VehicleAlarmReceived += dto =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                mainViewModel.MapViewModel.ApplyVehicleAlarm(dto);
+            });
+        };
         _ = _vehicleHub.StartAsync();
 
         // SignalR HostCommHub: Host(MES) TCP 통신 로그 → HostCommunicationViewModel 실시간 갱신

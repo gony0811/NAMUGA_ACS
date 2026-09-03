@@ -18,7 +18,8 @@ namespace ACS.App.Web.Realtime
     /// Trans 프로세스가 UiAgentSender(MULTICAST = fanout exchange)로 발행한
     /// RAIL-VEHICLEUPDATE JSON을 구독하여 POSE(X,Y,Angle)와 상태 필드(배터리/노드/런상태/연결)를
     /// VehicleHub.VehicleUpdate 이벤트로 모든 SignalR 클라이언트에 브로드캐스트한다.
-    /// (알람 AlarmState는 별도 메시지 RAIL-VEHICLEALARM 이므로 이 경로에 포함되지 않는다.)
+    /// 같은 exchange로 forward되는 RAIL-VEHICLEALARM(SET/RESET 전이)은 messageName으로 구분하여
+    /// VehicleHub.VehicleAlarm 이벤트로 브로드캐스트한다 (errorCode/errorMessage 포함).
     ///
     /// AMR 100대 × 1Hz 텔레메트리를 워크플로우 엔진을 거치지 않고 직접 처리하기 위해
     /// GenericWorkflowRabbitMQListener 대신 RabbitMQ.Client API를 직접 사용한다.
@@ -103,6 +104,14 @@ namespace ACS.App.Web.Realtime
                 var msg = JsonSerializer.Deserialize<RailVehicleUpdateMessage>(json);
                 if (msg?.Data == null) return;
 
+                // 같은 fanout exchange에 RAIL-VEHICLEALARM도 forward되므로 messageName으로 분기.
+                // (알람 메시지를 VehicleUpdate로 오파싱하면 BatteryRate=0 등으로 상태가 오염된다.)
+                if (string.Equals(msg.Header?.MessageName, "RAIL-VEHICLEALARM", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleVehicleAlarm(json);
+                    return;
+                }
+
                 var d = msg.Data;
 
                 // POSE뿐 아니라 Trans가 채운 권위 상태 스냅샷(ProcessingState/State/노드/TC/Path 등)을 함께 푸시한다.
@@ -147,6 +156,33 @@ namespace ACS.App.Web.Realtime
             {
                 _logger.LogWarning(ex, "PoseTelemetrySubscriber: message processing failed.");
             }
+        }
+
+        /// <summary>
+        /// Trans가 forward한 RAIL-VEHICLEALARM(SET/RESET 전이)을 SignalR "VehicleAlarm"으로 브로드캐스트.
+        /// UI는 이를 받아 맵의 알람 강조 표시와 hover 팝업의 사유(errorCode, errorMessage)를 갱신한다.
+        /// </summary>
+        private void HandleVehicleAlarm(string json)
+        {
+            var alarm = JsonSerializer.Deserialize<RailVehicleAlarmMessage>(json);
+            if (alarm?.Data == null) return;
+
+            var d = alarm.Data;
+            var payload = new
+            {
+                vehicleId = d.VehicleId,
+                commId = d.CommId,
+                type = d.Type,
+                errorCode = d.ErrorCode,
+                errorMessage = d.ErrorMessage,
+                eventTime = d.EventTime
+            };
+
+            _ = _hub.Clients.All.SendAsync("VehicleAlarm", payload);
+
+            _logger.LogInformation(
+                "VehicleAlarm broadcast vehicleId={VehicleId} commId={CommId} type={Type} errorCode={ErrorCode} errorMessage={ErrorMessage}",
+                d.VehicleId, d.CommId, d.Type, d.ErrorCode, d.ErrorMessage);
         }
 
         public override Task StopAsync(CancellationToken cancellationToken)

@@ -33,6 +33,15 @@ public class VehicleDto
     public string BayId { get; set; }
     public string CarrierType { get; set; }
 
+    /// <summary>SignalR VehicleAlarm으로 수신한 최근 알람 코드. 알람 없거나 미수신 시 null.</summary>
+    public int? AlarmCode { get; set; }
+
+    /// <summary>SignalR VehicleAlarm으로 수신한 최근 알람 사유. 알람 없거나 미수신 시 null.</summary>
+    public string AlarmText { get; set; }
+
+    /// <summary>최근 알람 발생 시각 (SET 수신 시각 기준). 미수신 시 null.</summary>
+    public DateTime? AlarmTime { get; set; }
+
     /// <summary>SignalR로 수신한 실시간 X 좌표 (meters). 미수신 시 null.</summary>
     public float? PoseX { get; set; }
 

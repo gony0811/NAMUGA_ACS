@@ -207,6 +207,11 @@ public partial class MapViewModel : ObservableObject
                     nv.PoseX = prev.PoseX;
                     nv.PoseY = prev.PoseY;
                     nv.PoseAngle = prev.PoseAngle;
+                    // 알람 사유는 SignalR VehicleAlarm으로만 오므로 REST refresh가 지우면 안 됨.
+                    // AlarmState 자체는 DB 권위값(REST)을 그대로 사용한다.
+                    nv.AlarmCode = prev.AlarmCode;
+                    nv.AlarmText = prev.AlarmText;
+                    nv.AlarmTime = prev.AlarmTime;
                 }
             }
         }
@@ -294,6 +299,48 @@ public partial class MapViewModel : ObservableObject
         if (dto.PoseX.HasValue) vehicle.PoseX = dto.PoseX;
         if (dto.PoseY.HasValue) vehicle.PoseY = dto.PoseY;
         if (dto.PoseAngle.HasValue) vehicle.PoseAngle = dto.PoseAngle;
+
+        DataChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// SignalR로 수신한 알람 SET/RESET 전이를 적용한다.
+    /// SET → AlarmState=ALARM + 사유(코드/메시지/시각) 저장, RESET → NOALARM + 사유 클리어.
+    /// 호출 측에서 UI 스레드 마샬링을 보장해야 한다(Dispatcher.UIThread.Post).
+    /// 매칭 규칙은 ApplyVehicleUpdate와 동일 (VehicleId 또는 CommId, OrdinalIgnoreCase).
+    /// </summary>
+    public void ApplyVehicleAlarm(VehicleAlarmDto dto)
+    {
+        if (dto == null) return;
+        string vid = dto.VehicleId?.Trim();
+        string cid = dto.CommId?.Trim();
+        bool hasVid = !string.IsNullOrEmpty(vid);
+        bool hasCid = !string.IsNullOrEmpty(cid);
+        if (!hasVid && !hasCid) return;
+
+        var vehicle = _vehicles.FirstOrDefault(v =>
+            (hasVid && string.Equals(v.VehicleId?.Trim(), vid, StringComparison.OrdinalIgnoreCase)) ||
+            (hasCid && string.Equals(v.CommId?.Trim(), cid, StringComparison.OrdinalIgnoreCase)));
+        if (vehicle == null) return;
+
+        if (string.Equals(dto.Type, "SET", StringComparison.OrdinalIgnoreCase))
+        {
+            vehicle.AlarmState = "ALARM";
+            vehicle.AlarmCode = dto.ErrorCode;
+            vehicle.AlarmText = dto.ErrorMessage;
+            vehicle.AlarmTime = dto.EventTime == default ? DateTime.Now : dto.EventTime.ToLocalTime();
+        }
+        else if (string.Equals(dto.Type, "RESET", StringComparison.OrdinalIgnoreCase))
+        {
+            vehicle.AlarmState = "NOALARM";
+            vehicle.AlarmCode = null;
+            vehicle.AlarmText = null;
+            vehicle.AlarmTime = null;
+        }
+        else
+        {
+            return;
+        }
 
         DataChanged?.Invoke();
     }

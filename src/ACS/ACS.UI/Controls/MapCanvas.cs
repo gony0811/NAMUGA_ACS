@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using ACS.UI.Models;
 using ACS.UI.ViewModels;
 
@@ -62,6 +63,10 @@ public class MapCanvas : Control
     private static readonly IBrush VehicleDownBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
     private static readonly IBrush VehicleDisconnectBrush = new SolidColorBrush(Color.FromRgb(110, 118, 137));
 
+    // 알람(AlarmState=ALARM) 강조: 빨간 링 + '!' 배지 + 깜빡이는 글로우
+    private static readonly IBrush VehicleAlarmBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+    private static readonly IBrush VehicleAlarmGlowBrush = new SolidColorBrush(Color.FromArgb(70, 248, 113, 113));
+
     private static readonly IPen VehicleOutlinePen = new Pen(new SolidColorBrush(Color.FromRgb(220, 225, 235)), 2);
     private static readonly Typeface DefaultTypeface = new("Inter", FontStyle.Normal, FontWeight.Bold);
 
@@ -86,10 +91,43 @@ public class MapCanvas : Control
     /// </summary>
     private double EffectiveScale => _baseScale * _zoom;
 
+    // 알람 깜빡임: 알람 차량이 있을 때만 500ms 주기로 위상 토글 + 재렌더
+    private readonly DispatcherTimer _alarmBlinkTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private bool _alarmBlinkOn = true;
+
+    public MapCanvas()
+    {
+        _alarmBlinkTimer.Tick += OnAlarmBlinkTick;
+    }
+
+    private void OnAlarmBlinkTick(object sender, EventArgs e)
+    {
+        bool anyAlarm = _viewModel?.Vehicles?.Any(IsAlarmed) == true;
+        if (anyAlarm)
+        {
+            _alarmBlinkOn = !_alarmBlinkOn;
+            InvalidateVisual();
+        }
+        else if (!_alarmBlinkOn)
+        {
+            _alarmBlinkOn = true; // 다음 알람은 켜진 위상부터 시작
+        }
+    }
+
+    private static bool IsAlarmed(VehicleDto v) =>
+        string.Equals(v?.AlarmState, "ALARM", StringComparison.OrdinalIgnoreCase);
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         UpdateViewModel();
+        _alarmBlinkTimer.Start();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        _alarmBlinkTimer.Stop();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -578,41 +616,56 @@ public class MapCanvas : Control
             ? $"{v.PoseAngle.Value * 180.0 / Math.PI:F1}°"
             : "N/A";
 
-        var rows = new (string Label, string Value)[]
+        bool alarmed = IsAlarmed(v);
+        IBrush alarmValueBrush = alarmed ? VehicleAlarmBrush : null;
+
+        var rows = new List<(string Label, string Value, IBrush ValueBrush)>
         {
-            ("Vehicle ID",   v.VehicleId ?? "?"),
-            ("Connection",   v.ConnectionState ?? "-"),
-            ("State",        v.State ?? "-"),
-            ("Processing",   v.ProcessingState ?? "-"),
-            ("Run",          v.RunState ?? "-"),
-            ("Alarm",        v.AlarmState ?? "-"),
-            ("Transfer",     v.TransferState ?? "-"),
-            ("Battery",      $"{v.BatteryRate}%  ({v.BatteryVoltage:F1}V)"),
-            ("Position",     poseStr),
-            ("Heading",      angleStr),
-            ("Current Node", v.CurrentNodeId ?? "-"),
-            ("ACS Dest",     v.AcsDestNodeId ?? "-"),
-            ("Vehicle Dest", v.VehicleDestNodeId ?? "-"),
-            ("Carrier",      string.IsNullOrEmpty(v.CarrierType) ? "-" : v.CarrierType),
-            ("Cmd ID",       string.IsNullOrEmpty(v.TransportCommandId) ? "-" : v.TransportCommandId),
+            ("Vehicle ID",   v.VehicleId ?? "?", null),
+            ("Connection",   v.ConnectionState ?? "-", null),
+            ("State",        v.State ?? "-", null),
+            ("Processing",   v.ProcessingState ?? "-", null),
+            ("Run",          v.RunState ?? "-", null),
+            ("Alarm",        v.AlarmState ?? "-", alarmValueBrush),
         };
+
+        // 알람 사유 (SignalR VehicleAlarm 수신 시 채워짐; UI가 알람 발생 후 시작된 경우 코드/사유 미상)
+        if (alarmed || v.AlarmCode.HasValue || !string.IsNullOrEmpty(v.AlarmText))
+        {
+            string reason = string.IsNullOrEmpty(v.AlarmText) ? "-" : v.AlarmText;
+            if (reason.Length > 60) reason = reason.Substring(0, 60) + "…";
+            rows.Add(("Alarm Code",   v.AlarmCode?.ToString() ?? "-", alarmValueBrush));
+            rows.Add(("Alarm Reason", reason, alarmValueBrush));
+            if (v.AlarmTime.HasValue)
+                rows.Add(("Alarm Time", v.AlarmTime.Value.ToString("HH:mm:ss"), alarmValueBrush));
+        }
+
+        rows.Add(("Transfer",     v.TransferState ?? "-", null));
+        rows.Add(("Battery",      $"{v.BatteryRate}%  ({v.BatteryVoltage:F1}V)", null));
+        rows.Add(("Position",     poseStr, null));
+        rows.Add(("Heading",      angleStr, null));
+        rows.Add(("Current Node", v.CurrentNodeId ?? "-", null));
+        rows.Add(("ACS Dest",     v.AcsDestNodeId ?? "-", null));
+        rows.Add(("Vehicle Dest", v.VehicleDestNodeId ?? "-", null));
+        rows.Add(("Carrier",      string.IsNullOrEmpty(v.CarrierType) ? "-" : v.CarrierType, null));
+        rows.Add(("Cmd ID",       string.IsNullOrEmpty(v.TransportCommandId) ? "-" : v.TransportCommandId, null));
 
         const double fontSizePopup = 11.5;
         var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Normal);
         var labelBrush = new SolidColorBrush(Color.FromRgb(180, 190, 210));
         var valueBrush = Brushes.White;
 
-        var labelTexts = new FormattedText[rows.Length];
-        var valueTexts = new FormattedText[rows.Length];
+        var labelTexts = new FormattedText[rows.Count];
+        var valueTexts = new FormattedText[rows.Count];
         double maxLabelW = 0, maxValueW = 0, lineH = 0;
-        for (int i = 0; i < rows.Length; i++)
+        for (int i = 0; i < rows.Count; i++)
         {
             labelTexts[i] = new FormattedText(rows[i].Label,
                 System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, labelTypeface, fontSizePopup, labelBrush);
             valueTexts[i] = new FormattedText(rows[i].Value,
                 System.Globalization.CultureInfo.InvariantCulture,
-                FlowDirection.LeftToRight, DefaultTypeface, fontSizePopup, valueBrush);
+                FlowDirection.LeftToRight, DefaultTypeface, fontSizePopup, rows[i].ValueBrush ?? valueBrush);
             if (labelTexts[i].Width > maxLabelW) maxLabelW = labelTexts[i].Width;
             if (valueTexts[i].Width > maxValueW) maxValueW = valueTexts[i].Width;
             if (labelTexts[i].Height > lineH) lineH = labelTexts[i].Height;
@@ -621,7 +674,7 @@ public class MapCanvas : Control
         const double padding = 8;
         const double colGap = 12;
         double popupW = padding * 2 + maxLabelW + colGap + maxValueW;
-        double popupH = padding * 2 + lineH * rows.Length;
+        double popupH = padding * 2 + lineH * rows.Count;
 
         // 차량 우하단으로 약간 offset, 화면 안에 들어오도록 클램프
         const double offX = 22, offY = 12;
@@ -639,7 +692,7 @@ public class MapCanvas : Control
         double labelX = x + padding;
         double valueX = x + padding + maxLabelW + colGap;
         double textY = y + padding;
-        for (int i = 0; i < rows.Length; i++)
+        for (int i = 0; i < rows.Count; i++)
         {
             context.DrawText(labelTexts[i], new Point(labelX, textY));
             context.DrawText(valueTexts[i], new Point(valueX, textY));
@@ -1089,9 +1142,18 @@ public class MapCanvas : Control
             }
 
             IBrush brush = GetVehicleBrush(vehicle);
+            bool alarmed = IsAlarmed(vehicle);
+
+            // 알람 글로우 (차량 원 뒤, 깜빡임)
+            if (alarmed && _alarmBlinkOn)
+                context.DrawEllipse(VehicleAlarmGlowBrush, null, pos, radius * 1.9, radius * 1.9);
 
             // Vehicle circle
             context.DrawEllipse(brush, outlinePen, pos, radius, radius);
+
+            // 알람 링 (항상 표시 — 깜빡임 사이에도 알람 차량임을 식별 가능)
+            if (alarmed)
+                context.DrawEllipse(null, new Pen(VehicleAlarmBrush, penWidth * 1.6), pos, radius * 1.45, radius * 1.45);
 
             // 헤딩 표시: 월드 프레임 (cos θ, sin θ) 방향, 길이는 radius와 함께 줌 보정됨
             // 월드 +Y는 위쪽이므로 화면 Y는 반전 (- sin θ)
@@ -1128,6 +1190,19 @@ public class MapCanvas : Control
                                   vehicle.BatteryRate >= 30 ? Brushes.Gold : Brushes.Red;
             context.DrawRectangle(batteryBrush, null,
                 new Rect(pos.X - barWidth / 2, barY, fillWidth, barHeight));
+
+            // 알람 '!' 배지 (우상단)
+            if (alarmed)
+            {
+                double badgeR = Math.Max(radius * 0.45, 3);
+                var badgeC = new Point(pos.X + radius * 0.85, pos.Y - radius * 0.85);
+                context.DrawEllipse(VehicleAlarmBrush, new Pen(Brushes.White, penWidth * 0.8), badgeC, badgeR, badgeR);
+                var bang = new FormattedText("!",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight, DefaultTypeface,
+                    Math.Max(badgeR * 1.5, 1), Brushes.White);
+                context.DrawText(bang, new Point(badgeC.X - bang.Width / 2, badgeC.Y - bang.Height / 2));
+            }
         }
     }
 
